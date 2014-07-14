@@ -1,0 +1,14 @@
+{
+    "cmds": [
+        {
+            "name": "echo-hello-world",
+            "bin": "echo",
+            "args": ["hello", "world"]
+        },
+        {
+            "name": "echo-world-hello",
+            "bin": "echo",
+            "args": ["world", "hello"]
+        }
+    ]
+}
