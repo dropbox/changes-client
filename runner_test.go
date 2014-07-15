@@ -7,7 +7,7 @@ import (
 )
 
 func TestProgressChunks(t *testing.T) {
-    flag.Int("log_chunk_size", 3, "Chunk size")
+    flag.Set("log_chunk_size", "3")
 
     in := []byte("aaa\naaa\naaa\n")
     ch := make(chan LogChunk, 100)
