@@ -36,6 +36,8 @@ func NewRunner(id string, script string) *Runner {
 }
 
 func (r *Runner) Run() (*os.ProcessState, error) {
+    defer close(r.ChunkChan)
+
     stdin, err := r.Cmd.StdinPipe()
     if err != nil {
         return nil, err
@@ -78,7 +80,6 @@ func (r *Runner) Run() (*os.ProcessState, error) {
         return nil, err
     }
 
-    close(r.ChunkChan)
     return r.Cmd.ProcessState, nil
 }
 
