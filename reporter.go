@@ -1,7 +1,6 @@
 package runner
 
 import (
-    "os"
     "fmt"
     "net/http"
     "net/url"
@@ -22,6 +21,7 @@ func transportSend(r *Reporter) {
     // FIXME -- This should not block the caller
     for req := range r.publishChannel {
         fmt.Println(req.path)
+        fmt.Println(r.publishUri)
         _, err := http.PostForm(r.publishUri + req.path, req.data)
         // FIXME retry on error
         if err != nil {
@@ -41,9 +41,9 @@ func NewReporter(publishUri string) *Reporter {
     return r
 }
 
-func (r *Reporter) PushStatus(cId string, s *os.ProcessState) {
+func (r *Reporter) PushStatus(cId string, status string) {
     form := make(url.Values)
-    form.Add("status", s.String())
+    form.Add("status", status)
     r.publishChannel <- ReportPayload {cId + "/status", form}
 }
 
@@ -55,7 +55,7 @@ func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
     r.publishChannel <- ReportPayload {cId + "/logappend", form}
 }
 
-func (r *Reporter) shutdown() {
+func (r *Reporter) Shutdown() {
     close(r.publishChannel)
     <-r.shutdownChannel
     close(r.shutdownChannel)

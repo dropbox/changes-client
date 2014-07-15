@@ -11,5 +11,5 @@
             "args": ["world", "hello"]
         }
     ],
-    "api-uri": "localhost:8181"
+    "api-uri": "http://localhost:8181/"
 }
