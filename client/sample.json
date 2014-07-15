@@ -9,10 +9,10 @@
         },
         {
             "id": "abracadabra-2",
-            "script": "echo $VAR; pwd",
+            "script": "echo $VAR > /tmp/test_file; pwd",
             "env": {"VAR": "world hello"},
             "cwd": "/tmp",
-            "artifacts": []
+            "artifacts": ["/tmp/test_file"]
         }
     ],
     "api-uri": "http://localhost:8181/"
