@@ -95,10 +95,9 @@ func processChunks(out chan LogChunk, pipe io.Reader, source string) {
     r := bufio.NewReader(pipe)
 
     offset := 0
-    var payload []byte
-
     finished := false
     for !finished {
+        var payload []byte
         for len(payload) < chunkSize {
             line, err := r.ReadBytes('\n')
             payload = append(payload, line...)
@@ -125,9 +124,7 @@ func processChunks(out chan LogChunk, pipe io.Reader, source string) {
             }
 
             out <-l
+            offset += len(payload)
         }
-
-        offset += len(payload)
-        payload = payload[:0]
     }
 }
