@@ -15,10 +15,8 @@ var (
 )
 
 type Runner struct {
-    Name string
-    Bin  string
-    Args []string
-
+    Id        string
+    Cmd       *exec.Cmd
     ChunkChan chan LogChunk
 }
 
@@ -29,34 +27,31 @@ type LogChunk struct {
     Payload []byte
 }
 
-func NewRunner(name string, bin string, args ...string) *Runner {
+func NewRunner(id string, script string) *Runner {
     return &Runner{
-        Name: name,
-        Bin: bin,
-        Args: args,
+        Id: id,
+        Cmd: exec.Command("sh", "-c", script),
         ChunkChan: make(chan LogChunk),
     }
 }
 
 func (r *Runner) Run() (*os.ProcessState, error) {
-    cmd := exec.Command(r.Bin, r.Args...)
-
-    stdin, err := cmd.StdinPipe()
+    stdin, err := r.Cmd.StdinPipe()
     if err != nil {
         return nil, err
     }
 
-    stdout, err := cmd.StdoutPipe()
+    stdout, err := r.Cmd.StdoutPipe()
     if err != nil {
         return nil, err
     }
 
-    stderr, err := cmd.StderrPipe()
+    stderr, err := r.Cmd.StderrPipe()
     if err != nil {
         return nil, err
     }
 
-    err = cmd.Start()
+    err = r.Cmd.Start()
     if err != nil {
         return nil, err
     }
@@ -78,13 +73,13 @@ func (r *Runner) Run() (*os.ProcessState, error) {
     stdin.Close()
 
     wg.Wait()
-    err = cmd.Wait()
+    err = r.Cmd.Wait()
     if err != nil {
         return nil, err
     }
 
     close(r.ChunkChan)
-    return cmd.ProcessState, nil
+    return r.Cmd.ProcessState, nil
 }
 
 func processChunks(out chan LogChunk, pipe io.Reader, source string) {

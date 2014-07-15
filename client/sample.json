@@ -1,14 +1,18 @@
 {
     "cmds": [
         {
-            "name": "echo-hello-world",
-            "bin": "echo",
-            "args": ["hello", "world"]
+            "id": "abracadabra",
+            "script": "echo $VAR; pwd",
+            "env": {"VAR": "hello world"},
+            "cwd": "/tmp",
+            "artifacts": []
         },
         {
-            "name": "echo-world-hello",
-            "bin": "echo",
-            "args": ["world", "hello"]
+            "id": "abracadabra-2",
+            "script": "echo $VAR; pwd",
+            "env": {"VAR": "world hello"},
+            "cwd": "/tmp",
+            "artifacts": []
         }
     ],
     "api-uri": "http://localhost:8181/"

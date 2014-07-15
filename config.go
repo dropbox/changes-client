@@ -14,12 +14,14 @@ var (
 )
 
 type Config struct {
-    ApiUri string       `json:"api-uri"`
+    ApiUri        string             `json:"api-uri"`
     Cmds []struct {
-        Name string         `json:"name"`
-        Bin  string         `json:"bin"`
-        Args []string       `json:"args"`
-    }                       `json:"cmds"`
+        Id        string             `json:"id"`
+        Script    string             `json:"script"`
+        Env       map[string]string  `json:"env"`
+        Cwd       string             `json:"cwd"`
+        Artifacts []string           `json:"artifacts"`
+    }                                `json:"cmds"`
 }
 
 func parseConfig(filename string) (*Config, error) {

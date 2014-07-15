@@ -3,6 +3,7 @@ package main
 import (
     "flag"
     "fmt"
+    "os"
     "sync"
 
     "github.com/dropbox/changes-client"
@@ -19,20 +20,32 @@ func reportChunks(r *runner.Reporter, cId string, c chan runner.LogChunk) {
 func runCmds(reporter *runner.Reporter, config *runner.Config) {
     wg := sync.WaitGroup{}
     for _, cmd := range config.Cmds {
-        fmt.Println("Running ", cmd.Name)
-        reporter.PushStatus(cmd.Name, "STARTED")
-        r := runner.NewRunner(cmd.Name, cmd.Bin, cmd.Args...)
+        fmt.Println("Running", cmd.Id)
+        reporter.PushStatus(cmd.Id, "STARTED")
+        r := runner.NewRunner(cmd.Id, cmd.Script)
+
+        // Set job parameters
+        var env []string = os.Environ()
+        for k, v := range cmd.Env {
+            env = append(env, k + "=" + v)
+        }
+
+        r.Cmd.Env = env
+        r.Cmd.Dir = cmd.Cwd
 
         wg.Add(1)
         go func() {
-            reportChunks(reporter, cmd.Name, r.ChunkChan)
+            reportChunks(reporter, cmd.Id, r.ChunkChan)
             wg.Done()
         }()
+
         pState, err := r.Run()
         if err != nil {
-            reporter.PushStatus(cmd.Name, "FAILED")
+            fmt.Println(err)
+            reporter.PushStatus(cmd.Id, "FAILED")
+            break
         } else {
-            reporter.PushStatus(cmd.Name, pState.String())
+            reporter.PushStatus(cmd.Id, pState.String())
         }
     }
 

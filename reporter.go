@@ -30,7 +30,7 @@ func transportSend(r *Reporter) {
     for req := range r.publishChannel {
         path := r.publishUri + req.path
         for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt ++ {
-            log.Printf("[reporter] POST %s data: %s try: %d", path, req.data, tryCnt)
+            log.Printf("[reporter] POST %s try: %d", path, tryCnt)
             _, err := http.PostForm(path, req.data)
             if err != nil {
                 log.Printf("[reporter] POST %s failed, try: %d, err: %s", path, err)
