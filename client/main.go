@@ -1,38 +1,12 @@
 package main
 
 import (
-    "encoding/json"
     "flag"
     "fmt"
-    "io/ioutil"
     "sync"
 
     "github.com/dropbox/changes-client"
 )
-
-type Config struct {
-    ApiUri string       `json:"api-uri"`
-    Cmds []struct {
-        Name string         `json:"name"`
-        Bin  string         `json:"bin"`
-        Args []string       `json:"args"`
-    }                       `json:"cmds"`
-}
-
-func parseConfig(filename string) (*Config, error) {
-    conf, err := ioutil.ReadFile(filename)
-    if err != nil {
-        return nil, err
-    }
-
-    r := &Config{}
-    err = json.Unmarshal(conf, r)
-    if err != nil {
-        return nil, err
-    }
-
-    return r, nil
-}
 
 func reportChunks(r *runner.Reporter, cId string, c chan runner.LogChunk) {
     for l := range c {
@@ -42,7 +16,7 @@ func reportChunks(r *runner.Reporter, cId string, c chan runner.LogChunk) {
     }
 }
 
-func runCmds(reporter *runner.Reporter, config *Config) {
+func runCmds(reporter *runner.Reporter, config *runner.Config) {
     wg := sync.WaitGroup{}
     for _, cmd := range config.Cmds {
         fmt.Println("Running ", cmd.Name)
@@ -66,11 +40,9 @@ func runCmds(reporter *runner.Reporter, config *Config) {
 }
 
 func main() {
-    var filename string
-    flag.StringVar(&filename, "conf", "", "Config file containing cmds to execute")
     flag.Parse()
 
-    config, err := parseConfig(filename)
+    config, err := runner.GetConfig()
     if err != nil {
         panic(err)
     }
