@@ -10,6 +10,8 @@ import (
 
 var (
     maxPendingReports = 64
+    numPublishRetries = 8
+    backoffTimeMs     = 1000
 )
 
 
@@ -27,23 +29,20 @@ type Reporter struct {
 func transportSend(r *Reporter) {
     for req := range r.publishChannel {
         path := r.publishUri + req.path
-        // TODO: Flag
-        for tryCnt := 1; tryCnt <= 8; tryCnt ++ {
+        for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt ++ {
             log.Printf("[reporter] POST %s data: %s try: %d", path, req.data, tryCnt)
             _, err := http.PostForm(path, req.data)
             if err != nil {
                 log.Printf("[reporter] POST %s failed, try: %d, err: %s", path, err)
-                log.Printf("[reporter] Sleep for %d ms", 100)
-                // TODO: Flag
-                time.Sleep(100 * time.Millisecond)
+                log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
+                time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
             } else {
                 break
             }
 
             /* We are unable to publish to the endpoint.
              * Fail fast and let the above layers handle the outage */
-             // TODO: Flag
-            if tryCnt == 8 {
+            if tryCnt == numPublishRetries {
                 panic("Unable to connect to publishUri")
             }
         }
@@ -77,12 +76,16 @@ func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
 }
 
 func (r *Reporter) Shutdown() {
-    log.Print("[reporter] Shutdown")
     close(r.publishChannel)
     <-r.shutdownChannel
     close(r.shutdownChannel)
+    log.Print("[reporter] Shutdown complete")
 }
 
 func init() {
     flag.IntVar(&maxPendingReports, "max_pending_reports", 64, "Backlog size")
+    flag.IntVar(&numPublishRetries, "num_publish_retries", 8,
+        "Number of times to retry")
+    flag.IntVar(&maxPendingReports, "backoff_time_ms", 1000,
+        "Time to wait between two consecutive retries")
 }
