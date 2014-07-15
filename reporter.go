@@ -1,9 +1,10 @@
 package runner
 
 import (
-    "fmt"
     "net/http"
     "net/url"
+    "log"
+    "flag"
 )
 
 type ReportPayload struct {
@@ -18,25 +19,32 @@ type Reporter struct {
 }
 
 func transportSend(r *Reporter) {
-    // FIXME -- This should not block the caller
     for req := range r.publishChannel {
-        fmt.Println(req.path)
-        fmt.Println(r.publishUri)
-        _, err := http.PostForm(r.publishUri + req.path, req.data)
-        // FIXME retry on error
+        path := r.publishUri + req.path
+        log.Printf("[reporter] POST %s data: %s", path, req.data)
+        _, err := http.PostForm(path, req.data)
+        // TODO: Retry on error
+        // Add a time based retry login, try @ now + x_ms
         if err != nil {
-            fmt.Println(err)
+            log.Printf("[reporter] POST %s failed, err: %s", path, err)
         }
     }
     r.shutdownChannel <- true
 }
 
 func NewReporter(publishUri string) *Reporter {
+    log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
     r := &Reporter{}
     r.publishUri = publishUri
-    r.publishChannel = make(chan ReportPayload)
+    maxPendingReports := 64
+    if f := flag.Lookup("max_pending_reports"); f != nil {
+        newVal, ok := f.Value.(flag.Getter)
+        if ok {
+            maxPendingReports = newVal.Get().(int)
+        }
+    }
+    r.publishChannel = make(chan ReportPayload, maxPendingReports)
     r.shutdownChannel = make(chan bool)
-
     go transportSend(r)
     return r
 }
@@ -56,6 +64,7 @@ func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
 }
 
 func (r *Reporter) Shutdown() {
+    log.Print("[reporter] Shutdown")
     close(r.publishChannel)
     <-r.shutdownChannel
     close(r.shutdownChannel)
