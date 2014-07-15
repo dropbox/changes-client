@@ -10,6 +10,10 @@ import (
     "sync"
 )
 
+var (
+    chunkSize = 4096
+)
+
 type Runner struct {
     Name string
     Bin  string
@@ -84,14 +88,6 @@ func (r *Runner) Run() (*os.ProcessState, error) {
 }
 
 func processChunks(out chan LogChunk, pipe io.Reader, source string) {
-    chunkSize := 4096
-    if f := flag.Lookup("log_chunk_size"); f != nil {
-        g, ok := f.Value.(flag.Getter)
-        if ok {
-            chunkSize = g.Get().(int)
-        }
-    }
-
     r := bufio.NewReader(pipe)
 
     offset := 0
@@ -127,4 +123,8 @@ func processChunks(out chan LogChunk, pipe io.Reader, source string) {
             offset += len(payload)
         }
     }
+}
+
+func init() {
+    flag.IntVar(&chunkSize, "log_chunk_size", 4096, "Size of log chunks to send to http server")
 }

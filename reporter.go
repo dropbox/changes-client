@@ -8,6 +8,11 @@ import (
     "time"
 )
 
+var (
+    maxPendingReports = 64
+)
+
+
 type ReportPayload struct {
     path string
     data url.Values
@@ -50,15 +55,9 @@ func NewReporter(publishUri string) *Reporter {
     log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
     r := &Reporter{}
     r.publishUri = publishUri
-    maxPendingReports := 64
-    if f := flag.Lookup("max_pending_reports"); f != nil {
-        newVal, ok := f.Value.(flag.Getter)
-        if ok {
-            maxPendingReports = newVal.Get().(int)
-        }
-    }
     r.publishChannel = make(chan ReportPayload, maxPendingReports)
     r.shutdownChannel = make(chan bool)
+
     go transportSend(r)
     return r
 }
@@ -82,4 +81,8 @@ func (r *Reporter) Shutdown() {
     close(r.publishChannel)
     <-r.shutdownChannel
     close(r.shutdownChannel)
+}
+
+func init() {
+    flag.IntVar(&maxPendingReports, "max_pending_reports", 64, "Backlog size")
 }
