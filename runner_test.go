@@ -10,7 +10,7 @@ func TestProgressChunks(t *testing.T) {
     flag.Set("log_chunk_size", "3")
 
     in := []byte("aaa\naaa\naaa\n")
-    ch := make(chan LogChunk, 100)
+    ch := make(chan LogChunk)
 
     go func () {
         processChunks(ch, bytes.NewReader(in), "test")

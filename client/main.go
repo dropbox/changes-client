@@ -34,19 +34,15 @@ func parseConfig(filename string) (*Config, error) {
     return r, nil
 }
 
-func main() {
-    var filename string
-    flag.StringVar(&filename, "conf", "", "Config file containing cmds to execute")
-    flag.Parse()
-
-    config, err := parseConfig(filename)
-    if err != nil {
-        panic(err)
+func reportChunks(r *runner.Reporter, cId string, c chan runner.LogChunk) {
+    for l := range c {
+        fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
+        fmt.Printf("%s", l.Payload)
+        r.PushLogChunk(cId, l)
     }
+}
 
-    // Make a reporter and use it
-    reporter := runner.NewReporter(config.ApiUri)
-
+func runCmds(reporter *runner.Reporter, config *Config) {
     wg := sync.WaitGroup{}
     for _, cmd := range config.Cmds {
         fmt.Println("Running ", cmd.Name)
@@ -65,14 +61,22 @@ func main() {
             reporter.PushStatus(cmd.Name, pState.String())
         }
     }
+
     wg.Wait()
-    reporter.Shutdown()
 }
 
-func reportChunks(r *runner.Reporter, cId string, c chan runner.LogChunk) {
-    for l := range c {
-        fmt.Printf("Got another chunk from %s (offset: %d, length %d)\n", l.Source, l.Offset, l.Length)
-        fmt.Printf("%s", l.Payload)
-        r.PushLogChunk(cId, l)
+func main() {
+    var filename string
+    flag.StringVar(&filename, "conf", "", "Config file containing cmds to execute")
+    flag.Parse()
+
+    config, err := parseConfig(filename)
+    if err != nil {
+        panic(err)
     }
+
+    // Make a reporter and use it
+    reporter := runner.NewReporter(config.ApiUri)
+    runCmds(reporter, config)
+    reporter.Shutdown()
 }
