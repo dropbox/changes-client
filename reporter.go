@@ -5,6 +5,7 @@ import (
     "net/url"
     "log"
     "flag"
+    "time"
 )
 
 type ReportPayload struct {
@@ -21,12 +22,25 @@ type Reporter struct {
 func transportSend(r *Reporter) {
     for req := range r.publishChannel {
         path := r.publishUri + req.path
-        log.Printf("[reporter] POST %s data: %s", path, req.data)
-        _, err := http.PostForm(path, req.data)
-        // TODO: Retry on error
-        // Add a time based retry login, try @ now + x_ms
-        if err != nil {
-            log.Printf("[reporter] POST %s failed, err: %s", path, err)
+        // TODO: Flag
+        for tryCnt := 1; tryCnt <= 8; tryCnt ++ {
+            log.Printf("[reporter] POST %s data: %s try: %d", path, req.data, tryCnt)
+            _, err := http.PostForm(path, req.data)
+            if err != nil {
+                log.Printf("[reporter] POST %s failed, try: %d, err: %s", path, err)
+                log.Printf("[reporter] Sleep for %d ms", 100)
+                // TODO: Flag
+                time.Sleep(100 * time.Millisecond)
+            } else {
+                break
+            }
+
+            /* We are unable to publish to the endpoint.
+             * Fail fast and let the above layers handle the outage */
+             // TODO: Flag
+            if tryCnt == 8 {
+                panic("Unable to connect to publishUri")
+            }
         }
     }
     r.shutdownChannel <- true
