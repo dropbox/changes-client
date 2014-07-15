@@ -38,6 +38,7 @@ func main() {
     var filename string
     flag.StringVar(&filename, "conf", "", "Config file containing cmds to execute")
     flag.Int("log_chunk_size", 4096, "Size of log chunks to send to http server")
+    flag.Int("max_pending_reports", 64, "Maximum number of pending reports which are not (yet) published by the client")
     flag.Parse()
 
     config, err := parseConfig(filename)
