@@ -31,20 +31,23 @@ func transportSend(r *Reporter) {
         path := r.publishUri + req.path
         for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt ++ {
             log.Printf("[reporter] POST %s data: %s try: %d", path, req.data, tryCnt)
-            _, err := http.PostForm(path, req.data)
-            if err != nil {
-                log.Printf("[reporter] POST %s failed, try: %d, err: %s", path, err)
-                log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
-                time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
-            } else {
-                break
+            resp, err := http.PostForm(path, req.data)
+            if resp != nil && resp.StatusCode == http.StatusOK {
+                break;
             }
 
+            if resp != nil && resp.StatusCode == http.StatusNoContent {
+                panic("Unknown error occurred with publish endpoint");
+            }
+
+            log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s", path, tryCnt, resp, err)
             /* We are unable to publish to the endpoint.
              * Fail fast and let the above layers handle the outage */
             if tryCnt == numPublishRetries {
-                panic("Unable to connect to publishUri")
+                panic("Couldn't to connect to publish endpoint")
             }
+            log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
+            time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
         }
     }
     r.shutdownChannel <- true
