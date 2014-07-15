@@ -10,5 +10,6 @@
             "bin": "echo",
             "args": ["world", "hello"]
         }
-    ]
+    ],
+    "api-uri": "localhost:8181"
 }

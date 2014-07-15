@@ -10,6 +10,7 @@ import (
 )
 
 type Config struct {
+    ApiUri string       `json:"api-uri"`
     Cmds []struct {
         Name string         `json:"name"`
         Bin  string         `json:"bin"`
@@ -44,6 +45,8 @@ func main() {
     }
 
     // Make a reporter and use it
+    _ = runner.NewReporter(config.ApiUri)
+
     for _, cmd := range config.Cmds {
         fmt.Println("Running ", cmd.Name)
 

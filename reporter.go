@@ -7,23 +7,6 @@ import (
     "net/url"
 )
 
-type JobStatus int
-
-const (
-    RUNNING JobStatus     = 0
-    SUCCEEDED             = 1
-    FAILED                = 2
-)
-
-func (j JobStatus) String() string {
-    switch j {
-        case RUNNING: return "RUNNING"
-        case SUCCEEDED: return "SUCCEEDED"
-        case FAILED: return "FAILED"
-    }
-    return "UNKNOWN"
-}
-
 type ReportPayload struct {
     path string
     data url.Values
@@ -48,34 +31,28 @@ func transportSend(r *Reporter) {
     r.shutdownChannel <- true
 }
 
-func NewReporter(publishUri string) (*Reporter, error) {
-    r := new (Reporter)
+func NewReporter(publishUri string) *Reporter {
+    r := &Reporter{}
     r.publishUri = publishUri
     r.publishChannel = make(chan ReportPayload)
     r.shutdownChannel = make(chan bool)
+
     go transportSend(r)
-    return r, nil
+    return r
 }
 
-func (r *Reporter) PushJobStatus(s JobStatus) {
-    data := make(url.Values)
-    data.Add("job_status", string(s))
-    r.publishChannel <- ReportPayload {"/status", data}
-}
-
-func (r *Reporter) PushCmdStatus(cId string, s *os.ProcessState) {
+func (r *Reporter) PushStatus(cId string, s *os.ProcessState) {
     form := make(url.Values)
-    form.Add("cmd_id", cId)
-    form.Add("cmd_status", s.String())
-    r.publishChannel <- ReportPayload {"/status/" + cId, form}
+    form.Add("status", s.String())
+    r.publishChannel <- ReportPayload {cId + "/status", form}
 }
 
-func (r *Reporter) PushCmdOutStream(cId string, source string, offset int, length int, data []byte) {
+func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
     form := make(url.Values)
-    form.Add("cmd_id", cId)
-    form.Add("cmd_stream_" + source, string(data))
-    form.Add("cmd_stream_offset", string(offset))
-    r.publishChannel <- ReportPayload {"/status/" + cId, form}
+    form.Add("source", l.Source)
+    form.Add("offset", string(l.Offset))
+    form.Add("text", string(l.Payload))
+    r.publishChannel <- ReportPayload {cId + "/logappend", form}
 }
 
 func (r *Reporter) shutdown() {
