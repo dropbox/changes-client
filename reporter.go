@@ -24,6 +24,7 @@ func transportSend(r *Reporter) {
         log.Printf("[reporter] POST %s data: %s", path, req.data)
         _, err := http.PostForm(path, req.data)
         // TODO: Retry on error
+        // Add a time based retry login, try @ now + x_ms
         if err != nil {
             log.Printf("[reporter] POST %s failed, err: %s", path, err)
         }
