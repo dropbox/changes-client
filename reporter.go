@@ -19,9 +19,9 @@ var (
 )
 
 type ReportPayload struct {
-	path  string
-	data  map[string]string
-	files []string
+	path     string
+	data     map[string]string
+	filename string
 }
 
 type Reporter struct {
@@ -31,7 +31,7 @@ type Reporter struct {
 }
 
 func httpPost(uri string, params map[string]string,
-	files []string) (resp *http.Response, err error) {
+	file string) (resp *http.Response, err error) {
 
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -43,22 +43,23 @@ func httpPost(uri string, params map[string]string,
 		}
 	}
 
-	for _, file := range files {
+	if len(file) > 0 {
 		handle, err := os.Open(file)
 		if err != nil {
-			log.Printf("[reporter] Couldn't open file %s", file)
-			continue
+			return nil, err
 		}
+
 		fileField, err := writer.CreateFormFile(file, filepath.Base(file))
-		if err == nil {
-			log.Printf("[reporter] Couldn't write file field %s", file)
-			continue
+		if err != nil {
+			return nil, err
 		}
+
 		_, err = io.Copy(fileField, handle)
 		if err != nil {
-			log.Printf("[reporter] Couldn't copy file %s", file)
+			return nil, err
 		}
 	}
+
 	_ = writer.Close()
 	return http.Post(uri, writer.FormDataContentType(), body)
 }
@@ -68,12 +69,12 @@ func transportSend(r *Reporter) {
 		path := r.publishUri + req.path
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
-			resp, err := httpPost(path, req.data, req.files)
+			resp, err := httpPost(path, req.data, req.filename)
 			if resp != nil && resp.StatusCode == http.StatusOK {
 				break
 			}
 
-			if resp != nil && resp.StatusCode == http.StatusNoContent {
+			if resp != nil && resp.StatusCode == http.StatusGone {
 				panic("Unknown error occurred with publish endpoint")
 			}
 
@@ -105,7 +106,7 @@ func NewReporter(publishUri string) *Reporter {
 func (r *Reporter) PushStatus(cId string, status string) {
 	form := make(map[string]string)
 	form["status"] = status
-	r.publishChannel <- ReportPayload{cId + "/status", form, nil}
+	r.publishChannel <- ReportPayload{cId + "/status", form, ""}
 }
 
 func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
@@ -113,12 +114,13 @@ func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
 	form["source"] = l.Source
 	form["offset"] = string(l.Offset)
 	form["text"] = string(l.Payload)
-	r.publishChannel <- ReportPayload{cId + "/logappend", form, nil}
+	r.publishChannel <- ReportPayload{cId + "/logappend", form, ""}
 }
 
 func (r *Reporter) PushArtifacts(cId string, artifacts []string) {
-	form := make(map[string]string)
-	r.publishChannel <- ReportPayload{cId + "/artifacts", form, artifacts}
+	for _, artifact := range artifacts {
+		r.publishChannel <- ReportPayload{cId + "/artifact", nil, artifact}
+	}
 }
 
 func (r *Reporter) Shutdown() {
