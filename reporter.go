@@ -8,6 +8,7 @@ import (
 	"mime/multipart"
 	"net/http"
 	"os"
+    "strconv"
 	"path/filepath"
 	"time"
 )
@@ -40,6 +41,7 @@ func httpPost(uri string, params map[string]string,
 		err = writer.WriteField(key, val)
 		if err != nil {
 			log.Printf("[reporter] Couldn't write field %s", key)
+			return nil, err
 		}
 	}
 
@@ -112,7 +114,7 @@ func (r *Reporter) PushStatus(cId string, status string) {
 func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
 	form := make(map[string]string)
 	form["source"] = l.Source
-	form["offset"] = string(l.Offset)
+	form["offset"] = strconv.Itoa(l.Offset)
 	form["text"] = string(l.Payload)
 	r.publishChannel <- ReportPayload{cId + "/logappend", form, ""}
 }
