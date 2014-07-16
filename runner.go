@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+    "io/ioutil"
 	"os"
 	"os/exec"
 	"sync"
@@ -27,12 +28,33 @@ type LogChunk struct {
 	Payload []byte
 }
 
-func NewRunner(id string, script string) *Runner {
+func NewRunner(id string, script string) (*Runner, error) {
+    f, err := ioutil.TempFile("", "")
+    if err != nil {
+        return nil, err
+    }
+    defer f.Close()
+
+    _, err = f.WriteString(script)
+    if err != nil {
+        return nil, err
+    }
+
+    info, err := f.Stat()
+    if err != nil {
+        return nil, err
+    }
+
+    err = f.Chmod((info.Mode()&os.ModePerm)|0111)
+    if err != nil {
+        return nil, err
+    }
+
 	return &Runner{
 		Id:        id,
-		Cmd:       exec.Command("sh", "-c", script),
+		Cmd:       exec.Command(f.Name()),
 		ChunkChan: make(chan LogChunk),
-	}
+	}, nil
 }
 
 func (r *Runner) Run() (*os.ProcessState, error) {

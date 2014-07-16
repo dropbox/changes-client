@@ -82,7 +82,7 @@ func TestCompleteFlow(t *testing.T) {
 		"cmds": [
 			{
 				"id": "cmd_1",
-				"script": "echo $VAR",
+				"script": "#!/bin/bash\necho -n $VAR",
 				"Env": {"VAR": "hello world"},
 				"Cwd": "/tmp"
 			}
@@ -111,7 +111,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 		FormData{
 			params: map[string]string{
-				"text":   "hello world\n",
+				"text":   "hello world",
 				"source": "stdout",
 				"offset": "0",
 			},
