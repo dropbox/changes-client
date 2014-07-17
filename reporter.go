@@ -19,6 +19,11 @@ var (
 	backoffTimeMs     = 1000
 )
 
+/*
+return_code
+status
+*/
+
 type ReportPayload struct {
 	path     string
 	data     map[string]string
@@ -69,6 +74,10 @@ func httpPost(uri string, params map[string]string,
 func transportSend(r *Reporter) {
 	for req := range r.publishChannel {
 		path := r.publishUri + req.path
+        if req.data == nil {
+            req.data = make(map[string]string)
+        }
+        req.data["date"] = time.Now().UTC().Format(time.RFC3339)
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
 			resp, err := httpPost(path, req.data, req.filename)
@@ -105,10 +114,13 @@ func NewReporter(publishUri string) *Reporter {
 	return r
 }
 
-func (r *Reporter) PushStatus(cId string, status string) {
+func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	form := make(map[string]string)
 	form["status"] = status
-	r.publishChannel <- ReportPayload{cId + "/status", form, ""}
+    if retCode >= 0 {
+        form["return_code"] = strconv.Itoa(retCode)
+    }
+	r.publishChannel <- ReportPayload{"/commands/" + cId, form, ""}
 }
 
 func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
@@ -116,12 +128,12 @@ func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
 	form["source"] = l.Source
 	form["offset"] = strconv.Itoa(l.Offset)
 	form["text"] = string(l.Payload)
-	r.publishChannel <- ReportPayload{cId + "/logappend", form, ""}
+	r.publishChannel <- ReportPayload{"/" + cId + "/logappend", form, ""}
 }
 
 func (r *Reporter) PushArtifacts(cId string, artifacts []string) {
 	for _, artifact := range artifacts {
-		r.publishChannel <- ReportPayload{cId + "/artifact", nil, artifact}
+		r.publishChannel <- ReportPayload{"/" + cId + "/artifact", nil, artifact}
 	}
 }
 

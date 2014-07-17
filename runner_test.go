@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
-	"strings"
 	"testing"
 )
 
@@ -51,16 +50,14 @@ func TestCompleteFlow(t *testing.T) {
 			return
 		}
 
-		if !strings.HasPrefix(r.URL.Path, "/cmd_1/") {
-			err = fmt.Errorf("Command ID missing from path: %s", r.URL.Path)
-			return
-		}
-
-		if r.URL.Path == "/cmd_1/status" || r.URL.Path == "/cmd_1/logappend" {
+		if r.URL.Path == "/commands/cmd_1" || r.URL.Path == "/cmd_1/logappend" {
 			r.ParseMultipartForm(1024)
 			f := FormData{params: make(map[string]string)}
 
 			for k, v := range r.MultipartForm.Value {
+                if k == "date" {
+                    continue
+                }
 				if len(v) != 1 {
 					err = fmt.Errorf("Multiple values for form field: %s", k)
 					return
@@ -111,7 +108,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	template := `
 	{
-		"api-uri": "%s/",
+		"api-uri": "%s",
 		"cmds": [
 			{
 				"id": "cmd_1",
@@ -141,7 +138,12 @@ func TestCompleteFlow(t *testing.T) {
 	expected := []FormData{
 		FormData{
 			params: map[string]string{
-				"status": "STARTED",
+				"status": STATUS_QUEUED,
+			},
+		},
+		FormData{
+			params: map[string]string{
+				"status": STATUS_IN_PROGRESS,
 			},
 		},
 		FormData{
@@ -153,7 +155,8 @@ func TestCompleteFlow(t *testing.T) {
 		},
 		FormData{
 			params: map[string]string{
-				"status": "exit status 0",
+				"status": STATUS_FINISHED,
+                "return_code": "0",
 			},
 		},
 		FormData{
