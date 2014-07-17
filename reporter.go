@@ -36,9 +36,7 @@ type Reporter struct {
 	shutdownChannel chan bool
 }
 
-func httpPost(uri string, params map[string]string,
-	file string) (resp *http.Response, err error) {
-
+func httpPost(uri string, params map[string]string, file string) (resp *http.Response, err error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -56,7 +54,12 @@ func httpPost(uri string, params map[string]string,
 			return nil, err
 		}
 
-		fileField, err := writer.CreateFormFile(file, filepath.Base(file))
+        err = writer.WriteField("name", file)
+        if err != nil {
+            return nil, err
+        }
+
+		fileField, err := writer.CreateFormFile("file", filepath.Base(file))
 		if err != nil {
 			return nil, err
 		}
@@ -81,7 +84,7 @@ func transportSend(r *Reporter) {
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
 			resp, err := httpPost(path, req.data, req.filename)
-			if resp != nil && resp.StatusCode == http.StatusOK {
+			if resp != nil && resp.StatusCode / 100 == 2 {
 				break
 			}
 
@@ -90,7 +93,7 @@ func transportSend(r *Reporter) {
 			}
 
 			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
-				path, tryCnt, resp, err)
+				path, tryCnt, resp.Status, err)
 			/* We are unable to publish to the endpoint.
 			 * Fail fast and let the above layers handle the outage */
 			if tryCnt == numPublishRetries {
@@ -114,26 +117,35 @@ func NewReporter(publishUri string) *Reporter {
 	return r
 }
 
+func (r *Reporter) PushJobStatus(jobID string, status string, result string) {
+	form := make(map[string]string)
+	form["status"] = status
+    if len(result) > 0 {
+        form["result"] = result
+    }
+	r.publishChannel <- ReportPayload{"/jobsteps/" + jobID + "/", form, ""}
+}
+
 func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	form := make(map[string]string)
 	form["status"] = status
     if retCode >= 0 {
         form["return_code"] = strconv.Itoa(retCode)
     }
-	r.publishChannel <- ReportPayload{"/commands/" + cId, form, ""}
+	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
-func (r *Reporter) PushLogChunk(cId string, l LogChunk) {
+func (r *Reporter) PushLogChunk(ID string, l LogChunk) {
 	form := make(map[string]string)
 	form["source"] = l.Source
 	form["offset"] = strconv.Itoa(l.Offset)
 	form["text"] = string(l.Payload)
-	r.publishChannel <- ReportPayload{"/" + cId + "/logappend", form, ""}
+	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
 }
 
-func (r *Reporter) PushArtifacts(cId string, artifacts []string) {
+func (r *Reporter) PushArtifacts(ID string, artifacts []string) {
 	for _, artifact := range artifacts {
-		r.publishChannel <- ReportPayload{"/" + cId + "/artifact", nil, artifact}
+		r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/artifacts/", nil, artifact}
 	}
 }
 

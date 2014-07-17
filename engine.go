@@ -38,52 +38,56 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func runCmds(reporter *Reporter, config *Config) {
+func RunCmds(reporter *Reporter, config *Config) {
+    result := "passed"
+    defer reporter.PushJobStatus(config.JobID, STATUS_FINISHED, result)
+
 	wg := sync.WaitGroup{}
-    for _, cmd := range config.Cmds {
-        reporter.PushStatus(cmd.Id, STATUS_QUEUED, -1)
-    }
+    reporter.PushJobStatus(config.JobID, STATUS_IN_PROGRESS, "")
 
 	for _, cmd := range config.Cmds {
-		fmt.Println("Running", cmd.Id)
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
 		r, err := NewRunner(cmd.Id, cmd.Script)
 		if err != nil {
-			fmt.Println(err)
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
+            result = "failed"
 			break
 		}
 
-		// Set job parameters
 		env := os.Environ()
 		for k, v := range cmd.Env {
 			env = append(env, k+"="+v)
 		}
-
 		r.Cmd.Env = env
-		r.Cmd.Dir = cmd.Cwd
+
+        if len(cmd.Cwd) > 0 {
+            r.Cmd.Dir = cmd.Cwd
+        }
 
 		wg.Add(1)
 		go func() {
-			reportChunks(reporter, cmd.Id, r.ChunkChan)
+			reportChunks(reporter, config.JobID, r.ChunkChan)
 			wg.Done()
 		}()
 
 		pState, err := r.Run()
 		if err != nil {
-			fmt.Println(err)
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
+            result = "failed"
 			break
 		} else {
             if pState.Success() {
                 reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
             } else {
                 reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
+                result = "failed"
                 break
             }
 		}
-		publishArtifacts(reporter, cmd.Id, cmd.Artifacts)
+
+		publishArtifacts(reporter, config.JobID, cmd.Artifacts)
 	}
 
 	wg.Wait()
+    result = "passed"
 }

@@ -6,37 +6,23 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"net/url"
 )
 
 var (
-	conf string
+	server string
+    jobID  string
 )
 
 type Config struct {
-	ApiUri string `json:"api-uri"`
+    Server string
+    JobID  string
 	Cmds   []struct {
 		Id        string            `json:"id"`
 		Script    string            `json:"script"`
 		Env       map[string]string `json:"env"`
 		Cwd       string            `json:"cwd"`
 		Artifacts []string          `json:"artifacts"`
-	} `json:"cmds"`
-}
-
-func parseConfig(filename string) (*Config, error) {
-	conf, err := ioutil.ReadFile(filename)
-	if err != nil {
-		return nil, err
-	}
-
-	r := &Config{}
-	err = json.Unmarshal(conf, r)
-	if err != nil {
-		return nil, err
-	}
-
-	return r, nil
+	}                               `json:"commands"`
 }
 
 func fetchConfig(url string) (*Config, error) {
@@ -66,21 +52,18 @@ func fetchConfig(url string) (*Config, error) {
 }
 
 func GetConfig() (*Config, error) {
-	url, err := url.Parse(conf)
-	if err != nil {
-		return nil, err
-	}
+    url := server + "/jobsteps/" + jobID
+    conf, err := fetchConfig(url)
+    if err != nil {
+        return nil, err
+    }
 
-	if !url.IsAbs() || url.Scheme == "file" {
-		return parseConfig(url.Path)
-	} else if url.Scheme == "http" {
-		return fetchConfig(conf)
-	}
-
-	err = fmt.Errorf("Unrecognized path: %s", conf)
-	return nil, err
+    conf.Server = server
+    conf.JobID = jobID
+    return conf, err
 }
 
 func init() {
-	flag.StringVar(&conf, "conf", "", "URL to get config from")
+	flag.StringVar(&server, "server", "", "URL to get config from")
+    flag.StringVar(&jobID, "job_id", "", "Job ID whose commands are to be executed")
 }

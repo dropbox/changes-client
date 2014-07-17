@@ -2,10 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
-	"os"
-	"path/filepath"
-	"sync"
 
 	"github.com/dropbox/changes-client"
 )
@@ -18,8 +14,7 @@ func main() {
 		panic(err)
 	}
 
-	reporter := runner.NewReporter(config.ApiUri)
-	runner.runCmds(reporter, config)
-
+	reporter := runner.NewReporter(config.Server)
+	runner.RunCmds(reporter, config)
 	reporter.Shutdown()
 }
