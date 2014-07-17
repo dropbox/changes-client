@@ -125,7 +125,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	config := &Config{}
     config.Server = ts.URL
-    config.JobID = "job_1"
+    config.JobstepID = "job_1"
 	if json.Unmarshal([]byte(fmt.Sprintf(template, required_artifact)), config) != nil {
 		t.Errorf("Failed to parse build config")
 	}
