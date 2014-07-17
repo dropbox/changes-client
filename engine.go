@@ -38,11 +38,11 @@ func runCmds(reporter *Reporter, config *Config) {
 		fmt.Println("Running", cmd.Id)
 		reporter.PushStatus(cmd.Id, "STARTED")
 		r, err := NewRunner(cmd.Id, cmd.Script)
-        if err != nil {
-            fmt.Println(err)
-            reporter.PushStatus(cmd.Id, "FAILED")
-            break
-        }
+		if err != nil {
+			fmt.Println(err)
+			reporter.PushStatus(cmd.Id, "FAILED")
+			break
+		}
 
 		// Set job parameters
 		env := os.Environ()

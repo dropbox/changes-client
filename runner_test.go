@@ -1,14 +1,14 @@
 package runner
 
 import (
-    "os"
-    "io/ioutil"
 	"bytes"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"reflect"
 	"strings"
 	"testing"
@@ -72,42 +72,42 @@ func TestCompleteFlow(t *testing.T) {
 
 			formData = append(formData, f)
 			return
-        }
+		}
 
-        if r.URL.Path == "/cmd_1/artifact" {
-            r.ParseMultipartForm(1 << 20)
-            files := r.MultipartForm.File
-            if len(files) != 1 {
-                err = fmt.Errorf("Invalid number of artifacts found")
-                return
-            }
+		if r.URL.Path == "/cmd_1/artifact" {
+			r.ParseMultipartForm(1 << 20)
+			files := r.MultipartForm.File
+			if len(files) != 1 {
+				err = fmt.Errorf("Invalid number of artifacts found")
+				return
+			}
 
-            for filename, fileHeaders := range files {
-                if len(fileHeaders) != 1 {
-                    err = fmt.Errorf("Multiple file headers found")
-                    return
-                }
+			for filename, fileHeaders := range files {
+				if len(fileHeaders) != 1 {
+					err = fmt.Errorf("Multiple file headers found")
+					return
+				}
 
-                file, err := fileHeaders[0].Open()
-                if err != nil {
-                    return
-                }
-                fileContents, err := ioutil.ReadAll(file)
-                if err != nil {
-                    return
-                }
-                f := FormData{files: make(map[string]string)}
-                f.files[filename] = string(fileContents)
-                formData = append(formData, f)
-            }
-            return
-        }
+				file, err := fileHeaders[0].Open()
+				if err != nil {
+					return
+				}
+				fileContents, err := ioutil.ReadAll(file)
+				if err != nil {
+					return
+				}
+				f := FormData{files: make(map[string]string)}
+				f.files[filename] = string(fileContents)
+				formData = append(formData, f)
+			}
+			return
+		}
 
 		err = fmt.Errorf("Unexpected path: %s", r.URL.Path)
 	}))
 	defer ts.Close()
-    // Current running program is definitely an artifact which will be present in the pogram
-    required_artifact := os.Args[0]
+	// Current running program is definitely an artifact which will be present in the pogram
+	required_artifact := os.Args[0]
 
 	template := `
 	{
@@ -137,7 +137,7 @@ func TestCompleteFlow(t *testing.T) {
 		t.Errorf(err.Error())
 	}
 
-    expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
+	expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
 	expected := []FormData{
 		FormData{
 			params: map[string]string{
@@ -156,11 +156,11 @@ func TestCompleteFlow(t *testing.T) {
 				"status": "exit status 0",
 			},
 		},
-        FormData {
-            files: map[string]string {
-                os.Args[0]: string(expectedFileContents),
-            },
-        },
+		FormData{
+			files: map[string]string{
+				os.Args[0]: string(expectedFileContents),
+			},
+		},
 	}
 
 	if !reflect.DeepEqual(formData, expected) {

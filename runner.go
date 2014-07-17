@@ -5,7 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
-    "io/ioutil"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"sync"
@@ -29,26 +29,26 @@ type LogChunk struct {
 }
 
 func NewRunner(id string, script string) (*Runner, error) {
-    f, err := ioutil.TempFile("", "")
-    if err != nil {
-        return nil, err
-    }
-    defer f.Close()
+	f, err := ioutil.TempFile("", "")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
 
-    _, err = f.WriteString(script)
-    if err != nil {
-        return nil, err
-    }
+	_, err = f.WriteString(script)
+	if err != nil {
+		return nil, err
+	}
 
-    info, err := f.Stat()
-    if err != nil {
-        return nil, err
-    }
+	info, err := f.Stat()
+	if err != nil {
+		return nil, err
+	}
 
-    err = f.Chmod((info.Mode()&os.ModePerm)|0111)
-    if err != nil {
-        return nil, err
-    }
+	err = f.Chmod((info.Mode() & os.ModePerm) | 0111)
+	if err != nil {
+		return nil, err
+	}
 
 	return &Runner{
 		Id:        id,
