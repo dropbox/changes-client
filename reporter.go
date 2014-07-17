@@ -19,11 +19,6 @@ var (
 	backoffTimeMs     = 1000
 )
 
-/*
-return_code
-status
-*/
-
 type ReportPayload struct {
 	path     string
 	data     map[string]string
@@ -80,7 +75,8 @@ func transportSend(r *Reporter) {
         if req.data == nil {
             req.data = make(map[string]string)
         }
-        req.data["date"] = time.Now().UTC().Format(time.RFC3339)
+
+        req.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
 			resp, err := httpPost(path, req.data, req.filename)
