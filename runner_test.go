@@ -50,8 +50,12 @@ func TestCompleteFlow(t *testing.T) {
 			return
 		}
 
-		if r.URL.Path == "/commands/cmd_1" || r.URL.Path == "/cmd_1/logappend" {
-			r.ParseMultipartForm(1024)
+		if r.URL.Path == "/commands/cmd_1/" ||
+            r.URL.Path == "/jobsteps/job_1/" ||
+            r.URL.Path == "/jobsteps/job_1/logappend/" ||
+            r.URL.Path == "/jobsteps/job_1/artifacts/" {
+
+			r.ParseMultipartForm(1 << 20)
 			f := FormData{params: make(map[string]string)}
 
 			for k, v := range r.MultipartForm.Value {
@@ -63,53 +67,51 @@ func TestCompleteFlow(t *testing.T) {
 					return
 				}
 
-				fmt.Println(r.URL.Path, k, v)
 				f.params[k] = v[0]
 			}
 
+            if len(r.MultipartForm.File) > 0 {
+                f.files = make(map[string]string)
+
+                files := r.MultipartForm.File
+                if len(files) != 1 {
+                    err = fmt.Errorf("Invalid number of artifacts found")
+                    return
+                }
+
+                for filename, fileHeaders := range files {
+                    if len(fileHeaders) != 1 {
+                        err = fmt.Errorf("Multiple file headers found")
+                        return
+                    }
+
+                    file, err := fileHeaders[0].Open()
+                    if err != nil {
+                        return
+                    }
+                    fileContents, err := ioutil.ReadAll(file)
+                    if err != nil {
+                        return
+				    }
+
+				    f.files[filename] = string(fileContents)
+                }
+            }
+
 			formData = append(formData, f)
-			return
-		}
-
-		if r.URL.Path == "/cmd_1/artifact" {
-			r.ParseMultipartForm(1 << 20)
-			files := r.MultipartForm.File
-			if len(files) != 1 {
-				err = fmt.Errorf("Invalid number of artifacts found")
-				return
-			}
-
-			for filename, fileHeaders := range files {
-				if len(fileHeaders) != 1 {
-					err = fmt.Errorf("Multiple file headers found")
-					return
-				}
-
-				file, err := fileHeaders[0].Open()
-				if err != nil {
-					return
-				}
-				fileContents, err := ioutil.ReadAll(file)
-				if err != nil {
-					return
-				}
-				f := FormData{files: make(map[string]string)}
-				f.files[filename] = string(fileContents)
-				formData = append(formData, f)
-			}
 			return
 		}
 
 		err = fmt.Errorf("Unexpected path: %s", r.URL.Path)
 	}))
 	defer ts.Close()
+
 	// Current running program is definitely an artifact which will be present in the pogram
 	required_artifact := os.Args[0]
 
 	template := `
 	{
-		"api-uri": "%s",
-		"cmds": [
+		"commands": [
 			{
 				"id": "cmd_1",
 				"script": "#!/bin/bash\necho -n $VAR",
@@ -127,12 +129,14 @@ func TestCompleteFlow(t *testing.T) {
 	`
 
 	config := &Config{}
-	if json.Unmarshal([]byte(fmt.Sprintf(template, ts.URL, required_artifact)), config) != nil {
+    config.Server = ts.URL
+    config.JobID = "job_1"
+	if json.Unmarshal([]byte(fmt.Sprintf(template, required_artifact)), config) != nil {
 		t.Errorf("Failed to parse build config")
 	}
 
-	reporter := NewReporter(config.ApiUri)
-	runCmds(reporter, config)
+	reporter := NewReporter(config.Server)
+	RunCmds(reporter, config)
 	reporter.Shutdown()
 
 	if err != nil {
@@ -143,7 +147,7 @@ func TestCompleteFlow(t *testing.T) {
 	expected := []FormData{
 		FormData{
 			params: map[string]string{
-				"status": STATUS_QUEUED,
+				"status": STATUS_IN_PROGRESS,
 			},
 		},
 		FormData{
@@ -183,8 +187,17 @@ func TestCompleteFlow(t *testing.T) {
 			},
 		},
 		FormData{
+            params: map[string]string{
+                "name": os.Args[0],
+            },
 			files: map[string]string{
-				os.Args[0]: string(expectedFileContents),
+                "file": string(expectedFileContents),
+			},
+		},
+		FormData{
+			params: map[string]string{
+				"status": STATUS_FINISHED,
+                "result": "passed",
 			},
 		},
 	}
