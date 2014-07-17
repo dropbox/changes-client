@@ -10,12 +10,12 @@ import (
 
 var (
 	server string
-    jobID  string
+    jobstepID  string
 )
 
 type Config struct {
     Server string
-    JobID  string
+    JobstepID  string
 	Cmds   []struct {
 		Id        string            `json:"id"`
 		Script    string            `json:"script"`
@@ -52,18 +52,18 @@ func fetchConfig(url string) (*Config, error) {
 }
 
 func GetConfig() (*Config, error) {
-    url := server + "/jobsteps/" + jobID
+    url := server + "/jobsteps/" + jobstepID
     conf, err := fetchConfig(url)
     if err != nil {
         return nil, err
     }
 
     conf.Server = server
-    conf.JobID = jobID
+    conf.JobstepID = jobstepID
     return conf, err
 }
 
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
-    flag.StringVar(&jobID, "job_id", "", "Job ID whose commands are to be executed")
+    flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 }

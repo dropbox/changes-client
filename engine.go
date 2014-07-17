@@ -61,10 +61,10 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 
 func RunCmds(reporter *Reporter, config *Config) {
     result := "passed"
-    defer reporter.PushJobStatus(config.JobID, STATUS_FINISHED, result)
+    defer reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 
 	wg := sync.WaitGroup{}
-    reporter.PushJobStatus(config.JobID, STATUS_IN_PROGRESS, "")
+    reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
     offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
 
@@ -89,7 +89,7 @@ func RunCmds(reporter *Reporter, config *Config) {
 
 		wg.Add(1)
 		go func() {
-			reportChunks(reporter, config.JobID, r.ChunkChan, &offsetMap)
+			reportChunks(reporter, config.JobstepID, r.ChunkChan, &offsetMap)
 			wg.Done()
 		}()
 
@@ -108,7 +108,7 @@ func RunCmds(reporter *Reporter, config *Config) {
             }
 		}
 
-		publishArtifacts(reporter, config.JobID, cmd.Artifacts)
+		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
 	}
 
 	wg.Wait()
