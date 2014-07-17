@@ -33,7 +33,8 @@ func (m *OffsetMap) set(source string, offset int) {
 func reportChunks(r *Reporter, cID string, c chan LogChunk, offsetMap *OffsetMap) {
 	for l := range c {
         sourceOffset := offsetMap.get(l.Source)
-		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, sourceOffset + l.Offset, l.Length)
+        l.Offset += sourceOffset
+		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
 		fmt.Printf("%s", l.Payload)
 		r.PushLogChunk(cID, l)
         sourceOffset += l.Length
