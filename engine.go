@@ -13,11 +13,31 @@ const (
     STATUS_FINISHED = "finished"
 )
 
-func reportChunks(r *Reporter, cID string, c chan LogChunk) {
+type OffsetMap struct {
+    mu            sync.Mutex
+    sourceOffsets map[string]int
+}
+
+func (m *OffsetMap) get(source string) int {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    return m.sourceOffsets[source]
+}
+
+func (m *OffsetMap) set(source string, offset int) {
+    m.mu.Lock()
+    defer m.mu.Unlock()
+    m.sourceOffsets[source] = offset
+}
+
+func reportChunks(r *Reporter, cID string, c chan LogChunk, offsetMap *OffsetMap) {
 	for l := range c {
-		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
+        sourceOffset := offsetMap.get(l.Source)
+		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, sourceOffset + l.Offset, l.Length)
 		fmt.Printf("%s", l.Payload)
 		r.PushLogChunk(cID, l)
+        sourceOffset += l.Length
+        offsetMap.set(l.Source, sourceOffset)
 	}
 }
 
@@ -44,6 +64,8 @@ func runCmds(reporter *Reporter, config *Config) {
         reporter.PushStatus(cmd.Id, STATUS_QUEUED, -1)
     }
 
+    offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
+
 	for _, cmd := range config.Cmds {
 		fmt.Println("Running", cmd.Id)
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
@@ -65,7 +87,7 @@ func runCmds(reporter *Reporter, config *Config) {
 
 		wg.Add(1)
 		go func() {
-			reportChunks(reporter, cmd.Id, r.ChunkChan)
+			reportChunks(reporter, cmd.Id, r.ChunkChan, &offsetMap)
 			wg.Done()
 		}()
 

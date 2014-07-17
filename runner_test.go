@@ -116,6 +116,11 @@ func TestCompleteFlow(t *testing.T) {
 				"env": {"VAR": "hello world"},
 				"cwd": "/tmp",
                 "artifacts": ["%s"]
+			},
+			{
+				"id": "cmd_2",
+				"script": "#!/bin/bash\necho test",
+				"cwd": "/tmp"
 			}
 		]
 	}
@@ -151,6 +156,24 @@ func TestCompleteFlow(t *testing.T) {
 				"text":   "hello world",
 				"source": "stdout",
 				"offset": "0",
+			},
+		},
+		FormData{
+			params: map[string]string{
+				"status": STATUS_FINISHED,
+                "return_code": "0",
+			},
+		},
+		FormData{
+			params: map[string]string{
+				"status": STATUS_IN_PROGRESS,
+			},
+		},
+		FormData{
+			params: map[string]string{
+				"text":   "test",
+				"source": "stdout",
+				"offset": "12",
 			},
 		},
 		FormData{
