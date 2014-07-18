@@ -156,7 +156,7 @@ func TestCompleteFlow(t *testing.T) {
             path: "/jobsteps/job_1/logappend/",
 			params: map[string]string{
 				"text":   "hello world",
-				"source": "stdout",
+				"source": "console",
 				"offset": "0",
 			},
 		},
@@ -186,7 +186,7 @@ func TestCompleteFlow(t *testing.T) {
             path: "/jobsteps/job_1/logappend/",
 			params: map[string]string{
 				"text":   "test\n",
-				"source": "stdout",
+				"source": "console",
 				"offset": "11",
 			},
 		},
