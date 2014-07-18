@@ -88,8 +88,13 @@ func transportSend(r *Reporter) {
 				panic("Unknown error occurred with publish endpoint")
 			}
 
+            status := "-1"
+            if resp != nil {
+                status = resp.Status
+            }
+
 			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
-				path, tryCnt, resp.Status, err)
+				path, tryCnt, status, err)
 			/* We are unable to publish to the endpoint.
 			 * Fail fast and let the above layers handle the outage */
 			if tryCnt == numPublishRetries {
