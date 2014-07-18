@@ -112,5 +112,4 @@ func RunCmds(reporter *Reporter, config *Config) {
 	}
 
 	wg.Wait()
-    result = "passed"
 }
