@@ -85,13 +85,13 @@ func (r *Runner) Run() (*os.ProcessState, error) {
 
 	wg.Add(1)
 	go func() {
-		processChunks(r.ChunkChan, stdout, "stdout")
+		processChunks(r.ChunkChan, stdout, "console")
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		processChunks(r.ChunkChan, stderr, "stderr")
+		processChunks(r.ChunkChan, stderr, "console")
 		wg.Done()
 	}()
 	stdin.Close()
