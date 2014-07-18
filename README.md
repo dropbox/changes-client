@@ -33,3 +33,16 @@ Example Run
 ```
 
 > NOTE: There is no `/` at the end of `--server`
+
+Building package
+----------------
+
+We will use [fpm](https://github.com/jordansissel/fpm) to build our deb file.
+
+```
+mkdir -p /tmp/changes-client-build/usr/bin
+cp ./bin/client /tmp/changes-client-build/usr/bin/changes-client
+fpm -s dir -t deb -n "changes-client" -v $VERSION /tmp/changes-client
+```
+
+Thats it. `.deb` file should be available as changes-client\_$VERSION\_amd64.deb
