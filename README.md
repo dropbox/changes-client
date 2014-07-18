@@ -42,7 +42,7 @@ We will use [fpm](https://github.com/jordansissel/fpm) to build our deb file.
 ```
 mkdir -p /tmp/changes-client-build/usr/bin
 cp ./bin/client /tmp/changes-client-build/usr/bin/changes-client
-fpm -s dir -t deb -n "changes-client" -v $VERSION /tmp/changes-client-build
+fpm -s dir -t deb -n "changes-client" -v $VERSION -C /tmp/changes-client-build .
 ```
 
 Or run
