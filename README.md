@@ -45,4 +45,10 @@ cp ./bin/client /tmp/changes-client-build/usr/bin/changes-client
 fpm -s dir -t deb -n "changes-client" -v $VERSION /tmp/changes-client-build
 ```
 
+Or run
+
+```
+make -C src/github.com/dropbox/changes-client/
+```
+
 Thats it. `.deb` file should be available as changes-client\_$VERSION\_amd64.deb
