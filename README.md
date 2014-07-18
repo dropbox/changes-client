@@ -30,4 +30,4 @@ Example Run
 ./bin/client --server "https://changes.build.itc.dropbox.com/api/0" --jobstep_id "bbc9a199-1b36-4f7d-9072-3974f32fdb1b"
 ```
 
-> NOTE: There is no **/** at the end of **server**
+> NOTE: There is no `/` at the end of `--server`
