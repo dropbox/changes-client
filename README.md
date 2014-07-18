@@ -10,7 +10,9 @@ Setup
 ```
 mkdir -p go/src go/bin go/pkg
 cd go
-GOPATH=`pwd` go get github.com/dropbox/changes-client
+export GOPATH=`pwd`
+
+go get github.com/dropbox/changes-client
 ```
 
 Build
