@@ -32,13 +32,16 @@ func (m *OffsetMap) set(source string, offset int) {
 
 func reportChunks(r *Reporter, cID string, c chan LogChunk, offsetMap *OffsetMap) {
 	for l := range c {
+        // Override offset until we figure how to show multi streams in changes UI
         sourceOffset := offsetMap.get(l.Source)
-        l.Offset += sourceOffset
+        l.Offset = sourceOffset
+
+        sourceOffset += l.Length
+        offsetMap.set(l.Source, sourceOffset)
+
 		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
 		fmt.Printf("%s", l.Payload)
 		r.PushLogChunk(cID, l)
-        sourceOffset += l.Length
-        offsetMap.set(l.Source, sourceOffset)
 	}
 }
 
