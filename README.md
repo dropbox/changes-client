@@ -22,7 +22,7 @@ Build
 go install github.com/dropbox/changes-client/client
 ```
 
-The binary will be installed at ./bin/client folder
+The binary will be installed at `./bin/client` folder
 
 Example Run
 -----------
