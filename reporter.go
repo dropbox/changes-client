@@ -49,10 +49,10 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 			return nil, err
 		}
 
-        err = writer.WriteField("name", file)
-        if err != nil {
-            return nil, err
-        }
+		err = writer.WriteField("name", file)
+		if err != nil {
+			return nil, err
+		}
 
 		fileField, err := writer.CreateFormFile("file", filepath.Base(file))
 		if err != nil {
@@ -72,24 +72,24 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 func transportSend(r *Reporter) {
 	for req := range r.publishChannel {
 		path := r.publishUri + req.path
-        if req.data == nil {
-            req.data = make(map[string]string)
-        }
+		if req.data == nil {
+			req.data = make(map[string]string)
+		}
 
-        req.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
+		req.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
 			resp, err := httpPost(path, req.data, req.filename)
 
-            status := "-1"
-            if resp != nil {
-                status = resp.Status
-            }
+			status := "-1"
+			if resp != nil {
+				status = resp.Status
+			}
 
 			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
 				path, tryCnt, status, err)
 
-			if resp != nil && resp.StatusCode / 100 == 2 {
+			if resp != nil && resp.StatusCode/100 == 2 {
 				break
 			}
 
@@ -123,18 +123,18 @@ func NewReporter(publishUri string) *Reporter {
 func (r *Reporter) PushJobStatus(jobID string, status string, result string) {
 	form := make(map[string]string)
 	form["status"] = status
-    if len(result) > 0 {
-        form["result"] = result
-    }
+	if len(result) > 0 {
+		form["result"] = result
+	}
 	r.publishChannel <- ReportPayload{"/jobsteps/" + jobID + "/", form, ""}
 }
 
 func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	form := make(map[string]string)
 	form["status"] = status
-    if retCode >= 0 {
-        form["return_code"] = strconv.Itoa(retCode)
-    }
+	if retCode >= 0 {
+		form["return_code"] = strconv.Itoa(retCode)
+	}
 	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 

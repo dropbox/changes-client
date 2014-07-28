@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"os/exec"
 	"sync"
-	"log"
 )
 
 var (
@@ -76,10 +76,10 @@ func (r *Runner) Run() (*os.ProcessState, error) {
 		return nil, err
 	}
 
-    log.Printf("[runner] Execute command %s", r.Id)
+	log.Printf("[runner] Execute command %s", r.Id)
 	err = r.Cmd.Start()
 	if err != nil {
-        log.Printf("[runner] Command start failed %s %s", r.Id, err.Error())
+		log.Printf("[runner] Command start failed %s %s", r.Id, err.Error())
 		return nil, err
 	}
 
@@ -89,14 +89,14 @@ func (r *Runner) Run() (*os.ProcessState, error) {
 	wg.Add(1)
 	go func() {
 		processChunks(r.ChunkChan, stdout, "console")
-        log.Printf("[runner] Command stdout processed %s", r.Id)
+		log.Printf("[runner] Command stdout processed %s", r.Id)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
 		processChunks(r.ChunkChan, stderr, "console")
-        log.Printf("[runner] Command stderr processed %s", r.Id)
+		log.Printf("[runner] Command stderr processed %s", r.Id)
 		wg.Done()
 	}()
 	stdin.Close()

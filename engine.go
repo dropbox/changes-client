@@ -8,36 +8,36 @@ import (
 )
 
 const (
-    STATUS_QUEUED = "queued"
-    STATUS_IN_PROGRESS = "in_progress"
-    STATUS_FINISHED = "finished"
+	STATUS_QUEUED      = "queued"
+	STATUS_IN_PROGRESS = "in_progress"
+	STATUS_FINISHED    = "finished"
 )
 
 type OffsetMap struct {
-    mu            sync.Mutex
-    sourceOffsets map[string]int
+	mu            sync.Mutex
+	sourceOffsets map[string]int
 }
 
 func (m *OffsetMap) get(source string) int {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    return m.sourceOffsets[source]
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return m.sourceOffsets[source]
 }
 
 func (m *OffsetMap) set(source string, offset int) {
-    m.mu.Lock()
-    defer m.mu.Unlock()
-    m.sourceOffsets[source] = offset
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.sourceOffsets[source] = offset
 }
 
 func reportChunks(r *Reporter, cID string, c chan LogChunk, offsetMap *OffsetMap) {
 	for l := range c {
-        // Override offset until we figure how to show multi streams in changes UI
-        sourceOffset := offsetMap.get(l.Source)
-        l.Offset = sourceOffset
+		// Override offset until we figure how to show multi streams in changes UI
+		sourceOffset := offsetMap.get(l.Source)
+		l.Offset = sourceOffset
 
-        sourceOffset += l.Length
-        offsetMap.set(l.Source, sourceOffset)
+		sourceOffset += l.Length
+		offsetMap.set(l.Source, sourceOffset)
 
 		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
 		fmt.Printf("%s", l.Payload)
@@ -63,20 +63,20 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 }
 
 func RunCmds(reporter *Reporter, config *Config) {
-    result := "passed"
-    defer reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
+	result := "passed"
+	defer reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 
 	wg := sync.WaitGroup{}
-    reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
+	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
-    offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
+	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
 		r, err := NewRunner(cmd.Id, cmd.Script)
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
-            result = "failed"
+			result = "failed"
 			break
 		}
 
@@ -86,9 +86,9 @@ func RunCmds(reporter *Reporter, config *Config) {
 		}
 		r.Cmd.Env = env
 
-        if len(cmd.Cwd) > 0 {
-            r.Cmd.Dir = cmd.Cwd
-        }
+		if len(cmd.Cwd) > 0 {
+			r.Cmd.Dir = cmd.Cwd
+		}
 
 		wg.Add(1)
 		go func() {
@@ -99,16 +99,16 @@ func RunCmds(reporter *Reporter, config *Config) {
 		pState, err := r.Run()
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
-            result = "failed"
+			result = "failed"
 			break
 		} else {
-            if pState.Success() {
-                reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
-            } else {
-                reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
-                result = "failed"
-                break
-            }
+			if pState.Success() {
+				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
+			} else {
+				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
+				result = "failed"
+				break
+			}
 		}
 
 		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
