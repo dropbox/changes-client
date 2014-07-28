@@ -12,4 +12,7 @@ all:
 
 	@echo "Creating .deb file"
 	fpm -s dir -t deb -n "changes-client" -v `$(BIN) --version` -C /tmp/changes-client-build .
-	
+
+
+test:
+	go test
