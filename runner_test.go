@@ -106,6 +106,7 @@ func TestCompleteFlow(t *testing.T) {
 	config := &Config{}
 	config.Server = ts.URL
 	config.JobstepID = "job_1"
+	config.Workspace = "/tmp/changes-client-test"
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "git@github.com:dropbox/changes.git"
 	config.Source.Revision.Sha = "aaaaaa"
@@ -125,7 +126,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	reporter := NewReporter(config.Server)
 	source, _ := NewSource(config)
-	RunCmds(reporter, source, config)
+	RunBuildPlan(reporter, source, config)
 	reporter.Shutdown()
 
 	if err != nil {

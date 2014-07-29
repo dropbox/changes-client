@@ -62,16 +62,8 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func RunCmds(reporter *Reporter, source *Source, config *Config) {
-	result := "passed"
-
-	wg := sync.WaitGroup{}
-	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
-
+func RunAllCmds(reporter *Reporter, config *Config, wg sync.WaitGroup, result string) {
 	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
-
-	// TODO(dcramer); abstract all commands to run in an identical way
-	source.SetupWorkspace(reporter, "./source/")
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
@@ -114,6 +106,22 @@ func RunCmds(reporter *Reporter, source *Source, config *Config) {
 		}
 
 		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
+	}
+}
+
+func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
+	result := "passed"
+
+	wg := sync.WaitGroup{}
+	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
+
+	// TODO(dcramer): the workspace setup needs to correctly report log chunks
+	// back upstream
+	err := source.SetupWorkspace(reporter, config.Workspace)
+	if err != nil {
+		result = "failed"
+	} else {
+		RunAllCmds(reporter, config, wg, result)
 	}
 
 	wg.Wait()

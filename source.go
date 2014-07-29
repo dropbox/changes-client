@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"log"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -39,22 +40,27 @@ func (source *Source) SetupWorkspace(reporter *Reporter, path string) error {
 		return err
 	}
 
+	log.Printf("[reporter] Updating working copy of %s", source.RepositoryURL)
 	err = CloneOrUpdate(vcs)
 	if err != nil {
 		return err
 	}
 
+	log.Printf("[reporter] Checking out revision %s", source.RevisionSha)
 	err = CheckoutRevision(vcs, source.RevisionSha)
 	if err != nil {
+		log.Printf("[reporter] Error fetching revision: %s", err)
 		return err
 	}
 
 	if source.PatchID != "" {
+		log.Printf("[reporter] Downloading patch %s", source.PatchID)
 		patchpath, err := DownloadPatch(source.PatchURL)
 		if err != nil {
 			return err
 		}
 
+		log.Printf("[reporter] Applying patch %s", source.PatchID)
 		err = ApplyPatch(vcs, patchpath)
 		if err != nil {
 			return err

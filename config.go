@@ -11,6 +11,7 @@ import (
 var (
 	server    string
 	jobstepID string
+	workspace string
 )
 
 type ConfigCmd struct {
@@ -24,6 +25,7 @@ type ConfigCmd struct {
 type Config struct {
 	Server    string
 	JobstepID string
+	Workspace string
 	Source    struct {
 		Revision struct {
 			Sha string
@@ -80,10 +82,12 @@ func GetConfig() (*Config, error) {
 
 	conf.Server = server
 	conf.JobstepID = jobstepID
+	conf.Workspace = workspace
 	return conf, err
 }
 
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
 	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
+	flag.StringVar(&workspace, "workspace", "", "Workspace to checkout source into")
 }
