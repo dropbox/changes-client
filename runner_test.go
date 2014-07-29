@@ -163,18 +163,18 @@ func TestCompleteFlow(t *testing.T) {
 			},
 		},
 		FormData{
+			path: "/commands/cmd_2/",
+			params: map[string]string{
+				"status": STATUS_IN_PROGRESS,
+			},
+		},
+		FormData{
 			path: "/jobsteps/job_1/artifacts/",
 			params: map[string]string{
 				"name": os.Args[0],
 			},
 			files: map[string]string{
 				"file": string(expectedFileContents),
-			},
-		},
-		FormData{
-			path: "/commands/cmd_2/",
-			params: map[string]string{
-				"status": STATUS_IN_PROGRESS,
 			},
 		},
 		FormData{

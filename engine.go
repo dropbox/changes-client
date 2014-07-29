@@ -63,9 +63,9 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 }
 
 func RunAllCmds(reporter *Reporter, config *Config, result string) {
-	wg := sync.WaitGroup{}
-
 	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
+
+	wg := sync.WaitGroup{}
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
@@ -107,8 +107,13 @@ func RunAllCmds(reporter *Reporter, config *Config, result string) {
 			}
 		}
 
-		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
+		wg.Add(1)
+		go func(artifacts []string) {
+			publishArtifacts(reporter, config.JobstepID, artifacts)
+			wg.Done()
+		}(cmd.Artifacts)
 	}
+
 	wg.Wait()
 }
 
