@@ -2,7 +2,6 @@ package runner
 
 import (
 	"bytes"
-	"encoding/json"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -102,36 +101,30 @@ func TestCompleteFlow(t *testing.T) {
 	defer ts.Close()
 
 	// Current running program is definitely an artifact which will be present in the pogram
-	required_artifact := os.Args[0]
-
-	template := `
-	{
-		"commands": [
-			{
-				"id": "cmd_1",
-				"script": "#!/bin/bash\necho -n $VAR",
-				"env": {"VAR": "hello world"},
-				"cwd": "/tmp",
-                "artifacts": ["%s"]
-			},
-			{
-				"id": "cmd_2",
-				"script": "#!/bin/bash\necho test",
-				"cwd": "/tmp"
-			}
-		]
-	}
-	`
+	// required_artifact := os.Args[0]
 
 	config := &Config{}
 	config.Server = ts.URL
 	config.JobstepID = "job_1"
-	if json.Unmarshal([]byte(fmt.Sprintf(template, required_artifact)), config) != nil {
-		t.Errorf("Failed to parse build config")
-	}
+	config.Repository.Backend.ID = "git"
+	config.Repository.URL = "git@github.com:dropbox/changes.git"
+	config.Cmds = append(config.Cmds, ConfigCmd{
+		Id: "cmd_1",
+		Script: "#!/bin/bash\necho -n $VAR",
+		Env: map[string]string{
+			"VAR": "hello world",
+		},
+		Cwd: "/tmp",
+		Artifacts: []string{os.Args[0]},
+	}, ConfigCmd{
+		Id: "cmd_2",
+		Script: "#!/bin/bash\necho test",
+		Cwd: "/tmp",
+	})
 
 	reporter := NewReporter(config.Server)
-	RunCmds(reporter, config)
+	source, _ := NewSource(config)
+	RunCmds(reporter, source, config)
 	reporter.Shutdown()
 
 	if err != nil {

@@ -30,7 +30,7 @@ type LogChunk struct {
 }
 
 func NewRunner(id string, script string) (*Runner, error) {
-	f, err := ioutil.TempFile("", "")
+	f, err := ioutil.TempFile("", "script-")
 	if err != nil {
 		return nil, err
 	}

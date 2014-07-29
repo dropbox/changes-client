@@ -26,6 +26,7 @@ func main() {
 	}
 
 	reporter := runner.NewReporter(config.Server)
-	runner.RunCmds(reporter, config)
+	source := runner.NewSource(config)
+	runner.RunCmds(reporter, source, config)
 	reporter.Shutdown()
 }

@@ -13,16 +13,32 @@ var (
 	jobstepID string
 )
 
+type ConfigCmd struct {
+	Id        string
+	Script    string
+	Env       map[string]string
+	Cwd       string
+	Artifacts []string
+}
+
 type Config struct {
 	Server    string
 	JobstepID string
-	Cmds      []struct {
-		Id        string            `json:"id"`
-		Script    string            `json:"script"`
-		Env       map[string]string `json:"env"`
-		Cwd       string            `json:"cwd"`
-		Artifacts []string          `json:"artifacts"`
-	} `json:"commands"`
+	Source    struct {
+		Revision struct {
+			Sha string
+		}
+		Patch struct {
+			ID string
+		}
+	}
+	Repository struct {
+		URL     string
+		Backend struct {
+			ID string
+		}
+	}
+	Cmds []ConfigCmd `json:"commands"`
 }
 
 func fetchConfig(url string) (*Config, error) {
@@ -42,8 +58,12 @@ func fetchConfig(url string) (*Config, error) {
 		return nil, err
 	}
 
+	return LoadConfig(body)
+}
+
+func LoadConfig(content []byte) (*Config, error) {
 	r := &Config{}
-	err = json.Unmarshal(body, r)
+	err := json.Unmarshal(content, r)
 	if err != nil {
 		return nil, err
 	}

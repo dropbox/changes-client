@@ -62,13 +62,16 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func RunCmds(reporter *Reporter, config *Config) {
+func RunCmds(reporter *Reporter, source *Source, config *Config) {
 	result := "passed"
 
 	wg := sync.WaitGroup{}
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
 	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
+
+	// TODO(dcramer); abstract all commands to run in an identical way
+	source.SetupWorkspace(reporter, "./source/")
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
