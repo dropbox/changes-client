@@ -10,6 +10,7 @@ import (
 type Source struct {
 	RepositoryType string
 	RepositoryURL  string
+	RevisionSha    string
 	PatchID        string
 	PatchURL       string
 }
@@ -26,6 +27,7 @@ func NewSource(config *Config) (*Source, error) {
 	return &Source{
 		RepositoryType: config.Repository.Backend.ID,
 		RepositoryURL:  config.Repository.URL,
+		RevisionSha:    config.Source.Revision.Sha,
 		PatchID:        patchid,
 		PatchURL:       patchurl,
 	}, nil
@@ -38,6 +40,11 @@ func (source *Source) SetupWorkspace(reporter *Reporter, path string) error {
 	}
 
 	err = CloneOrUpdate(vcs)
+	if err != nil {
+		return err
+	}
+
+	err = CheckoutRevision(vcs, source.RevisionSha)
 	if err != nil {
 		return err
 	}

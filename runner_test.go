@@ -108,18 +108,19 @@ func TestCompleteFlow(t *testing.T) {
 	config.JobstepID = "job_1"
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "git@github.com:dropbox/changes.git"
+	config.Source.Revision.Sha = "aaaaaa"
 	config.Cmds = append(config.Cmds, ConfigCmd{
-		Id: "cmd_1",
+		Id:     "cmd_1",
 		Script: "#!/bin/bash\necho -n $VAR",
 		Env: map[string]string{
 			"VAR": "hello world",
 		},
-		Cwd: "/tmp",
+		Cwd:       "/tmp",
 		Artifacts: []string{os.Args[0]},
 	}, ConfigCmd{
-		Id: "cmd_2",
+		Id:     "cmd_2",
 		Script: "#!/bin/bash\necho test",
-		Cwd: "/tmp",
+		Cwd:    "/tmp",
 	})
 
 	reporter := NewReporter(config.Server)

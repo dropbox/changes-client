@@ -20,6 +20,12 @@ func (v *GitVcs) GetUpdateCommand() (*exec.Cmd, error) {
 	return cmd, nil
 }
 
+func (v *GitVcs) GetCheckoutRevisionCommand(sha string) (*exec.Cmd, error) {
+	cmd := exec.Command("git", "reset", "--hard", sha)
+	cmd.Dir = v.Path
+	return cmd, nil
+}
+
 func (v *GitVcs) GetApplyPatchCommand(path string) (*exec.Cmd, error) {
 	cmd := exec.Command("git", "apply", path)
 	cmd.Dir = v.Path

@@ -51,6 +51,14 @@ func TestLoadConfig(t *testing.T) {
 		t.Fail()
 	}
 
+	if config.Source.Patch.ID != "patch_1" {
+		t.Fail()
+	}
+
+	if config.Source.Revision.Sha != "aaaaaa" {
+		t.Fail()
+	}
+
 	if len(config.Cmds) != 2 {
 		t.Fail()
 	}

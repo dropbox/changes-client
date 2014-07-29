@@ -9,6 +9,7 @@ import (
 type Vcs interface {
 	GetCloneCommand() (*exec.Cmd, error)
 	GetUpdateCommand() (*exec.Cmd, error)
+	GetCheckoutRevisionCommand(string) (*exec.Cmd, error)
 	GetApplyPatchCommand(string) (*exec.Cmd, error)
 	GetPath() string
 }
@@ -53,6 +54,21 @@ func CloneOrUpdate(v Vcs) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func CheckoutRevision(v Vcs, sha string) error {
+	// if the workspace already exists, update
+	// otherwise create a new checkout
+	cmd, err := v.GetCheckoutRevisionCommand(sha)
+	if err != nil {
+		return err
+	}
+	err = runCmd(cmd)
+	if err != nil {
+		return err
 	}
 
 	return nil
