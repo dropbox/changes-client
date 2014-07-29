@@ -2,9 +2,9 @@ package runner
 
 import (
 	"fmt"
-	"log"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/http"
 )
 
@@ -34,7 +34,7 @@ func NewSource(config *Config) (*Source, error) {
 	}, nil
 }
 
-func (source *Source) SetupWorkspace(reporter *Reporter, path string) error {
+func (source *Source) SetupWorkspace(path string, reporter *Reporter) error {
 	vcs, err := source.GetVcsBackend(path)
 	if err != nil {
 		return err

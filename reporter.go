@@ -138,11 +138,11 @@ func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
-func (r *Reporter) PushLogChunk(ID string, l LogChunk) {
+func (r *Reporter) PushLogChunk(ID string, source string, offset int, payload []byte) {
 	form := make(map[string]string)
-	form["source"] = l.Source
-	form["offset"] = strconv.Itoa(l.Offset)
-	form["text"] = string(l.Payload)
+	form["source"] = source
+	form["offset"] = strconv.Itoa(offset)
+	form["text"] = string(payload)
 	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
 }
 

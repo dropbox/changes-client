@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"sync"
@@ -12,38 +11,6 @@ const (
 	STATUS_IN_PROGRESS = "in_progress"
 	STATUS_FINISHED    = "finished"
 )
-
-type OffsetMap struct {
-	mu            sync.Mutex
-	sourceOffsets map[string]int
-}
-
-func (m *OffsetMap) get(source string) int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return m.sourceOffsets[source]
-}
-
-func (m *OffsetMap) set(source string, offset int) {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	m.sourceOffsets[source] = offset
-}
-
-func reportChunks(r *Reporter, cID string, c chan LogChunk, offsetMap *OffsetMap) {
-	for l := range c {
-		// Override offset until we figure how to show multi streams in changes UI
-		sourceOffset := offsetMap.get(l.Source)
-		l.Offset = sourceOffset
-
-		sourceOffset += l.Length
-		offsetMap.set(l.Source, sourceOffset)
-
-		fmt.Printf("Got another chunk from %s (%d-%d)\n", l.Source, l.Offset, l.Length)
-		fmt.Printf("%s", l.Payload)
-		r.PushLogChunk(cID, l)
-	}
-}
 
 func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	if len(artifacts) == 0 {
@@ -62,9 +29,7 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func RunAllCmds(reporter *Reporter, config *Config, result string) {
-	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
-
+func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *LogSource) {
 	wg := sync.WaitGroup{}
 
 	for _, cmd := range config.Cmds {
@@ -88,7 +53,7 @@ func RunAllCmds(reporter *Reporter, config *Config, result string) {
 
 		wg.Add(1)
 		go func() {
-			reportChunks(reporter, config.JobstepID, r.ChunkChan, &offsetMap)
+			logsource.reportChunks(r.ChunkChan)
 			wg.Done()
 		}()
 
@@ -120,15 +85,21 @@ func RunAllCmds(reporter *Reporter, config *Config, result string) {
 func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
 	result := "passed"
 
+	logsource := &LogSource{
+		Name:      "console",
+		JobstepID: config.JobstepID,
+		Reporter:  reporter,
+	}
+
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
 	// TODO(dcramer): the workspace setup needs to correctly report log chunks
 	// back upstream
-	err := source.SetupWorkspace(reporter, config.Workspace)
+	err := source.SetupWorkspace(config.Workspace, reporter)
 	if err != nil {
 		result = "failed"
 	} else {
-		RunAllCmds(reporter, config, result)
+		RunAllCmds(reporter, config, result, logsource)
 	}
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)

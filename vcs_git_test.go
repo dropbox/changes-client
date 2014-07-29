@@ -21,7 +21,7 @@ func TestCloneBehavior(t *testing.T) {
 
 	vcs := &GitVcs{
 		Path: "/tmp/changes-client-go-test",
-		URL: "file://.",
+		URL:  "file://.",
 	}
 
 	err = CloneOrUpdate(vcs)

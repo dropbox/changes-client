@@ -22,13 +22,6 @@ type Runner struct {
 	ChunkChan chan LogChunk
 }
 
-type LogChunk struct {
-	Source  string
-	Offset  int
-	Length  int
-	Payload []byte
-}
-
 func NewRunner(id string, script string) (*Runner, error) {
 	f, err := ioutil.TempFile("", "script-")
 	if err != nil {
