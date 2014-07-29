@@ -107,13 +107,8 @@ func RunAllCmds(reporter *Reporter, config *Config, result string) {
 			}
 		}
 
-		wg.Add(1)
-		go func() {
-			publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
-			wg.Done()
-		}()
+		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
 	}
-
 	wg.Wait()
 }
 
