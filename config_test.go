@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -13,7 +14,7 @@ func TestLoadConfig(t *testing.T) {
 				"script": "#!/bin/bash\necho -n $VAR",
 				"env": {"VAR": "hello world"},
 				"cwd": "/tmp",
-                "artifacts": ["%s"]
+				"artifacts": ["junit.xml"]
 			},
 			{
 				"id": "cmd_2",
@@ -63,4 +64,28 @@ func TestLoadConfig(t *testing.T) {
 		t.Fail()
 	}
 
+	if config.Cmds[0].Id != "cmd_1" {
+		t.Fail()
+	}
+
+	if config.Cmds[0].Script != "#!/bin/bash\necho -n $VAR" {
+		t.Fail()
+	}
+
+	if config.Cmds[0].Cwd != "/tmp" {
+		t.Fail()
+	}
+
+	if len(config.Cmds[0].Artifacts) != 1 {
+		t.Fail()
+	}
+
+	if config.Cmds[0].Artifacts[0] != "junit.xml" {
+		t.Fail()
+	}
+
+	expected := map[string]string{"VAR": "hello world"}
+	if !reflect.DeepEqual(config.Cmds[0].Env, expected) {
+		t.Fail()
+	}
 }
