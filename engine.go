@@ -64,7 +64,6 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 
 func RunCmds(reporter *Reporter, config *Config) {
 	result := "passed"
-	defer reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 
 	wg := sync.WaitGroup{}
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
@@ -115,4 +114,6 @@ func RunCmds(reporter *Reporter, config *Config) {
 	}
 
 	wg.Wait()
+
+	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 }
