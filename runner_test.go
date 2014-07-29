@@ -201,6 +201,12 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	}
 
+	if len(formData) < len(expected) {
+		fmt.Println("Less HTTP calls than expected")
+	} else if len(formData) > len(expected) {
+		fmt.Println("More HTTP calls than expected")
+	}
+
 	for i, v := range formData {
 		if !reflect.DeepEqual(v, expected[i]) {
 			fmt.Println("A", i, v.params, expected[i].params)
