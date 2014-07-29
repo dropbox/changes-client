@@ -79,10 +79,9 @@ func (source *Source) GetVcsBackend(sourcepath string) (Vcs, error) {
 			URL:  source.RepositoryURL,
 			Path: sourcepath,
 		}, nil
-	} else {
-		err := fmt.Errorf("Unsupported repository type: %s", source.RepositoryType)
-		return nil, err
 	}
+	err := fmt.Errorf("Unsupported repository type: %s", source.RepositoryType)
+	return nil, err
 }
 
 func DownloadPatch(patchurl string) (string, error) {
