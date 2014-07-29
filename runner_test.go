@@ -108,8 +108,8 @@ func TestCompleteFlow(t *testing.T) {
 	config.JobstepID = "job_1"
 	config.Workspace = "/tmp/changes-client-test"
 	config.Repository.Backend.ID = "git"
-	config.Repository.URL = "git@github.com:dropbox/changes.git"
-	config.Source.Revision.Sha = "aaaaaa"
+	config.Repository.URL = "https://github.com/dropbox/changes.git"
+	config.Source.Revision.Sha = "master"
 	config.Cmds = append(config.Cmds, ConfigCmd{
 		Id:     "cmd_1",
 		Script: "#!/bin/bash\necho -n $VAR",

@@ -2,6 +2,7 @@ package runner
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 )
@@ -15,6 +16,7 @@ type Vcs interface {
 }
 
 func runCmd(cmd *exec.Cmd) error {
+	log.Printf("[vcs] Executing command %s from %s", cmd.Args, cmd.Dir)
 	err := cmd.Start()
 	if err != nil {
 		return err
@@ -25,7 +27,7 @@ func runCmd(cmd *exec.Cmd) error {
 		return err
 	}
 
-	if cmd.ProcessState.Success() != true {
+	if !cmd.ProcessState.Success() {
 		err = fmt.Errorf("Command failed: %s", cmd.Path)
 		return err
 	}

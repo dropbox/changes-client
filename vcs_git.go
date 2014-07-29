@@ -10,7 +10,7 @@ type GitVcs struct {
 }
 
 func (v *GitVcs) GetCloneCommand() (*exec.Cmd, error) {
-	cmd := exec.Command("git", "clone", "--mirror", v.URL, v.Path)
+	cmd := exec.Command("git", "clone", v.URL, v.Path)
 	return cmd, nil
 }
 
