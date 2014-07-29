@@ -62,7 +62,9 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func RunAllCmds(reporter *Reporter, config *Config, wg sync.WaitGroup, result string) {
+func RunAllCmds(reporter *Reporter, config *Config, result string) {
+	wg := sync.WaitGroup{}
+
 	offsetMap := OffsetMap{sourceOffsets: make(map[string]int)}
 
 	for _, cmd := range config.Cmds {
@@ -105,14 +107,19 @@ func RunAllCmds(reporter *Reporter, config *Config, wg sync.WaitGroup, result st
 			}
 		}
 
-		publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
+		wg.Add(1)
+		go func() {
+			publishArtifacts(reporter, config.JobstepID, cmd.Artifacts)
+			wg.Done()
+		}()
 	}
+
+	wg.Wait()
 }
 
 func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
 	result := "passed"
 
-	wg := sync.WaitGroup{}
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
 	// TODO(dcramer): the workspace setup needs to correctly report log chunks
@@ -121,10 +128,8 @@ func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
 	if err != nil {
 		result = "failed"
 	} else {
-		RunAllCmds(reporter, config, wg, result)
+		RunAllCmds(reporter, config, result)
 	}
-
-	wg.Wait()
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 }
