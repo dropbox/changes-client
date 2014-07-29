@@ -43,6 +43,7 @@ func (source *Source) SetupWorkspace(reporter *Reporter, path string) error {
 	log.Printf("[reporter] Updating working copy of %s", source.RepositoryURL)
 	err = CloneOrUpdate(vcs)
 	if err != nil {
+		log.Printf("[reporter] Unable to update working copy: %s", err)
 		return err
 	}
 
@@ -57,12 +58,14 @@ func (source *Source) SetupWorkspace(reporter *Reporter, path string) error {
 		log.Printf("[reporter] Downloading patch %s", source.PatchID)
 		patchpath, err := DownloadPatch(source.PatchURL)
 		if err != nil {
+			log.Printf("[reporter] Error downloading patch: %s", err)
 			return err
 		}
 
 		log.Printf("[reporter] Applying patch %s", source.PatchID)
 		err = ApplyPatch(vcs, patchpath)
 		if err != nil {
+			log.Printf("[reporter] Error applying patch: %s", err)
 			return err
 		}
 	}
