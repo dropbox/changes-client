@@ -82,7 +82,7 @@ func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *Lo
 	wg.Wait()
 }
 
-func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
+func RunBuildPlan(reporter *Reporter, config *Config) {
 	result := "passed"
 
 	logsource := &LogSource{
@@ -93,14 +93,7 @@ func RunBuildPlan(reporter *Reporter, source *Source, config *Config) {
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
-	// TODO(dcramer): the workspace setup needs to correctly report log chunks
-	// back upstream
-	err := source.SetupWorkspace(config.Workspace, reporter)
-	if err != nil {
-		result = "failed"
-	} else {
-		RunAllCmds(reporter, config, result, logsource)
-	}
+	RunAllCmds(reporter, config, result, logsource)
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 }

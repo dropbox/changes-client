@@ -102,8 +102,7 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	reporter := NewReporter(config.Server)
-	source, _ := NewSource(config)
-	RunBuildPlan(reporter, source, config)
+	RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 
 	if err != nil {
