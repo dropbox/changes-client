@@ -16,13 +16,26 @@ var (
 	chunkSize = 4096
 )
 
-type Runner struct {
-	Id        string
+type WrappedCommand struct {
 	Cmd       *exec.Cmd
+	LogSource *LogSource
 	ChunkChan chan LogChunk
 }
 
-func NewRunner(id string, script string) (*Runner, error) {
+// A wrapped command will ensure that all stdin/out/err gets piped
+// into a buffer that can then be reported upstream to the Changes
+// master server
+func NewWrappedCommand(cmd *exec.Cmd) (*WrappedCommand, error) {
+	return &WrappedCommand{
+		Cmd:       cmd,
+		ChunkChan: make(chan LogChunk),
+	}, nil
+}
+
+// Build a new WrappedCommand out of an arbitrary script
+// The script is written to disk and then executed ensuring that it can
+// be fairly arbitrary and provide its own shebang
+func NewWrappedScriptCommand(script string) (*WrappedCommand, error) {
 	f, err := ioutil.TempFile("", "script-")
 	if err != nil {
 		return nil, err
@@ -44,35 +57,31 @@ func NewRunner(id string, script string) (*Runner, error) {
 		return nil, err
 	}
 
-	return &Runner{
-		Id:        id,
-		Cmd:       exec.Command(f.Name()),
-		ChunkChan: make(chan LogChunk),
-	}, nil
+	return NewWrappedCommand(exec.Command(f.Name()))
 }
 
-func (r *Runner) Run() (*os.ProcessState, error) {
-	defer close(r.ChunkChan)
+func (c *WrappedCommand) Run() (*os.ProcessState, error) {
+	defer close(c.ChunkChan)
 
-	stdin, err := r.Cmd.StdinPipe()
+	stdin, err := c.Cmd.StdinPipe()
 	if err != nil {
 		return nil, err
 	}
 
-	stdout, err := r.Cmd.StdoutPipe()
+	stdout, err := c.Cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
 	}
 
-	stderr, err := r.Cmd.StderrPipe()
+	stderr, err := c.Cmd.StderrPipe()
 	if err != nil {
 		return nil, err
 	}
 
-	log.Printf("[runner] Execute command %s", r.Id)
-	err = r.Cmd.Start()
+	log.Printf("[cmd] Executing %s", c.Cmd.Args)
+	err = c.Cmd.Start()
 	if err != nil {
-		log.Printf("[runner] Command start failed %s %s", r.Id, err.Error())
+		log.Printf("[cmd] Start failed %s %s", c.Cmd.Args, err.Error())
 		return nil, err
 	}
 
@@ -81,29 +90,29 @@ func (r *Runner) Run() (*os.ProcessState, error) {
 
 	wg.Add(1)
 	go func() {
-		processChunks(r.ChunkChan, stdout, "console")
-		log.Printf("[runner] Command stdout processed %s", r.Id)
+		processChunks(c.ChunkChan, stdout)
+		log.Printf("[cmd] Stdout processed %s", c.Cmd.Args)
 		wg.Done()
 	}()
 
 	wg.Add(1)
 	go func() {
-		processChunks(r.ChunkChan, stderr, "console")
-		log.Printf("[runner] Command stderr processed %s", r.Id)
+		processChunks(c.ChunkChan, stderr)
+		log.Printf("[cmd] Stderr processed %s", c.Cmd.Args)
 		wg.Done()
 	}()
 	stdin.Close()
 
 	wg.Wait()
-	err = r.Cmd.Wait()
+	err = c.Cmd.Wait()
 	if err != nil {
 		return nil, err
 	}
 
-	return r.Cmd.ProcessState, nil
+	return c.Cmd.ProcessState, nil
 }
 
-func processChunks(out chan LogChunk, pipe io.Reader, source string) {
+func processChunks(out chan LogChunk, pipe io.Reader) {
 	r := bufio.NewReader(pipe)
 
 	offset := 0
@@ -121,7 +130,7 @@ func processChunks(out chan LogChunk, pipe io.Reader, source string) {
 				break
 			} else {
 				finished = true
-				line = []byte(fmt.Sprintf("%s: %s", source, err))
+				line = []byte(fmt.Sprintf("%s", err))
 				payload = append(payload, line...)
 				break
 			}
@@ -129,7 +138,6 @@ func processChunks(out chan LogChunk, pipe io.Reader, source string) {
 
 		if len(payload) > 0 {
 			l := LogChunk{
-				Source:  source,
 				Offset:  offset,
 				Length:  len(payload),
 				Payload: payload,

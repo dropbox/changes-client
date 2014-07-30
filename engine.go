@@ -34,7 +34,7 @@ func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *Lo
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
-		r, err := NewRunner(cmd.Id, cmd.Script)
+		wc, err := NewWrappedScriptCommand(cmd.Script)
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
 			result = "failed"
@@ -45,19 +45,19 @@ func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *Lo
 		for k, v := range cmd.Env {
 			env = append(env, k+"="+v)
 		}
-		r.Cmd.Env = env
+		wc.Cmd.Env = env
 
 		if len(cmd.Cwd) > 0 {
-			r.Cmd.Dir = cmd.Cwd
+			wc.Cmd.Dir = cmd.Cwd
 		}
 
 		wg.Add(1)
 		go func() {
-			logsource.reportChunks(r.ChunkChan)
+			logsource.reportChunks(wc.ChunkChan)
 			wg.Done()
 		}()
 
-		pState, err := r.Run()
+		pState, err := wc.Run()
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
 			result = "failed"

@@ -28,7 +28,7 @@ func runCmd(cmd *exec.Cmd) error {
 	}
 
 	if !cmd.ProcessState.Success() {
-		err = fmt.Errorf("Command failed: %s", cmd.Path)
+		err = fmt.Errorf("[vcs] Command failed: %s", cmd.Path)
 		return err
 	}
 
