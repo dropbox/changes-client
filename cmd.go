@@ -64,18 +64,15 @@ func NewWrappedScriptCommand(script string, name string) (*WrappedCommand, error
 	return wc, err
 }
 
-func (wc *WrappedCommand) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser, error) {
+func (wc *WrappedCommand) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 	c := wc.Cmd
 
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		return nil, nil, err
-	}
+	pr, pw := io.Pipe()
 
 	c.Stdout = pw
 	c.Stderr = pw
 
-	return pr, pw, err
+	return pr, pw
 }
 
 func (wc *WrappedCommand) GetLabel() string {
@@ -89,19 +86,13 @@ func (wc *WrappedCommand) GetLabel() string {
 func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	defer close(wc.ChunkChan)
 
-	cmdreader, cmdwriter, err := wc.CombinedOutputPipe()
-	if err != nil {
-		return nil, err
-	}
+	cmdreader, cmdwriter := wc.CombinedOutputPipe()
 
 	cmdname := wc.GetLabel()
 	log.Printf("[cmd] Executing %s", cmdname)
 	processMessage(wc.ChunkChan, fmt.Sprintf(">> %s", cmdname))
 
-	err = wc.Cmd.Start()
-	// per the internal exec.Cmd implementation, close the writer
-	// immediately after Start()
-	cmdwriter.Close()
+	err := wc.Cmd.Start()
 
 	if err != nil {
 		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
@@ -119,12 +110,12 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 		wg.Done()
 	}()
 
-	wg.Wait()
-
 	err = wc.Cmd.Wait()
 
-	// per the internal exec.Cmd implementation, close the reader only
-	// after Cmd.Wait() (and after we're done reading)
+	cmdwriter.Close()
+
+	wg.Wait()
+
 	cmdreader.Close()
 
 	if err != nil {
