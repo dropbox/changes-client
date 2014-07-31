@@ -29,7 +29,9 @@ func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
 	reporter.PushArtifacts(cID, matches)
 }
 
-func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *LogSource) {
+func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string {
+	result := "passed"
+
 	wg := sync.WaitGroup{}
 
 	for _, cmd := range config.Cmds {
@@ -80,11 +82,11 @@ func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *Lo
 	}
 
 	wg.Wait()
+
+	return result
 }
 
 func RunBuildPlan(reporter *Reporter, config *Config) {
-	result := "passed"
-
 	logsource := &LogSource{
 		Name:      "console",
 		JobstepID: config.JobstepID,
@@ -93,7 +95,7 @@ func RunBuildPlan(reporter *Reporter, config *Config) {
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
 
-	RunAllCmds(reporter, config, result, logsource)
+	result := RunAllCmds(reporter, config, logsource)
 
 	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
 }
