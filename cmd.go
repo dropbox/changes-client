@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"strings"
 	"sync"
 )
 
@@ -17,6 +18,7 @@ var (
 )
 
 type WrappedCommand struct {
+	Name      string
 	Cmd       *exec.Cmd
 	LogSource *LogSource
 	ChunkChan chan LogChunk
@@ -35,7 +37,7 @@ func NewWrappedCommand(cmd *exec.Cmd) (*WrappedCommand, error) {
 // Build a new WrappedCommand out of an arbitrary script
 // The script is written to disk and then executed ensuring that it can
 // be fairly arbitrary and provide its own shebang
-func NewWrappedScriptCommand(script string) (*WrappedCommand, error) {
+func NewWrappedScriptCommand(script string, name string) (*WrappedCommand, error) {
 	f, err := ioutil.TempFile("", "script-")
 	if err != nil {
 		return nil, err
@@ -57,7 +59,9 @@ func NewWrappedScriptCommand(script string) (*WrappedCommand, error) {
 		return nil, err
 	}
 
-	return NewWrappedCommand(exec.Command(f.Name()))
+	wc, err := NewWrappedCommand(exec.Command(f.Name()))
+	wc.Name = name
+	return wc, err
 }
 
 func (c *WrappedCommand) Run() (*os.ProcessState, error) {
@@ -78,8 +82,15 @@ func (c *WrappedCommand) Run() (*os.ProcessState, error) {
 		return nil, err
 	}
 
-	log.Printf("[cmd] Executing %s", c.Cmd.Args)
-	processMessage(c.ChunkChan, fmt.Sprintf("$ %s", strings.Join(c.Cmd.Args, " ")))
+	var cmdname string
+	if c.Name != "" {
+		cmdname = c.Name
+	} else {
+		cmdname = strings.Join(c.Cmd.Args, " ")
+	}
+
+	log.Printf("[cmd] Executing %s", cmdname)
+	processMessage(c.ChunkChan, fmt.Sprintf(">> %s", cmdname))
 
 	err = c.Cmd.Start()
 	if err != nil {
@@ -115,10 +126,10 @@ func (c *WrappedCommand) Run() (*os.ProcessState, error) {
 	return c.Cmd.ProcessState, nil
 }
 
-func processMessage(out chan LogChunk, string payload) {
+func processMessage(out chan LogChunk, payload string) {
 	out <- LogChunk{
 		Length:  len(payload),
-		Payload: []byte(payload),
+		Payload: []byte(fmt.Sprintf("%s\n", payload)),
 	}
 }
 

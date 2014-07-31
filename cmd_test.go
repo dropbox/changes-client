@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestProgressChunks(t *testing.T) {
+func TestProcessChunks(t *testing.T) {
 	flag.Set("log_chunk_size", "3")
 
 	in := []byte("aaa\naaa\naaa\n")
@@ -23,6 +23,29 @@ func TestProgressChunks(t *testing.T) {
 	}
 
 	if cnt != 3 {
+		t.Fail()
+	}
+}
+
+func TestProcessMessage(t *testing.T) {
+	in := "aaa\naaa\naaa\n"
+	ch := make(chan LogChunk)
+
+	go func() {
+		processMessage(ch, in)
+		close(ch)
+	}()
+
+	var out []LogChunk
+	for c := range ch {
+		out = append(out, c)
+	}
+
+	if len(out) != 1 {
+		t.Fail()
+	}
+
+	if bytes.Equal(out[0].Payload, []byte(in)) {
 		t.Fail()
 	}
 }

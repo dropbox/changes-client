@@ -34,7 +34,7 @@ func RunAllCmds(reporter *Reporter, config *Config, result string, logsource *Lo
 
 	for _, cmd := range config.Cmds {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
-		wc, err := NewWrappedScriptCommand(cmd.Script)
+		wc, err := NewWrappedScriptCommand(cmd.Script, cmd.Id)
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
 			result = "failed"

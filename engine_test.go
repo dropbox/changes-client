@@ -126,9 +126,17 @@ func TestCompleteFlow(t *testing.T) {
 		FormData{
 			path: "/jobsteps/job_1/logappend/",
 			params: map[string]string{
-				"text":   "hello world",
+				"text":   ">> cmd_1\n",
 				"source": "console",
 				"offset": "0",
+			},
+		},
+		FormData{
+			path: "/jobsteps/job_1/logappend/",
+			params: map[string]string{
+				"text":   "hello world",
+				"source": "console",
+				"offset": "9",
 			},
 		},
 		FormData{
@@ -156,9 +164,17 @@ func TestCompleteFlow(t *testing.T) {
 		FormData{
 			path: "/jobsteps/job_1/logappend/",
 			params: map[string]string{
+				"text":   ">> cmd_2\n",
+				"source": "console",
+				"offset": "20",
+			},
+		},
+		FormData{
+			path: "/jobsteps/job_1/logappend/",
+			params: map[string]string{
 				"text":   "test\n",
 				"source": "console",
-				"offset": "11",
+				"offset": "29",
 			},
 		},
 		FormData{

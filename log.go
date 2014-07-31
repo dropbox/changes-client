@@ -14,7 +14,6 @@ type LogSource struct {
 }
 
 type LogChunk struct {
-	Source  string
 	Length  int
 	Payload []byte
 }
