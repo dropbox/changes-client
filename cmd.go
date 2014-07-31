@@ -64,38 +64,53 @@ func NewWrappedScriptCommand(script string, name string) (*WrappedCommand, error
 	return wc, err
 }
 
-func (c *WrappedCommand) Run() (*os.ProcessState, error) {
-	defer close(c.ChunkChan)
+func (wc *WrappedCommand) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser, error) {
+	c := wc.Cmd
 
-	stdin, err := c.Cmd.StdinPipe()
+	pr, pw, err := os.Pipe()
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	stdout, err := c.Cmd.StdoutPipe()
-	if err != nil {
-		return nil, err
-	}
+	c.Stdout = pw
+	c.Stderr = pw
 
-	stderr, err := c.Cmd.StderrPipe()
-	if err != nil {
-		return nil, err
-	}
+	return pr, pw, err
+}
 
-	var cmdname string
-	if c.Name != "" {
-		cmdname = c.Name
+func (wc *WrappedCommand) GetLabel() string {
+	if wc.Name != "" {
+		return wc.Name
 	} else {
-		cmdname = strings.Join(c.Cmd.Args, " ")
+		return strings.Join(wc.Cmd.Args, " ")
+	}
+}
+
+func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
+	defer close(wc.ChunkChan)
+
+	stdin, err := wc.Cmd.StdinPipe()
+	if err != nil {
+		return nil, err
 	}
 
-	log.Printf("[cmd] Executing %s", cmdname)
-	processMessage(c.ChunkChan, fmt.Sprintf(">> %s", cmdname))
-
-	err = c.Cmd.Start()
+	cmdreader, cmdwriter, err := wc.CombinedOutputPipe()
 	if err != nil {
-		log.Printf("[cmd] Start failed %s %s", c.Cmd.Args, err.Error())
-		processMessage(c.ChunkChan, err.Error())
+		return nil, err
+	}
+
+	cmdname := wc.GetLabel()
+	log.Printf("[cmd] Executing %s", cmdname)
+	processMessage(wc.ChunkChan, fmt.Sprintf(">> %s", cmdname))
+
+	err = wc.Cmd.Start()
+	// per the internal exec.Cmd implementation, close the writer
+	// immediately after Start()
+	cmdwriter.Close()
+
+	if err != nil {
+		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
+		processMessage(wc.ChunkChan, err.Error())
 		return nil, err
 	}
 
@@ -104,26 +119,26 @@ func (c *WrappedCommand) Run() (*os.ProcessState, error) {
 
 	wg.Add(1)
 	go func() {
-		processChunks(c.ChunkChan, stdout)
-		log.Printf("[cmd] Stdout processed %s", c.Cmd.Args)
+		processChunks(wc.ChunkChan, cmdreader)
+		log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
 		wg.Done()
 	}()
 
-	wg.Add(1)
-	go func() {
-		processChunks(c.ChunkChan, stderr)
-		log.Printf("[cmd] Stderr processed %s", c.Cmd.Args)
-		wg.Done()
-	}()
 	stdin.Close()
 
 	wg.Wait()
-	err = c.Cmd.Wait()
+
+	err = wc.Cmd.Wait()
+
+	// per the internal exec.Cmd implementation, close the reader only
+	// after Cmd.Wait() (and after we're done reading)
+	cmdreader.Close()
+
 	if err != nil {
 		return nil, err
 	}
 
-	return c.Cmd.ProcessState, nil
+	return wc.Cmd.ProcessState, nil
 }
 
 func processMessage(out chan LogChunk, payload string) {
@@ -131,6 +146,19 @@ func processMessage(out chan LogChunk, payload string) {
 		Length:  len(payload),
 		Payload: []byte(fmt.Sprintf("%s\n", payload)),
 	}
+}
+
+type IOBuffer struct {
+	inputs []io.Reader
+	output io.Reader
+}
+
+func (i *IOBuffer) AddInput(pipe io.Reader) {
+	i.inputs = append(i.inputs, pipe)
+}
+
+func (i *IOBuffer) ProcessChunks(out chan LogChunk) {
+
 }
 
 func processChunks(out chan LogChunk, pipe io.Reader) {
