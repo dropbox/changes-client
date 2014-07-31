@@ -89,11 +89,6 @@ func (wc *WrappedCommand) GetLabel() string {
 func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	defer close(wc.ChunkChan)
 
-	stdin, err := wc.Cmd.StdinPipe()
-	if err != nil {
-		return nil, err
-	}
-
 	cmdreader, cmdwriter, err := wc.CombinedOutputPipe()
 	if err != nil {
 		return nil, err
@@ -123,8 +118,6 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 		log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
 		wg.Done()
 	}()
-
-	stdin.Close()
 
 	wg.Wait()
 
