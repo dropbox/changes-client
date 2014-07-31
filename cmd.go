@@ -79,9 +79,12 @@ func (c *WrappedCommand) Run() (*os.ProcessState, error) {
 	}
 
 	log.Printf("[cmd] Executing %s", c.Cmd.Args)
+	processMessage(c.ChunkChan, fmt.Sprintf("$ %s", strings.Join(c.Cmd.Args, " ")))
+
 	err = c.Cmd.Start()
 	if err != nil {
 		log.Printf("[cmd] Start failed %s %s", c.Cmd.Args, err.Error())
+		processMessage(c.ChunkChan, err.Error())
 		return nil, err
 	}
 
@@ -112,10 +115,16 @@ func (c *WrappedCommand) Run() (*os.ProcessState, error) {
 	return c.Cmd.ProcessState, nil
 }
 
+func processMessage(out chan LogChunk, string payload) {
+	out <- LogChunk{
+		Length:  len(payload),
+		Payload: []byte(payload),
+	}
+}
+
 func processChunks(out chan LogChunk, pipe io.Reader) {
 	r := bufio.NewReader(pipe)
 
-	offset := 0
 	finished := false
 	for !finished {
 		var payload []byte
@@ -138,13 +147,11 @@ func processChunks(out chan LogChunk, pipe io.Reader) {
 
 		if len(payload) > 0 {
 			l := LogChunk{
-				Offset:  offset,
 				Length:  len(payload),
 				Payload: payload,
 			}
 
 			out <- l
-			offset += len(payload)
 		}
 	}
 }

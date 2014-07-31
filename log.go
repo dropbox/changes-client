@@ -15,7 +15,6 @@ type LogSource struct {
 
 type LogChunk struct {
 	Source  string
-	Offset  int
 	Length  int
 	Payload []byte
 }
