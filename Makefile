@@ -1,6 +1,8 @@
 
 BIN=${GOPATH}/bin/client
 
+REV=`git rev-list HEAD --count`
+
 all:
 	@echo "Compiling changes-client"
 	go install github.com/dropbox/changes-client/client
@@ -11,7 +13,7 @@ all:
 	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
 
 	@echo "Creating .deb file"
-	fpm -s dir -t deb -n "changes-client" -v `$(BIN) --version` -C /tmp/changes-client-build .
+	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`-$(REV)" -C /tmp/changes-client-build .
 
 
 test:
