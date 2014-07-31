@@ -1,5 +1,5 @@
 
-BIN=./../../../../bin/client
+BIN=${GOPATH}/bin/client
 
 all:
 	@echo "Compiling changes-client"
