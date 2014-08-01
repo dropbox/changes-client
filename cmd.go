@@ -11,7 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
-    "time"
+	"time"
 )
 
 var (
@@ -134,50 +134,50 @@ func processMessage(out chan LogChunk, payload string) {
 }
 
 type LogLine struct {
-    line []byte
-    err error
+	line []byte
+	err  error
 }
 
 func newLogLineReader(pipe io.Reader) <-chan *LogLine {
 	r := bufio.NewReader(pipe)
-    ch := make(chan *LogLine)
+	ch := make(chan *LogLine)
 
-    go func() {
-        for {
-            line, err := r.ReadBytes('\n')
-            l := &LogLine{line: line, err: err}
-            ch <-l
+	go func() {
+		for {
+			line, err := r.ReadBytes('\n')
+			l := &LogLine{line: line, err: err}
+			ch <- l
 
-            if err != nil {
-                return
-            }
-        }
-    }()
+			if err != nil {
+				return
+			}
+		}
+	}()
 
-    return ch
+	return ch
 }
 
 func processChunks(out chan LogChunk, pipe io.Reader) {
-    lines := newLogLineReader(pipe)
+	lines := newLogLineReader(pipe)
 
 	finished := false
 	for !finished {
 		var payload []byte
-        timeLimit := time.After(2 * time.Second)
+		timeLimit := time.After(2 * time.Second)
 
 		for len(payload) < chunkSize {
-            var logLine *LogLine
-            timeLimitExceeded := false
+			var logLine *LogLine
+			timeLimitExceeded := false
 
-            select {
-            case logLine = <-lines:
-            case <-timeLimit:
-                timeLimitExceeded = true
-            }
+			select {
+			case logLine = <-lines:
+			case <-timeLimit:
+				timeLimitExceeded = true
+			}
 
-            if timeLimitExceeded {
-                break
-            }
+			if timeLimitExceeded {
+				break
+			}
 
 			payload = append(payload, logLine.line...)
 			if logLine.err == io.EOF {
@@ -185,16 +185,16 @@ func processChunks(out chan LogChunk, pipe io.Reader) {
 				break
 			}
 
-            if logLine.err != nil {
+			if logLine.err != nil {
 				finished = true
-                line := []byte(fmt.Sprintf("%s", logLine.err))
+				line := []byte(fmt.Sprintf("%s", logLine.err))
 				payload = append(payload, line...)
 				break
 			}
 		}
 
 		if len(payload) > 0 {
-		l := LogChunk{
+			l := LogChunk{
 				Length:  len(payload),
 				Payload: payload,
 			}
