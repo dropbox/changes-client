@@ -53,10 +53,11 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 			wc.Cmd.Dir = cmd.Cwd
 		}
 
-		wg.Add(1)
+        // Aritifacts can do out-of-band but we want to send logs synchronously.
+        sem := make(chan bool)
 		go func() {
 			logsource.reportChunks(wc.ChunkChan)
-			wg.Done()
+            sem <- true
 		}()
 
 		pState, err := wc.Run()
@@ -73,6 +74,9 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 				break
 			}
 		}
+
+        // Wait for all the logs to be sent to reporter
+        <-sem
 
 		wg.Add(1)
 		go func(artifacts []string) {

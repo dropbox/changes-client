@@ -2,7 +2,6 @@ package runner
 
 import (
 	"fmt"
-	"sync"
 )
 
 type LogSource struct {
@@ -10,7 +9,6 @@ type LogSource struct {
 	Offset    int
 	JobstepID string
 	Reporter  *Reporter
-	mu        sync.Mutex
 }
 
 type LogChunk struct {
@@ -27,10 +25,8 @@ func (logsource *LogSource) reportChunks(chunks chan LogChunk) {
 func (logsource *LogSource) reportBytes(bytes []byte) {
 	length := len(bytes)
 
-	logsource.mu.Lock()
 	offset := logsource.Offset
 	logsource.Offset += length
-	logsource.mu.Unlock()
 
 	fmt.Printf("Got another chunk from %s (%d-%d)\n", logsource.Name, offset, length)
 	fmt.Printf("%s", bytes)
