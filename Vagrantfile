@@ -4,10 +4,6 @@
 # Vagrantfile API/syntax version. Don't touch unless you know what you're doing!
 VAGRANTFILE_API_VERSION = "2"
 
-PUPPET_NODE = ENV["PUPPET_NODE"] || "default"
-
-PUPPET_ROLES = ENV["PUPPET_ROLES"] || "default"
-
 ENV['VAGRANT_DEFAULT_PROVIDER'] ||= 'vmware_fusion'
 
 Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
