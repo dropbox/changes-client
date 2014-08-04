@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"strings"
 	"sync"
+	"time"
 )
 
 var (
@@ -132,37 +133,61 @@ func processMessage(out chan LogChunk, payload string) {
 	}
 }
 
-type IOBuffer struct {
-	inputs []io.Reader
-	output io.Reader
+type LogLine struct {
+	line []byte
+	err  error
 }
 
-func (i *IOBuffer) AddInput(pipe io.Reader) {
-	i.inputs = append(i.inputs, pipe)
-}
+func newLogLineReader(pipe io.Reader) <-chan *LogLine {
+	r := bufio.NewReader(pipe)
+	ch := make(chan *LogLine)
 
-func (i *IOBuffer) ProcessChunks(out chan LogChunk) {
+	go func() {
+		for {
+			line, err := r.ReadBytes('\n')
+			l := &LogLine{line: line, err: err}
+			ch <- l
 
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	return ch
 }
 
 func processChunks(out chan LogChunk, pipe io.Reader) {
-	r := bufio.NewReader(pipe)
+	lines := newLogLineReader(pipe)
 
 	finished := false
 	for !finished {
 		var payload []byte
-		for len(payload) < chunkSize {
-			line, err := r.ReadBytes('\n')
-			payload = append(payload, line...)
+		timeLimit := time.After(2 * time.Second)
 
-			if err == nil {
-				continue
-			} else if err == io.EOF {
+		for len(payload) < chunkSize {
+			var logLine *LogLine
+			timeLimitExceeded := false
+
+			select {
+			case logLine = <-lines:
+			case <-timeLimit:
+				timeLimitExceeded = true
+			}
+
+			if timeLimitExceeded {
+				break
+			}
+
+			payload = append(payload, logLine.line...)
+			if logLine.err == io.EOF {
 				finished = true
 				break
-			} else {
+			}
+
+			if logLine.err != nil {
 				finished = true
-				line = []byte(fmt.Sprintf("%s", err))
+				line := []byte(fmt.Sprintf("%s", logLine.err))
 				payload = append(payload, line...)
 				break
 			}
