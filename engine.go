@@ -2,7 +2,6 @@ package runner
 
 import (
 	"os"
-	"path/filepath"
 	"sync"
 )
 
@@ -12,18 +11,14 @@ const (
 	STATUS_FINISHED    = "finished"
 )
 
-func publishArtifacts(reporter *Reporter, cID string, artifacts []string) {
+func publishArtifacts(reporter *Reporter, cID string, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
 		return
 	}
 
-	var matches []string
-	for _, pattern := range artifacts {
-		m, err := filepath.Glob(pattern)
-		if err != nil {
-			panic("Invalid artifact pattern" + err.Error())
-		}
-		matches = append(matches, m...)
+	matches, err := GlobTree(workspace, artifacts)
+	if err != nil {
+		panic("Invalid artifact pattern" + err.Error())
 	}
 
 	reporter.PushArtifacts(cID, matches)
@@ -80,7 +75,7 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, config.JobstepID, artifacts)
+			publishArtifacts(reporter, config.JobstepID, config.Workspace, artifacts)
 			wg.Done()
 		}(cmd.Artifacts)
 	}

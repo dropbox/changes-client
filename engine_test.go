@@ -7,6 +7,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -80,10 +81,15 @@ func TestCompleteFlow(t *testing.T) {
 	// Current running program is definitely an artifact which will be present in the pogram
 	// required_artifact := os.Args[0]
 
+	artifactPath := os.Args[0]
+	args := strings.Split(artifactPath, "/")
+	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
+	artifactName := args[len(args)-1]
+
 	config := &Config{}
 	config.Server = ts.URL
 	config.JobstepID = "job_1"
-	config.Workspace = "/tmp/changes-client-test"
+	config.Workspace = workspaceRoot
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "https://github.com/dropbox/changes.git"
 	config.Source.Revision.Sha = "master"
@@ -94,7 +100,7 @@ func TestCompleteFlow(t *testing.T) {
 			"VAR": "hello world",
 		},
 		Cwd:       "/tmp",
-		Artifacts: []string{os.Args[0]},
+		Artifacts: []string{artifactName},
 	}, ConfigCmd{
 		Id:     "cmd_2",
 		Script: "#!/bin/bash\necho test",
@@ -155,7 +161,7 @@ func TestCompleteFlow(t *testing.T) {
 		FormData{
 			path: "/jobsteps/job_1/artifacts/",
 			params: map[string]string{
-				"name": os.Args[0],
+				"name": artifactPath,
 			},
 			files: map[string]string{
 				"file": string(expectedFileContents),
