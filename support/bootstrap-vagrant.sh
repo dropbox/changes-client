@@ -19,5 +19,5 @@ echo 'export PATH=/usr/local/go/bin:$PATH' > /etc/profile.d/golang.sh
 echo 'export GOPATH=~/' > /etc/profile.d/gopath.sh
 
 # Install fpm
-sudo apt-get install -y rubygems
+sudo apt-get install -y ruby-dev gcc
 sudo gem install fpm --no-ri --no-rdoc
