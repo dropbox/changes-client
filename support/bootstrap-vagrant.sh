@@ -7,7 +7,7 @@ GO_VERSION=1.3
 sudo apt-get update -y
 
 # Install git
-sudo apt-get install git
+sudo apt-get install -y git
 
 # Install go
 sudo apt-get install -y wget
