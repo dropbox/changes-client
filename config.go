@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 )
 
 var (
@@ -74,7 +75,9 @@ func LoadConfig(content []byte) (*Config, error) {
 }
 
 func GetConfig() (*Config, error) {
-	url := server + "/jobsteps/" + jobstepID
+	server = strings.TrimRight(server, "/")
+
+	url := server + "/jobsteps/" + jobstepID + "/"
 	conf, err := fetchConfig(url)
 	if err != nil {
 		return nil, err

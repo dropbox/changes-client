@@ -1,47 +1,78 @@
 package runner
 
 import (
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"reflect"
+	"strings"
 	"testing"
 )
 
-func TestLoadConfig(t *testing.T) {
-	template := `
-	{
-		"commands": [
-			{
-				"id": "cmd_1",
-				"script": "#!/bin/bash\necho -n $VAR",
-				"env": {"VAR": "hello world"},
-				"cwd": "/tmp",
-				"artifacts": ["junit.xml"]
-			},
-			{
-				"id": "cmd_2",
-				"script": "#!/bin/bash\necho test",
-				"cwd": "/tmp"
-			}
-		],
-		"repository": {
-			"url": "git@github.com:dropbox/changes.git",
-			"backend": {
-				"id": "git"
-			}
+var jobStepResponse = `
+{
+	"id": "549db9a70d4d4d258e0a6d475ccd8a15",
+	"commands": [
+		{
+			"id": "cmd_1",
+			"script": "#!/bin/bash\necho -n $VAR",
+			"env": {"VAR": "hello world"},
+			"cwd": "/tmp",
+			"artifacts": ["junit.xml"]
 		},
-		"source": {
-			"patch": {
-				"id": "patch_1"
-			},
-			"revision": {
-				"sha": "aaaaaa"
-			}
+		{
+			"id": "cmd_2",
+			"script": "#!/bin/bash\necho test",
+			"cwd": "/tmp"
+		}
+	],
+	"repository": {
+		"url": "git@github.com:dropbox/changes.git",
+		"backend": {
+			"id": "git"
+		}
+	},
+	"source": {
+		"patch": {
+			"id": "patch_1"
+		},
+		"revision": {
+			"sha": "aaaaaa"
 		}
 	}
-	`
+}
+`
 
-	config, err := LoadConfig([]byte(template))
+func TestGetConfig(t *testing.T) {
+	var err error
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+
+		// XXX(dcramer): the input URL is the API base so these paths wouldn't include it
+		if r.Method == "GET" {
+			switch r.URL.Path {
+			case "/jobsteps/549db9a70d4d4d258e0a6d475ccd8a15/":
+				io.WriteString(w, jobStepResponse)
+			}
+		}
+	}))
+	defer ts.Close()
+
+	server = ts.URL
+	jobstepID = "549db9a70d4d4d258e0a6d475ccd8a15"
+
+	config, err := GetConfig()
 	if err != nil {
 		t.Errorf(err.Error())
+	}
+
+	if config.Server != strings.TrimRight(ts.URL, "/") {
+		t.Fail()
+	}
+
+	if config.JobstepID != jobstepID {
+		t.Fail()
 	}
 
 	if config.Repository.Backend.ID != "git" {
