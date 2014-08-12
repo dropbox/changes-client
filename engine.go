@@ -1,6 +1,7 @@
 package runner
 
 import (
+	"log"
 	"os"
 	"sync"
 )
@@ -13,13 +14,18 @@ const (
 
 func publishArtifacts(reporter *Reporter, cID string, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
+		log.Printf("[engine] Skipping artifact collection")
 		return
 	}
+
+	log.Printf("[engine] Collecting artifacts in %s matching %s", workspace, artifacts)
 
 	matches, err := GlobTree(workspace, artifacts)
 	if err != nil {
 		panic("Invalid artifact pattern" + err.Error())
 	}
+
+	log.Printf("[engine] Found %d matching artifacts", len(matches))
 
 	reporter.PushArtifacts(cID, matches)
 }
