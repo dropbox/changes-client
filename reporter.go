@@ -86,16 +86,18 @@ func transportSend(r *Reporter) {
 				status = resp.Status
 			}
 
-			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
-				path, tryCnt, status, err)
-
 			if resp != nil && resp.StatusCode/100 == 2 {
 				break
 			}
 
 			if resp != nil && resp.StatusCode == http.StatusGone {
+				// TODO(dcramer): this shouldn't really be a panic, but
+				// we want to exit at this point
 				panic("Unknown error occurred with publish endpoint")
 			}
+
+			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
+				path, tryCnt, status, err)
 
 			/* We are unable to publish to the endpoint.
 			 * Fail fast and let the above layers handle the outage */
