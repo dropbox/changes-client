@@ -6,6 +6,51 @@ import (
 	"testing"
 )
 
+
+func TestRun(t *testing.T) {
+	wc, err := NewWrappedScriptCommand("#!/bin/bash\necho 1", "foo")
+	if err != nil {
+		t.Fail()
+	}
+
+	cnt := 0
+	sem := make(chan bool)
+	go func() {
+		for _ = range wc.ChunkChan {
+			cnt++
+		}
+		sem <- true
+	}()
+
+	_, err = wc.Run()
+	if err != nil {
+		t.Fail()
+	}
+	<-sem
+}
+
+func TestRunFailToStart(t *testing.T) {
+	wc, err := NewWrappedScriptCommand("echo 1", "foo")
+	if err != nil {
+		t.Fail()
+	}
+
+	cnt := 0
+	sem := make(chan bool)
+	go func() {
+		for _ = range wc.ChunkChan {
+			cnt++
+		}
+		sem <- true
+	}()
+
+	_, err = wc.Run()
+	if err == nil {
+		t.Fail()
+	}
+	<-sem
+}
+
 func TestProcessChunks(t *testing.T) {
 	flag.Set("log_chunk_size", "3")
 

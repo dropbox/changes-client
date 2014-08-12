@@ -93,25 +93,24 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	log.Printf("[cmd] Executing %s", cmdname)
 	processMessage(wc.ChunkChan, fmt.Sprintf(">> %s", cmdname))
 
+	// Start chunking from stdin and stdout and close stdin
+	wg := sync.WaitGroup{}
+
 	err := wc.Cmd.Start()
 
 	if err != nil {
 		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
 		processMessage(wc.ChunkChan, err.Error())
 		return nil, err
+	} else {
+		wg.Add(1)
+		go func() {
+			processChunks(wc.ChunkChan, cmdreader)
+			log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
+			wg.Done()
+		}()
+		err = wc.Cmd.Wait()
 	}
-
-	// Start chunking from stdin and stdout and close stdin
-	wg := sync.WaitGroup{}
-
-	wg.Add(1)
-	go func() {
-		processChunks(wc.ChunkChan, cmdreader)
-		log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
-		wg.Done()
-	}()
-
-	err = wc.Cmd.Wait()
 
 	cmdwriter.Close()
 
