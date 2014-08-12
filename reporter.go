@@ -49,7 +49,7 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 			return nil, err
 		}
 
-		err = writer.WriteField("name", file)
+		err = writer.WriteField("name", filepath.Base(file))
 		if err != nil {
 			return nil, err
 		}

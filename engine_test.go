@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -161,7 +162,7 @@ func TestCompleteFlow(t *testing.T) {
 		FormData{
 			path: "/jobsteps/job_1/artifacts/",
 			params: map[string]string{
-				"name": artifactPath,
+				"name": filepath.Base(artifactPath),
 			},
 			files: map[string]string{
 				"file": string(expectedFileContents),
