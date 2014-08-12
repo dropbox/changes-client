@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -75,6 +77,8 @@ func LoadConfig(content []byte) (*Config, error) {
 }
 
 func GetConfig() (*Config, error) {
+	var err error
+
 	server = strings.TrimRight(server, "/")
 
 	url := server + "/jobsteps/" + jobstepID + "/"
@@ -83,9 +87,23 @@ func GetConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if workspace == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			panic("Unable to find working directory")
+		}
+		workspace, err = filepath.Abs(cwd)
+	} else {
+		workspace, err = filepath.Abs(workspace)
+	}
+	if err != nil {
+		panic("Unable to find working directory")
+	}
+
 	conf.Server = server
 	conf.JobstepID = jobstepID
 	conf.Workspace = workspace
+
 	return conf, err
 }
 
