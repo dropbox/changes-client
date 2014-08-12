@@ -65,14 +65,12 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
 			result = "failed"
-			break
 		} else {
 			if pState.Success() {
 				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
 			} else {
 				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
 				result = "failed"
-				break
 			}
 		}
 
@@ -84,6 +82,10 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 			publishArtifacts(reporter, config.JobstepID, config.Workspace, artifacts)
 			wg.Done()
 		}(cmd.Artifacts)
+
+		if result == "failed" {
+			break
+		}
 	}
 
 	wg.Wait()
