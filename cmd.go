@@ -2,6 +2,7 @@ package runner
 
 import (
 	"bufio"
+	"bytes"
 	"flag"
 	"fmt"
 	"io"
@@ -23,6 +24,7 @@ type WrappedCommand struct {
 	Cmd       *exec.Cmd
 	LogSource *LogSource
 	ChunkChan chan LogChunk
+	Output    []byte // buffered output if requested
 }
 
 // A wrapped command will ensure that all stdin/out/err gets piped
@@ -84,7 +86,8 @@ func (wc *WrappedCommand) GetLabel() string {
 	}
 }
 
-func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
+
+func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 	var err error
 
 	defer close(wc.ChunkChan)
@@ -100,8 +103,14 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	log.Printf("[cmd] Executing %s", cmdname)
 	processMessage(wc.ChunkChan, fmt.Sprintf(">> %s", cmdname))
 
-	// Start chunking from stdin and stdout and close stdin
-	wg := sync.WaitGroup{}
+	var buffer *bytes.Buffer
+	var reader io.Reader = cmdreader
+
+	// If user has requested to buffer command output, tee output to in memory buffer.
+	if bufferOutput {
+		buffer = &bytes.Buffer{}
+		reader = io.TeeReader(cmdreader, buffer)
+	}
 
 	err = wc.Cmd.Start()
 
@@ -109,26 +118,29 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
 		processMessage(wc.ChunkChan, err.Error())
 		return nil, err
-	} else {
-		wg.Add(1)
-		go func() {
-			processChunks(wc.ChunkChan, cmdreader)
-			log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
-			wg.Done()
-		}()
-		err = wc.Cmd.Wait()
 	}
 
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		processChunks(wc.ChunkChan, reader)
+		log.Printf("[cmd] Stdout processed %s", wc.Cmd.Args)
+		wg.Done()
+	}()
+
+	err = wc.Cmd.Wait()
 	cmdwriter.Close()
 
 	stdin.Close()
 
 	wg.Wait()
 
-	cmdreader.Close()
-
 	if err != nil {
 		return nil, err
+	}
+
+	if bufferOutput {
+		wc.Output = buffer.Bytes()
 	}
 
 	return wc.Cmd.ProcessState, nil

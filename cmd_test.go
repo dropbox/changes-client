@@ -6,9 +6,8 @@ import (
 	"testing"
 )
 
-
 func TestRun(t *testing.T) {
-	wc, err := NewWrappedScriptCommand("#!/bin/bash\necho 1", "foo")
+	wc, err := NewWrappedScriptCommand("#!/bin/bash\necho -n 1", "foo")
 	if err != nil {
 		t.Fail()
 	}
@@ -22,11 +21,15 @@ func TestRun(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err = wc.Run()
+	_, err = wc.Run(true)
 	if err != nil {
 		t.Fail()
 	}
 	<-sem
+
+	if !bytes.Equal(wc.Output, []byte("1")) {
+		t.Error("Did not buffer output")
+	}
 }
 
 func TestRunFailToStart(t *testing.T) {
@@ -44,7 +47,7 @@ func TestRunFailToStart(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err = wc.Run()
+	_, err = wc.Run(false)
 	if err == nil {
 		t.Fail()
 	}
