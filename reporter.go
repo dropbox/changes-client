@@ -70,13 +70,15 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 	resp, err = http.Post(uri, writer.FormDataContentType(), body)
 
 	if err != nil {
-		// Close the Body channel immediately as we don't use it
-		// and this loop can stay open for an extremely long period
-		// of time
-		resp.Body.Close()
+		return nil, err
 	}
 
-	return resp, err
+	// Close the Body channel immediately as we don't use it
+	// and this loop can stay open for an extremely long period
+	// of time
+	resp.Body.Close()
+
+	return resp, nil
 }
 
 func transportSend(r *Reporter) {
