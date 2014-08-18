@@ -81,6 +81,10 @@ func transportSend(r *Reporter) {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
 			resp, err := httpPost(path, req.data, req.filename)
 
+			if err != nil {
+				defer resp.Body.Close()
+			}
+
 			status := "-1"
 			if resp != nil {
 				status = resp.Status
