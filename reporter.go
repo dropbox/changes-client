@@ -165,6 +165,12 @@ func (r *Reporter) PushLogChunk(ID string, source string, offset int, payload []
 	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
 }
 
+func (r *Reporter) PushOutput(ID string, typ string, output []byte) {
+	form := make(map[string]string)
+	form["output"] = string(output)
+	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/" + typ + "/", form, ""}
+}
+
 func (r *Reporter) PushArtifacts(ID string, artifacts []string) {
 	for _, artifact := range artifacts {
 		r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/artifacts/", nil, artifact}
