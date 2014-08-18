@@ -66,10 +66,24 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 	}
 
 	_ = writer.Close()
-	return http.Post(uri, writer.FormDataContentType(), body)
+
+	resp, err = http.Post(uri, writer.FormDataContentType(), body)
+
+	if err != nil {
+		// Close the Body channel immediately as we don't use it
+		// and this loop can stay open for an extremely long period
+		// of time
+		resp.Body.Close()
+	}
+
+	return resp, err
 }
 
 func transportSend(r *Reporter) {
+	var resp *http.Response
+	var err error
+	var status string
+
 	for req := range r.publishChannel {
 		path := r.publishUri + req.path
 		if req.data == nil {
@@ -79,15 +93,12 @@ func transportSend(r *Reporter) {
 		req.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
 		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
-			resp, err := httpPost(path, req.data, req.filename)
+			resp, err = httpPost(path, req.data, req.filename)
 
-			if err != nil {
-				defer resp.Body.Close()
-			}
-
-			status := "-1"
 			if resp != nil {
 				status = resp.Status
+			} else {
+				status = "-1"
 			}
 
 			if resp != nil && resp.StatusCode/100 == 2 {
