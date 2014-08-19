@@ -85,7 +85,16 @@ func (wc *WrappedCommand) GetLabel() string {
 }
 
 func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
+	var err error
+
 	defer close(wc.ChunkChan)
+
+    stdin, err := wc.Cmd.StdinPipe()
+    if err != nil {
+        return nil, err
+    }
+
+	stdin.Close()
 
 	cmdreader, cmdwriter := wc.CombinedOutputPipe()
 
@@ -96,7 +105,7 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	// Start chunking from stdin and stdout and close stdin
 	wg := sync.WaitGroup{}
 
-	err := wc.Cmd.Start()
+	err = wc.Cmd.Start()
 
 	if err != nil {
 		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
