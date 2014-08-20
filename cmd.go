@@ -94,8 +94,6 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
         return nil, err
     }
 
-	stdin.Close()
-
 	cmdreader, cmdwriter := wc.CombinedOutputPipe()
 
 	cmdname := wc.GetLabel()
@@ -122,6 +120,8 @@ func (wc *WrappedCommand) Run() (*os.ProcessState, error) {
 	}
 
 	cmdwriter.Close()
+
+	stdin.Close()
 
 	wg.Wait()
 
