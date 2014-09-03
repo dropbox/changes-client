@@ -113,6 +113,8 @@ func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 
 	err = wc.Cmd.Start()
 
+	stdin.Close()
+
 	if err != nil {
 		log.Printf("[cmd] Start failed %s %s", wc.Cmd.Args, err.Error())
 		processMessage(wc.ChunkChan, err.Error())
@@ -129,8 +131,6 @@ func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 
 	err = wc.Cmd.Wait()
 	cmdwriter.Close()
-
-	stdin.Close()
 
 	wg.Wait()
 
