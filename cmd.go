@@ -86,16 +86,15 @@ func (wc *WrappedCommand) GetLabel() string {
 	}
 }
 
-
 func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 	var err error
 
 	defer close(wc.ChunkChan)
 
-    stdin, err := wc.Cmd.StdinPipe()
-    if err != nil {
-        return nil, err
-    }
+	stdin, err := wc.Cmd.StdinPipe()
+	if err != nil {
+		return nil, err
+	}
 
 	cmdreader, cmdwriter := wc.CombinedOutputPipe()
 
