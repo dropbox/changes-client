@@ -55,7 +55,7 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 		}
 
 		bufferOutput := false
-		if cmd.Type == "collect_jobs" || cmd.Type == "collect_tests" {
+		if cmd.Type.ID == "collect_jobs" || cmd.Type.ID == "collect_tests" {
 			bufferOutput = true
 		}
 
@@ -72,7 +72,7 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 		<-sem
 
 		if bufferOutput {
-			reporter.PushOutput(cmd.Id, cmd.Type, wc.Output)
+			reporter.PushOutput(cmd.Id, cmd.Type.ID, wc.Output)
 		}
 
 		if err != nil {
