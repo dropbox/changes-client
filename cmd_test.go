@@ -32,6 +32,27 @@ func TestRun(t *testing.T) {
 	}
 }
 
+// if stdin is allowed this test will hang
+func TestRunIgnoresStdin(t *testing.T) {
+	wc, err := NewWrappedScriptCommand("#!/bin/bash\nread foo", "foo")
+	if err != nil {
+		t.Fail()
+	}
+
+	sem := make(chan bool)
+	go func() {
+		for _ = range wc.ChunkChan {
+		}
+		sem <- true
+	}()
+
+	_, err = wc.Run(true)
+	if err == nil {
+		t.Error("Expected command to fail")
+	}
+	<-sem
+}
+
 func TestRunFailToStart(t *testing.T) {
 	wc, err := NewWrappedScriptCommand("echo 1", "foo")
 	if err != nil {
