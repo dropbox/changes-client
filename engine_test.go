@@ -135,7 +135,7 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   ">> cmd_1\n",
 				"source": "console",
-				"offset": "0",
+				// "offset": "0",
 			},
 		},
 		FormData{
@@ -143,7 +143,7 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   "hello world",
 				"source": "console",
-				"offset": "9",
+				// "offset": "9",
 			},
 		},
 		FormData{
@@ -173,7 +173,7 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   ">> cmd_2\n",
 				"source": "console",
-				"offset": "20",
+				// "offset": "20",
 			},
 		},
 		FormData{
@@ -181,7 +181,7 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   "test\n",
 				"source": "console",
-				"offset": "29",
+				// "offset": "29",
 			},
 		},
 		FormData{

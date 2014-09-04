@@ -160,7 +160,8 @@ func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 func (r *Reporter) PushLogChunk(ID string, source string, offset int, payload []byte) {
 	form := make(map[string]string)
 	form["source"] = source
-	form["offset"] = strconv.Itoa(offset)
+	// XXX(dcramer): disable offset reporting to play nice with changes-lxc-wrapper
+	// form["offset"] = strconv.Itoa(offset)
 	form["text"] = string(payload)
 	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
 }
