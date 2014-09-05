@@ -72,7 +72,7 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 		<-sem
 
 		if bufferOutput {
-			reporter.PushOutput(cmd.Id, cmd.Type.ID, wc.Output)
+			reporter.PushOutput(config.JobstepID, cmd.Type.ID, wc.Output)
 		}
 
 		if err != nil {
