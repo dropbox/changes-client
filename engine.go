@@ -54,10 +54,7 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 			wc.Cmd.Dir = cmd.Cwd
 		}
 
-		bufferOutput := false
-		if cmd.Type.ID == "collect_jobs" || cmd.Type.ID == "collect_tests" {
-			bufferOutput = true
-		}
+		bufferOutput := cmd.CaptureOutput
 
 		// Aritifacts can go out-of-band but we want to send logs synchronously.
 		sem := make(chan bool)
@@ -71,16 +68,16 @@ func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string
 		// Wait for all the logs to be sent to reporter before sending command status.
 		<-sem
 
-		if bufferOutput {
-			reporter.PushOutput(config.JobstepID, cmd.Type.ID, wc.Output)
-		}
-
 		if err != nil {
 			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
 			result = "failed"
 		} else {
 			if pState.Success() {
-				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
+				if bufferOutput {
+					reporter.PushOutput(cmd.Id, STATUS_FINISHED, 0, wc.Output)
+				} else {
+					reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
+				}
 			} else {
 				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
 				result = "failed"

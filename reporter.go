@@ -166,11 +166,14 @@ func (r *Reporter) PushLogChunk(ID string, source string, offset int, payload []
 	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
 }
 
-func (r *Reporter) PushOutput(ID string, typ string, output []byte) {
+func (r *Reporter) PushOutput(cId string, status string, retCode int, output []byte) {
 	form := make(map[string]string)
-	form["type"] = typ
-	form["data"] = string(output)
-	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/expand/", form, ""}
+	form["status"] = status
+	form["output"] = string(output)
+	if retCode >= 0 {
+		form["return_code"] = strconv.Itoa(retCode)
+	}
+	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
 func (r *Reporter) PushArtifacts(ID string, artifacts []string) {

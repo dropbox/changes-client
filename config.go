@@ -18,14 +18,12 @@ var (
 )
 
 type ConfigCmd struct {
-	Id   string
-	Type struct {
-		ID string
-	}
-	Script    string
-	Env       map[string]string
-	Cwd       string
-	Artifacts []string
+	Id            string
+	Script        string
+	Env           map[string]string
+	Cwd           string
+	Artifacts     []string
+	CaptureOutput bool
 }
 
 type Config struct {
