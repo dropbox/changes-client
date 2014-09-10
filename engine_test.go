@@ -79,9 +79,6 @@ func TestCompleteFlow(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	// Current running program is definitely an artifact which will be present in the pogram
-	// required_artifact := os.Args[0]
-
 	artifactPath := os.Args[0]
 	args := strings.Split(artifactPath, "/")
 	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
