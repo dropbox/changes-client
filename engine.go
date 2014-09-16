@@ -106,9 +106,13 @@ func RunBuildPlan(reporter *Reporter, config *Config) {
 		Reporter:  reporter,
 	}
 
-	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
+	if !config.RunAsChild {
+		reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
+	}
 
 	result := RunAllCmds(reporter, config, logsource)
 
-	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
+	if !config.RunAsChild {
+		reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
+	}
 }

@@ -15,6 +15,7 @@ var (
 	server    string
 	jobstepID string
 	workspace string
+	runAsChild bool
 )
 
 type ConfigCmd struct {
@@ -30,6 +31,7 @@ type Config struct {
 	Server    string
 	JobstepID string
 	Workspace string
+	RunAsChild bool
 	Source    struct {
 		Revision struct {
 			Sha string
@@ -104,6 +106,7 @@ func GetConfig() (*Config, error) {
 	conf.Server = server
 	conf.JobstepID = jobstepID
 	conf.Workspace = workspace
+	conf.RunAsChild = runAsChild
 
 	return conf, err
 }
@@ -112,4 +115,8 @@ func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
 	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&workspace, "workspace", "", "Workspace to checkout source into")
+	// TODO(dcramer): we need to define a spec for what the behavior of run-as-child
+	// is, specifically what it will still report and what it wont
+	// Currently this only disables jobstep status updates.
+	flag.BoolVar(&runAsChild, "run_as_child", false, "Indicates that the client is running as a child of another wrapper")
 }
