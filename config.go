@@ -31,6 +31,7 @@ type Config struct {
 	Server    string
 	JobstepID string
 	Workspace string
+	// TODO(dcramer): remove RunAsChild entirely once new CLI is written
 	RunAsChild bool
 	Source    struct {
 		Revision struct {
