@@ -25,6 +25,9 @@ type ConfigCmd struct {
 	Cwd           string
 	Artifacts     []string
 	CaptureOutput bool
+	Type          struct {
+		ID string
+	}
 }
 
 type Config struct {

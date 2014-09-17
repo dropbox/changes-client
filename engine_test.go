@@ -101,9 +101,15 @@ func TestCompleteFlow(t *testing.T) {
 		Artifacts: []string{artifactName},
 	}, ConfigCmd{
 		Id:     "cmd_2",
+		Script: "#!/bin/bash\nexit 1",
+		Cwd:    "/tmp",
+	}, ConfigCmd{
+		Id:     "cmd_3",
 		Script: "#!/bin/bash\necho test",
 		Cwd:    "/tmp",
 	})
+
+	config.Cmds[2].Type.ID = "teardown"
 
 	reporter := NewReporter(config.Server)
 	RunBuildPlan(reporter, config)
@@ -132,7 +138,6 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   ">> cmd_1\n",
 				"source": "console",
-				// "offset": "0",
 			},
 		},
 		FormData{
@@ -140,7 +145,6 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   "hello world",
 				"source": "console",
-				// "offset": "9",
 			},
 		},
 		FormData{
@@ -170,7 +174,26 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   ">> cmd_2\n",
 				"source": "console",
-				// "offset": "20",
+			},
+		},
+		FormData{
+			path: "/commands/cmd_2/",
+			params: map[string]string{
+				"status":      STATUS_FINISHED,
+				"return_code": "255",
+			},
+		},
+		FormData{
+			path: "/commands/cmd_3/",
+			params: map[string]string{
+				"status": STATUS_IN_PROGRESS,
+			},
+		},
+		FormData{
+			path: "/jobsteps/job_1/logappend/",
+			params: map[string]string{
+				"text":   ">> cmd_3\n",
+				"source": "console",
 			},
 		},
 		FormData{
@@ -178,11 +201,10 @@ func TestCompleteFlow(t *testing.T) {
 			params: map[string]string{
 				"text":   "test\n",
 				"source": "console",
-				// "offset": "29",
 			},
 		},
 		FormData{
-			path: "/commands/cmd_2/",
+			path: "/commands/cmd_3/",
 			params: map[string]string{
 				"status":      STATUS_FINISHED,
 				"return_code": "0",
@@ -192,20 +214,20 @@ func TestCompleteFlow(t *testing.T) {
 			path: "/jobsteps/job_1/",
 			params: map[string]string{
 				"status": STATUS_FINISHED,
-				"result": "passed",
+				"result": "failed",
 			},
 		},
 	}
 
 	if len(formData) < len(expected) {
-		fmt.Println("Less HTTP calls than expected")
+		t.Errorf("Less HTTP calls than expected")
 	} else if len(formData) > len(expected) {
-		fmt.Println("More HTTP calls than expected")
+		t.Errorf("More HTTP calls than expected")
 	}
 
 	for i, v := range formData {
 		if !reflect.DeepEqual(v, expected[i]) {
-			fmt.Println("A", i, v.params, expected[i].params)
+			t.Errorf("A", i, v.params, expected[i].params)
 			t.Fail()
 		}
 	}

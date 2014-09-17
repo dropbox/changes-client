@@ -31,11 +31,35 @@ func publishArtifacts(reporter *Reporter, cID string, workspace string, artifact
 }
 
 func RunAllCmds(reporter *Reporter, config *Config, logsource *LogSource) string {
+	basicCmds := []ConfigCmd{}
+	teardownCmds := []ConfigCmd{}
+	for _, cmd := range config.Cmds {
+		if cmd.Type.ID == "teardown" {
+			teardownCmds = append(teardownCmds, cmd)
+		} else {
+			basicCmds = append(basicCmds, cmd)
+		}
+	}
+
+	var teardownResult string
+	basicResult := runAllCmds(reporter, config, logsource, basicCmds)
+	if len(teardownCmds) > 0 {
+		teardownResult = runAllCmds(reporter, config, logsource, teardownCmds)
+	} else {
+		teardownResult = basicResult
+	}
+	if basicResult == "failed" {
+		return basicResult
+	}
+	return teardownResult
+}
+
+func runAllCmds(reporter *Reporter, config *Config, logsource *LogSource, commands []ConfigCmd) string {
 	result := "passed"
 
 	wg := sync.WaitGroup{}
 
-	for _, cmd := range config.Cmds {
+	for _, cmd := range commands {
 		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
 		wc, err := NewWrappedScriptCommand(cmd.Script, cmd.Id)
 		if err != nil {
