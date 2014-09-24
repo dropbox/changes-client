@@ -25,7 +25,7 @@ func main() {
 		panic(err)
 	}
 
-	reporter := runner.NewReporter(config.Server)
+	reporter := runner.NewReporter(config.Server, config.Debug)
 	runner.RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 }

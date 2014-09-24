@@ -29,6 +29,7 @@ type Reporter struct {
 	publishUri      string
 	publishChannel  chan ReportPayload
 	shutdownChannel chan bool
+	debug           bool
 }
 
 func httpPost(uri string, params map[string]string, file string) (resp *http.Response, err error) {
@@ -87,6 +88,11 @@ func transportSend(r *Reporter) {
 	var status string
 
 	for req := range r.publishChannel {
+		// dont send reports when running in debug mode
+		if r.debug == true {
+			continue
+		}
+
 		path := r.publishUri + req.path
 		if req.data == nil {
 			req.data = make(map[string]string)
@@ -128,12 +134,13 @@ func transportSend(r *Reporter) {
 	r.shutdownChannel <- true
 }
 
-func NewReporter(publishUri string) *Reporter {
+func NewReporter(publishUri string, debug bool) *Reporter {
 	log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
 	r := &Reporter{}
 	r.publishUri = publishUri
 	r.publishChannel = make(chan ReportPayload, maxPendingReports)
 	r.shutdownChannel = make(chan bool)
+	r.debug = debug
 
 	go transportSend(r)
 	return r

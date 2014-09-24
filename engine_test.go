@@ -111,7 +111,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	config.Cmds[2].Type.ID = "teardown"
 
-	reporter := NewReporter(config.Server)
+	reporter := NewReporter(config.Server, false)
 	RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 

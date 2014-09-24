@@ -12,10 +12,11 @@ import (
 )
 
 var (
-	server    string
-	jobstepID string
-	workspace string
+	server     string
+	jobstepID  string
+	workspace  string
 	runAsChild bool
+	debug      bool
 )
 
 type ConfigCmd struct {
@@ -36,7 +37,8 @@ type Config struct {
 	Workspace string
 	// TODO(dcramer): remove RunAsChild entirely once new CLI is written
 	RunAsChild bool
-	Source    struct {
+	Debug      bool
+	Source     struct {
 		Revision struct {
 			Sha string
 		}
@@ -111,6 +113,7 @@ func GetConfig() (*Config, error) {
 	conf.JobstepID = jobstepID
 	conf.Workspace = workspace
 	conf.RunAsChild = runAsChild
+	conf.Debug = debug
 
 	return conf, err
 }
@@ -123,4 +126,5 @@ func init() {
 	// is, specifically what it will still report and what it wont
 	// Currently this only disables jobstep status updates.
 	flag.BoolVar(&runAsChild, "run_as_child", false, "Indicates that the client is running as a child of another wrapper")
+	flag.BoolVar(&debug, "debug", false, "Indicates that the client is running in debug mode and should not report results upstream")
 }
