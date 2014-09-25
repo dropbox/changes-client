@@ -1,4 +1,4 @@
-package runner
+package client
 
 import (
 	"bufio"
@@ -19,28 +19,29 @@ var (
 	chunkSize = 4096
 )
 
-type WrappedCommand struct {
-	Name      string
-	Cmd       *exec.Cmd
-	LogSource *LogSource
-	ChunkChan chan LogChunk
-	Output    []byte // buffered output if requested
+type Command struct {
+	Name         string
+	Cmd          *exec.Cmd
+	LogSource    *LogSource
+	ChunkChan    chan LogChunk
+	BufferOutput bool
+	Output       []byte // buffered output if requested
 }
 
 // A wrapped command will ensure that all stdin/out/err gets piped
 // into a buffer that can then be reported upstream to the Changes
 // master server
-func NewWrappedCommand(cmd *exec.Cmd) (*WrappedCommand, error) {
-	return &WrappedCommand{
+func NewCommand(cmd *exec.Cmd) (*Command, error) {
+	return &Command{
 		Cmd:       cmd,
 		ChunkChan: make(chan LogChunk),
 	}, nil
 }
 
-// Build a new WrappedCommand out of an arbitrary script
+// Build a new Command out of an arbitrary script
 // The script is written to disk and then executed ensuring that it can
 // be fairly arbitrary and provide its own shebang
-func NewWrappedScriptCommand(script string, name string) (*WrappedCommand, error) {
+func NewScriptCommand(script string, name string) (*Command, error) {
 	f, err := ioutil.TempFile("", "script-")
 	if err != nil {
 		return nil, err
@@ -62,12 +63,12 @@ func NewWrappedScriptCommand(script string, name string) (*WrappedCommand, error
 		return nil, err
 	}
 
-	wc, err := NewWrappedCommand(exec.Command(f.Name()))
+	wc, err := NewCommand(exec.Command(f.Name()))
 	wc.Name = name
 	return wc, err
 }
 
-func (wc *WrappedCommand) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
+func (wc *Command) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 	c := wc.Cmd
 
 	pr, pw := io.Pipe()
@@ -78,7 +79,7 @@ func (wc *WrappedCommand) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 	return pr, pw
 }
 
-func (wc *WrappedCommand) GetLabel() string {
+func (wc *Command) GetLabel() string {
 	if wc.Name != "" {
 		return wc.Name
 	} else {
@@ -86,7 +87,7 @@ func (wc *WrappedCommand) GetLabel() string {
 	}
 }
 
-func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
+func (wc *Command) Run() (*os.ProcessState, error) {
 	var err error
 
 	defer close(wc.ChunkChan)
@@ -106,7 +107,7 @@ func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 	var reader io.Reader = cmdreader
 
 	// If user has requested to buffer command output, tee output to in memory buffer.
-	if bufferOutput {
+	if wc.BufferOutput {
 		buffer = &bytes.Buffer{}
 		reader = io.TeeReader(cmdreader, buffer)
 	}
@@ -138,7 +139,7 @@ func (wc *WrappedCommand) Run(bufferOutput bool) (*os.ProcessState, error) {
 		return nil, err
 	}
 
-	if bufferOutput {
+	if wc.BufferOutput {
 		wc.Output = buffer.Bytes()
 	}
 

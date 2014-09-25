@@ -17,4 +17,4 @@ all:
 
 
 test:
-	go test
+	go test ./... -timeout=10s

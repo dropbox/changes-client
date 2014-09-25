@@ -1,4 +1,4 @@
-package runner
+package client
 
 import (
 	"bytes"
@@ -7,10 +7,11 @@ import (
 )
 
 func TestRun(t *testing.T) {
-	wc, err := NewWrappedScriptCommand("#!/bin/bash\necho -n 1", "foo")
+	wc, err := NewScriptCommand("#!/bin/bash\necho -n 1", "foo")
 	if err != nil {
 		t.Fail()
 	}
+	wc.BufferOutput = true
 
 	cnt := 0
 	sem := make(chan bool)
@@ -21,7 +22,7 @@ func TestRun(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err = wc.Run(true)
+	_, err = wc.Run()
 	if err != nil {
 		t.Fail()
 	}
@@ -34,7 +35,7 @@ func TestRun(t *testing.T) {
 
 // if stdin is allowed this test will hang
 func TestRunIgnoresStdin(t *testing.T) {
-	wc, err := NewWrappedScriptCommand("#!/bin/bash\nread foo", "foo")
+	wc, err := NewScriptCommand("#!/bin/bash\nread foo", "foo")
 	if err != nil {
 		t.Fail()
 	}
@@ -46,7 +47,7 @@ func TestRunIgnoresStdin(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err = wc.Run(true)
+	_, err = wc.Run()
 	if err == nil {
 		t.Error("Expected command to fail")
 	}
@@ -54,7 +55,7 @@ func TestRunIgnoresStdin(t *testing.T) {
 }
 
 func TestRunFailToStart(t *testing.T) {
-	wc, err := NewWrappedScriptCommand("echo 1", "foo")
+	wc, err := NewScriptCommand("echo 1", "foo")
 	if err != nil {
 		t.Fail()
 	}
@@ -68,7 +69,7 @@ func TestRunFailToStart(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err = wc.Run(false)
+	_, err = wc.Run()
 	if err == nil {
 		t.Fail()
 	}

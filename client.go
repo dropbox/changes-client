@@ -4,7 +4,8 @@ import (
 	"flag"
 	"fmt"
 
-	"github.com/dropbox/changes-client"
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/engine"
 )
 
 const (
@@ -20,12 +21,12 @@ func main() {
 		return
 	}
 
-	config, err := runner.GetConfig()
+	config, err := client.GetConfig()
 	if err != nil {
 		panic(err)
 	}
 
-	reporter := runner.NewReporter(config.Server, config.Debug)
-	runner.RunBuildPlan(reporter, config)
+	reporter := client.NewReporter(config.Server, config.Debug)
+	engine.RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 }

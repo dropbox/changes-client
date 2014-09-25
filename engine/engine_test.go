@@ -1,6 +1,7 @@
-package runner
+package engine
 
 import (
+	"github.com/dropbox/changes-client/client"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -84,14 +85,14 @@ func TestCompleteFlow(t *testing.T) {
 	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
 	artifactName := args[len(args)-1]
 
-	config := &Config{}
+	config := &client.Config{}
 	config.Server = ts.URL
 	config.JobstepID = "job_1"
 	config.Workspace = workspaceRoot
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "https://github.com/dropbox/changes.git"
 	config.Source.Revision.Sha = "master"
-	config.Cmds = append(config.Cmds, ConfigCmd{
+	config.Cmds = append(config.Cmds, client.ConfigCmd{
 		Id:     "cmd_1",
 		Script: "#!/bin/bash\necho -n $VAR",
 		Env: map[string]string{
@@ -99,11 +100,11 @@ func TestCompleteFlow(t *testing.T) {
 		},
 		Cwd:       "/tmp",
 		Artifacts: []string{artifactName},
-	}, ConfigCmd{
+	}, client.ConfigCmd{
 		Id:     "cmd_2",
 		Script: "#!/bin/bash\nexit 1",
 		Cwd:    "/tmp",
-	}, ConfigCmd{
+	}, client.ConfigCmd{
 		Id:     "cmd_3",
 		Script: "#!/bin/bash\necho test",
 		Cwd:    "/tmp",
@@ -111,7 +112,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	config.Cmds[2].Type.ID = "teardown"
 
-	reporter := NewReporter(config.Server, false)
+	reporter := client.NewReporter(config.Server, false)
 	RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 

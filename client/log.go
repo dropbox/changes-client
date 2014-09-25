@@ -1,4 +1,4 @@
-package runner
+package client
 
 import (
 	"fmt"
@@ -16,13 +16,13 @@ type LogChunk struct {
 	Payload []byte
 }
 
-func (logsource *LogSource) reportChunks(chunks chan LogChunk) {
+func (logsource *LogSource) ReportChunks(chunks chan LogChunk) {
 	for chunk := range chunks {
-		logsource.reportBytes(chunk.Payload)
+		logsource.ReportBytes(chunk.Payload)
 	}
 }
 
-func (logsource *LogSource) reportBytes(bytes []byte) {
+func (logsource *LogSource) ReportBytes(bytes []byte) {
 	length := len(bytes)
 
 	offset := logsource.Offset
