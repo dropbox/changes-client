@@ -20,7 +20,7 @@ var (
 )
 
 type ConfigCmd struct {
-	Id            string
+	ID            string
 	Script        string
 	Env           map[string]string
 	Cwd           string

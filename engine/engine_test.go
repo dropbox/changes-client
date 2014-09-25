@@ -2,6 +2,7 @@ package engine
 
 import (
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/reporter"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -17,6 +18,17 @@ type FormData struct {
 	params map[string]string
 	files  map[string]string
 	path   string
+}
+
+
+func testHttpCall(t *testing.T, allData []FormData, lookIdx int, expectedData FormData) {
+	if len(allData) < lookIdx + 1 {
+		t.Errorf("Expected data for call #%d, found none", lookIdx)
+		t.Fail()
+	} else if !reflect.DeepEqual(expectedData, allData[lookIdx]) {
+		t.Errorf("A", lookIdx, allData[lookIdx].params, expectedData.params)
+		t.Fail()
+	}
 }
 
 func TestCompleteFlow(t *testing.T) {
@@ -93,7 +105,7 @@ func TestCompleteFlow(t *testing.T) {
 	config.Repository.URL = "https://github.com/dropbox/changes.git"
 	config.Source.Revision.Sha = "master"
 	config.Cmds = append(config.Cmds, client.ConfigCmd{
-		Id:     "cmd_1",
+		ID:     "cmd_1",
 		Script: "#!/bin/bash\necho -n $VAR",
 		Env: map[string]string{
 			"VAR": "hello world",
@@ -101,18 +113,16 @@ func TestCompleteFlow(t *testing.T) {
 		Cwd:       "/tmp",
 		Artifacts: []string{artifactName},
 	}, client.ConfigCmd{
-		Id:     "cmd_2",
+		ID:     "cmd_2",
 		Script: "#!/bin/bash\nexit 1",
 		Cwd:    "/tmp",
 	}, client.ConfigCmd{
-		Id:     "cmd_3",
+		ID:     "cmd_3",
 		Script: "#!/bin/bash\necho test",
 		Cwd:    "/tmp",
 	})
 
-	config.Cmds[2].Type.ID = "teardown"
-
-	reporter := client.NewReporter(config.Server, false)
+	reporter := reporter.NewReporter(config.Server, config.JobstepID, false)
 	RunBuildPlan(reporter, config)
 	reporter.Shutdown()
 
@@ -121,119 +131,194 @@ func TestCompleteFlow(t *testing.T) {
 	}
 
 	expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
-	expected := []FormData{
-		FormData{
-			path: "/jobsteps/job_1/",
-			params: map[string]string{
-				"status": STATUS_IN_PROGRESS,
-			},
-		},
-		FormData{
-			path: "/commands/cmd_1/",
-			params: map[string]string{
-				"status": STATUS_IN_PROGRESS,
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/logappend/",
-			params: map[string]string{
-				"text":   ">> cmd_1\n",
-				"source": "console",
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/logappend/",
-			params: map[string]string{
-				"text":   "hello world",
-				"source": "console",
-			},
-		},
-		FormData{
-			path: "/commands/cmd_1/",
-			params: map[string]string{
-				"status":      STATUS_FINISHED,
-				"return_code": "0",
-			},
-		},
-		FormData{
-			path: "/commands/cmd_2/",
-			params: map[string]string{
-				"status": STATUS_IN_PROGRESS,
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/artifacts/",
-			params: map[string]string{
-				"name": filepath.Base(artifactPath),
-			},
-			files: map[string]string{
-				"file": string(expectedFileContents),
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/logappend/",
-			params: map[string]string{
-				"text":   ">> cmd_2\n",
-				"source": "console",
-			},
-		},
-		FormData{
-			path: "/commands/cmd_2/",
-			params: map[string]string{
-				"status":      STATUS_FINISHED,
-				"return_code": "255",
-			},
-		},
-		FormData{
-			path: "/commands/cmd_3/",
-			params: map[string]string{
-				"status": STATUS_IN_PROGRESS,
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/logappend/",
-			params: map[string]string{
-				"text":   ">> cmd_3\n",
-				"source": "console",
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/logappend/",
-			params: map[string]string{
-				"text":   "test\n",
-				"source": "console",
-			},
-		},
-		FormData{
-			path: "/commands/cmd_3/",
-			params: map[string]string{
-				"status":      STATUS_FINISHED,
-				"return_code": "0",
-			},
-		},
-		FormData{
-			path: "/jobsteps/job_1/",
-			params: map[string]string{
-				"status": STATUS_FINISHED,
-				"result": "failed",
-			},
-		},
-	}
+	// expected := []FormData{
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/",
+	// 		params: map[string]string{
+	// 			"status": STATUS_IN_PROGRESS,
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_1/",
+	// 		params: map[string]string{
+	// 			"status": STATUS_IN_PROGRESS,
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/logappend/",
+	// 		params: map[string]string{
+	// 			"text":   ">> cmd_1\n",
+	// 			"source": "console",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/logappend/",
+	// 		params: map[string]string{
+	// 			"text":   "hello world",
+	// 			"source": "console",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_1/",
+	// 		params: map[string]string{
+	// 			"status":      STATUS_FINISHED,
+	// 			"return_code": "0",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_2/",
+	// 		params: map[string]string{
+	// 			"status": STATUS_IN_PROGRESS,
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/artifacts/",
+	// 		params: map[string]string{
+	// 			"name": filepath.Base(artifactPath),
+	// 		},
+	// 		files: map[string]string{
+	// 			"file": string(expectedFileContents),
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/logappend/",
+	// 		params: map[string]string{
+	// 			"text":   ">> cmd_2\n",
+	// 			"source": "console",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_2/",
+	// 		params: map[string]string{
+	// 			"status":      STATUS_FINISHED,
+	// 			"return_code": "255",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_3/",
+	// 		params: map[string]string{
+	// 			"status": STATUS_IN_PROGRESS,
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/logappend/",
+	// 		params: map[string]string{
+	// 			"text":   ">> cmd_3\n",
+	// 			"source": "console",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/logappend/",
+	// 		params: map[string]string{
+	// 			"text":   "test\n",
+	// 			"source": "console",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/commands/cmd_3/",
+	// 		params: map[string]string{
+	// 			"status":      STATUS_FINISHED,
+	// 			"return_code": "0",
+	// 		},
+	// 	},
+	// 	FormData{
+	// 		path: "/jobsteps/job_1/",
+	// 		params: map[string]string{
+	// 			"status": STATUS_FINISHED,
+	// 			"result": "failed",
+	// 		},
+	// 	},
+	// }
 
-	if len(formData) < len(expected) {
-		t.Errorf("Less HTTP calls than expected")
-	} else if len(formData) > len(expected) {
-		t.Errorf("More HTTP calls than expected")
-	}
+	testHttpCall(t, formData, 0, FormData{
+		path: "/jobsteps/job_1/",
+		params: map[string]string{
+			"status": STATUS_IN_PROGRESS,
+		},
+	})
 
-	for i, v := range formData {
-		if !reflect.DeepEqual(v, expected[i]) {
-			t.Errorf("A", i, v.params, expected[i].params)
-			t.Fail()
-		}
-	}
+	testHttpCall(t, formData, 1, FormData{
+		path: "/commands/cmd_1/",
+		params: map[string]string{
+			"status": STATUS_IN_PROGRESS,
+		},
+	})
 
-	if !reflect.DeepEqual(formData, expected) {
-		t.Errorf("Form data does not match")
+	// testHttpCall(t, formData, 2, FormData{
+	// 	path: "/jobsteps/job_1/logappend/",
+	// 	params: map[string]string{
+	// 		"text":   ">> cmd_1\n",
+	// 		"source": "console",
+	// 	},
+	// })
+
+	testHttpCall(t, formData, 3, FormData{
+		path: "/jobsteps/job_1/logappend/",
+		params: map[string]string{
+			"text":   "hello world",
+			"source": "console",
+		},
+	})
+
+	testHttpCall(t, formData, 4, FormData{
+		path: "/commands/cmd_1/",
+		params: map[string]string{
+			"status":      STATUS_FINISHED,
+			"return_code": "0",
+		},
+	})
+
+	testHttpCall(t, formData, 5, FormData{
+		path: "/commands/cmd_2/",
+		params: map[string]string{
+			"status": STATUS_IN_PROGRESS,
+		},
+	})
+
+	testHttpCall(t, formData, 6, FormData{
+		path: "/jobsteps/job_1/artifacts/",
+		params: map[string]string{
+			"name": filepath.Base(artifactPath),
+		},
+		files: map[string]string{
+			"file": string(expectedFileContents),
+		},
+	})
+
+	// testHttpCall(t, formData, 7, FormData{
+	// 	path: "/jobsteps/job_1/logappend/",
+	// 	params: map[string]string{
+	// 		"text":   ">> cmd_2\n",
+	// 		"source": "console",
+	// 	},
+	// })
+
+	testHttpCall(t, formData, 8, FormData{
+		path: "/commands/cmd_2/",
+		params: map[string]string{
+			"status":      STATUS_FINISHED,
+			"return_code": "255",
+		},
+	})
+
+	testHttpCall(t, formData, 9, FormData{
+		path: "/jobsteps/job_1/logappend/",
+		params: map[string]string{
+			"text": "exit status 1\n",
+			"source": "console",
+		},
+	})
+
+	testHttpCall(t, formData, 10, FormData{
+		path: "/jobsteps/job_1/",
+		params: map[string]string{
+			"status": STATUS_FINISHED,
+			"result": "failed",
+		},
+	})
+
+
+	if len(formData) != 11 {
+		t.Errorf("Expected 11 HTTP calls, found %d", len(formData))
 	}
 }

@@ -5,7 +5,7 @@ import (
 )
 
 type Adapter interface {
-	Prepare() error
-	Run(*Command) (*os.ProcessState, error)
-	Shutdown() error
+	Prepare(*Log) error
+	Run(*Command, *Log) (*os.ProcessState, error)
+	Shutdown(*Log) error
 }

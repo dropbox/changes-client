@@ -95,7 +95,7 @@ func TestGetConfig(t *testing.T) {
 		t.Fail()
 	}
 
-	if config.Cmds[0].Id != "cmd_1" {
+	if config.Cmds[0].ID != "cmd_1" {
 		t.Fail()
 	}
 

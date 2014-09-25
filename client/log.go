@@ -1,34 +1,103 @@
 package client
 
 import (
+	"bufio"
+	"flag"
+	"io"
 	"fmt"
+	"time"
 )
 
-type LogSource struct {
-	Name      string
-	Offset    int
-	JobstepID string
-	Reporter  *Reporter
+var (
+	chunkSize = 4096
+)
+
+type Log struct {
+	Chan chan []byte
 }
 
-type LogChunk struct {
-	Length  int
-	Payload []byte
+type LogLine struct {
+	line []byte
+	err  error
 }
 
-func (logsource *LogSource) ReportChunks(chunks chan LogChunk) {
-	for chunk := range chunks {
-		logsource.ReportBytes(chunk.Payload)
+func NewLog() *Log {
+	return &Log{
+		Chan: make(chan []byte),
 	}
 }
 
-func (logsource *LogSource) ReportBytes(bytes []byte) {
-	length := len(bytes)
+func (l *Log) Close() {
+	close(l.Chan)
+}
 
-	offset := logsource.Offset
-	logsource.Offset += length
+func (l *Log) Writeln(payload string) error {
+	l.Chan <- []byte(fmt.Sprintf("%s\n", payload))
 
-	fmt.Printf("Got another chunk from %s (%d-%d)\n", logsource.Name, offset, length)
-	fmt.Printf("%s", bytes)
-	logsource.Reporter.PushLogChunk(logsource.JobstepID, logsource.Name, offset, bytes)
+	return nil
+}
+
+func (l *Log) WriteStream(pipe io.Reader) {
+	lines := newLogLineReader(pipe)
+
+	finished := false
+	for !finished {
+		var payload []byte
+		timeLimit := time.After(2 * time.Second)
+
+		for len(payload) < chunkSize {
+			var logLine *LogLine
+			timeLimitExceeded := false
+
+			select {
+			case logLine = <-lines:
+			case <-timeLimit:
+				timeLimitExceeded = true
+			}
+
+			if timeLimitExceeded {
+				break
+			}
+
+			payload = append(payload, logLine.line...)
+			if logLine.err == io.EOF {
+				finished = true
+				break
+			}
+
+			if logLine.err != nil {
+				finished = true
+				line := []byte(fmt.Sprintf("%s", logLine.err))
+				payload = append(payload, line...)
+				break
+			}
+		}
+
+		if len(payload) > 0 {
+			l.Chan <- payload
+		}
+	}
+}
+
+func newLogLineReader(pipe io.Reader) <-chan *LogLine {
+	r := bufio.NewReader(pipe)
+	ch := make(chan *LogLine)
+
+	go func() {
+		for {
+			line, err := r.ReadBytes('\n')
+			l := &LogLine{line: line, err: err}
+			ch <- l
+
+			if err != nil {
+				return
+			}
+		}
+	}()
+
+	return ch
+}
+
+func init() {
+	flag.IntVar(&chunkSize, "log_chunk_size", 4096, "Size of log chunks to send to http server")
 }

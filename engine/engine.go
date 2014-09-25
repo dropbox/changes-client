@@ -1,9 +1,10 @@
 package engine
 
 import (
+	"github.com/dropbox/changes-client/adapter/basic"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common"
-	"github.com/dropbox/changes-client/adapter/basic"
+	"github.com/dropbox/changes-client/reporter"
 	"log"
 	"os"
 	"sync"
@@ -18,84 +19,84 @@ const (
 	RESULT_FAILED = "failed"
 )
 
-func RunAllCmds(reporter *client.Reporter, config *client.Config, logsource *client.LogSource) string {
+func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *reporter.LogSource) string {
 	var err error
 
 	result := RESULT_PASSED
 
 	adapter := basic.NewAdapter(config)
+	log := client.NewLog()
 
-	err = adapter.Prepare()
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		logsource.ReportChunks(log.Chan)
+		wg.Done()
+	}()
+
+	err = adapter.Prepare(log)
 	if err != nil {
 		// TODO(dcramer): we need to ensure that logging gets generated for prepare
 		return RESULT_FAILED
 	}
 
-	wg := sync.WaitGroup{}
-
-	for _, cmd := range config.Cmds {
-		reporter.PushStatus(cmd.Id, STATUS_IN_PROGRESS, -1)
-		wc, err := client.NewScriptCommand(cmd.Script, cmd.Id)
+	for _, cmdConfig := range config.Cmds {
+		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
+			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
+		reporter.PushStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
-		wc.BufferOutput = cmd.CaptureOutput
+		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
 		env := os.Environ()
-		for k, v := range cmd.Env {
+		for k, v := range cmdConfig.Env {
 			env = append(env, k+"="+v)
 		}
-		wc.Cmd.Env = env
+		cmd.Env = env
 
-		if len(cmd.Cwd) > 0 {
-			wc.Cmd.Dir = cmd.Cwd
+		if len(cmdConfig.Cwd) > 0 {
+			cmd.Cwd = cmdConfig.Cwd
 		}
 
-		// Aritifacts can go out-of-band but we want to send logs synchronously.
-		sem := make(chan bool)
-		go func() {
-			logsource.ReportChunks(wc.ChunkChan)
-			sem <- true
-		}()
-
-		pState, err := adapter.Run(wc)
-
-		// Wait for all the logs to be sent to reporter before sending command status.
-		<-sem
+		cmdResult, err := adapter.Run(cmd, log)
 
 		if err != nil {
-			reporter.PushStatus(cmd.Id, STATUS_FINISHED, 255)
+			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
-			if pState.Success() {
+			if cmdResult.Success() {
 				if cmd.CaptureOutput {
-					reporter.PushOutput(cmd.Id, STATUS_FINISHED, 0, wc.Output)
+					reporter.PushOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					reporter.PushStatus(cmd.Id, STATUS_FINISHED, 0)
+					reporter.PushStatus(cmd.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				reporter.PushStatus(cmd.Id, STATUS_FINISHED, 1)
+				reporter.PushStatus(cmd.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, config.JobstepID, config.Workspace, artifacts)
+			publishArtifacts(reporter, config.Workspace, artifacts)
 			wg.Done()
-		}(cmd.Artifacts)
+		}(cmdConfig.Artifacts)
 
 		if result == RESULT_FAILED {
 			break
 		}
 	}
 
+	err = adapter.Shutdown(log)
+
+	close(log.Chan)
+
 	wg.Wait()
 
-	err = adapter.Shutdown()
 	if err != nil {
 		// TODO(dcramer): we need to ensure that logging gets generated for prepare
 		// XXX(dcramer): we probably don't need to fail here as a shutdown operation
@@ -106,21 +107,17 @@ func RunAllCmds(reporter *client.Reporter, config *client.Config, logsource *cli
 	return result
 }
 
-func RunBuildPlan(reporter *client.Reporter, config *client.Config) {
-	logsource := &client.LogSource{
-		Name:      "console",
-		JobstepID: config.JobstepID,
-		Reporter:  reporter,
-	}
+func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
+	logsource := reporter.NewLogSource("console", r)
 
-	reporter.PushJobStatus(config.JobstepID, STATUS_IN_PROGRESS, "")
+	r.PushJobStatus(STATUS_IN_PROGRESS, "")
 
-	result := RunAllCmds(reporter, config, logsource)
+	result := RunAllCmds(r, config, logsource)
 
-	reporter.PushJobStatus(config.JobstepID, STATUS_FINISHED, result)
+	r.PushJobStatus(STATUS_FINISHED, result)
 }
 
-func publishArtifacts(reporter *client.Reporter, cID string, workspace string, artifacts []string) {
+func publishArtifacts(r *reporter.Reporter, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
 		log.Printf("[engine] Skipping artifact collection")
 		return
@@ -135,5 +132,5 @@ func publishArtifacts(reporter *client.Reporter, cID string, workspace string, a
 
 	log.Printf("[engine] Found %d matching artifacts", len(matches))
 
-	reporter.PushArtifacts(cID, matches)
+	r.PushArtifacts(matches)
 }

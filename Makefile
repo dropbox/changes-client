@@ -17,4 +17,4 @@ all:
 
 
 test:
-	go test ./... -timeout=10s
+	go test ./... -timeout=120s -race
