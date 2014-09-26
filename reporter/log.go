@@ -1,14 +1,14 @@
 package reporter
 
 type LogSource struct {
-	Name      string
+	Name string
 
-	reporter  *Reporter
+	reporter *Reporter
 }
 
 func NewLogSource(name string, reporter *Reporter) *LogSource {
 	return &LogSource{
-		Name: name,
+		Name:     name,
 		reporter: reporter,
 	}
 }

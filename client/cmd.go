@@ -6,10 +6,10 @@ import (
 )
 
 type Command struct {
-	ID			 string
-	Path         string
-	Env          []string
-	Cwd          string
+	ID            string
+	Path          string
+	Env           []string
+	Cwd           string
 	CaptureOutput bool
 }
 
@@ -49,7 +49,7 @@ func NewCommand(id string, script string) (*Command, error) {
 
 	// TODO(dcramer): generate a better name
 	return &Command{
-		ID: id,
+		ID:   id,
 		Path: f.Name(),
 	}, nil
 }

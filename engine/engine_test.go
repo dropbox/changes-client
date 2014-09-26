@@ -1,9 +1,9 @@
 package engine
 
 import (
+	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/reporter"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -20,9 +20,8 @@ type FormData struct {
 	path   string
 }
 
-
 func testHttpCall(t *testing.T, allData []FormData, lookIdx int, expectedData FormData) {
-	if len(allData) < lookIdx + 1 {
+	if len(allData) < lookIdx+1 {
 		t.Errorf("Expected data for call #%d, found none", lookIdx)
 		t.Fail()
 	} else if !reflect.DeepEqual(expectedData, allData[lookIdx]) {
@@ -304,7 +303,7 @@ func TestCompleteFlow(t *testing.T) {
 	testHttpCall(t, formData, 9, FormData{
 		path: "/jobsteps/job_1/logappend/",
 		params: map[string]string{
-			"text": "exit status 1\n",
+			"text":   "exit status 1\n",
 			"source": "console",
 		},
 	})
@@ -316,7 +315,6 @@ func TestCompleteFlow(t *testing.T) {
 			"result": "failed",
 		},
 	})
-
 
 	if len(formData) != 11 {
 		t.Errorf("Expected 11 HTTP calls, found %d", len(formData))

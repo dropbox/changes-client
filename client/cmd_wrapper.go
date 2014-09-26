@@ -25,7 +25,6 @@ func (cw *CmdWrapper) StdinPipe() (io.WriteCloser, error) {
 	return cw.cmd.StdinPipe()
 }
 
-
 func (cw *CmdWrapper) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 	pr, pw := io.Pipe()
 

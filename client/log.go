@@ -3,8 +3,8 @@ package client
 import (
 	"bufio"
 	"flag"
-	"io"
 	"fmt"
+	"io"
 	"time"
 )
 
