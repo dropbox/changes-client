@@ -18,3 +18,7 @@ all:
 
 test:
 	go test ./... -timeout=120s -race
+
+
+fmt:
+	go fmt ./...
