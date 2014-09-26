@@ -2,28 +2,159 @@ package lxc
 
 import (
 	"fmt"
-    "github.com/dropbox/changes-client/client"
-    "os"
-    "path"
+	"github.com/dropbox/changes-client/client"
+	"github.com/lxc/go-lxc"
+	"os"
+	"path"
 	"time"
 )
 
 type Container struct {
-	name     string
-	running  bool
-	rootfs   string
 	release  string
+	arch     string
+	dist     string
+	snapshot string
 	s3Bucket string
+	name     string
+	lxc      *lxc.Container
 }
 
-func NewContainer(name string) *Container {
+func NewContainer(name string) (*Container, error) {
 	return &Container{
 		name: name,
+		arch: "amd64",
+		dist: "ubuntu",
 	}
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-    return os.Link(srcFile, path.Join(c.rootfs, dstFile))
+	return os.Link(srcFile, path.Join(c.rootfs, dstFile))
+}
+
+func (c *Container) RootFs() string {
+	// May be real path or overlayfs:base-dir:delta-dir
+	return strings.Split(c.lxc.ConfigItem("lxc.rootfs"), ":")[1]
+}
+
+func (c *Container) Launch(log *client.Log) error {
+	var err error
+
+	if c.snapshot != nil {
+		if c.snapshotIsCached(c.snapshot) == false {
+			c.ensureImageCached(c.snapshot)
+
+			base := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+			err = base.Create("download", "--arch", c.arch, "--release", c.release,
+				"--dist", c.dist, "--variant", c.snapshot)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			base := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+		}
+
+		log.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.snapshot))
+		flags := lxc.CloneKeepName | lxc.CloneSnapshot
+		err = base.CloneUsing(c.name, lxc.Overlayfs, flags)
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		base, err := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+		if err != nil {
+			return nil, err
+		}
+		log.Writeln("==> Creating container")
+		base.Create(c.dist, "--release", c.release, "--arch", c.arch)
+	}
+
+	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
+
+	// TODO(dcramer):
+	// if pre:
+	//     pre_env = dict(os.environ, LXC_ROOTFS=self.rootfs, LXC_NAME=self.name)
+	//     subprocess.check_call(pre, cwd=self.rootfs, env=pre_env)
+
+	// XXX: More or less disable apparmor
+	c.lxc.SetConfigItem("lxc.aa_profile", "unconfined")
+	// Allow loop/squashfs in container
+	// TODO(dcramer): lxc package doesnt support append
+	c.lxc.AppendConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
+	c.lxc.AppendConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
+
+	log.Writeln("==> Starting container")
+	err = c.lxc.Start()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(dcramer): there is no timeout in go-lxc, we might need a spin loop
+	log.Writeln("==> Waiting for container to startup networking")
+	_, err = c.lxc.IPv4Addresses()
+	if err != nil {
+		return nil, err
+	}
+
+	log.Writeln("==> Install ca-certificates")
+	cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
+	_, err = cw.Run(false, log, c.lxc)
+	if err != nil {
+		return nil, err
+	}
+	cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
+	_, err = cw.Run(false, log, c.lxc)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Writeln("==> Setting up sudoers")
+	err = c.setupSudoers()
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(dcramer):
+	// if post:
+	//     # Naively check if trying to run a file that exists outside the container
+	//     self.run_script(post)
+}
+
+func (c *Container) setupSudoers() error {
+	sudoersPath = path.Join(c.RootFs(), "etc", "sudoers")
+	f, err := os.Create(sudoersPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	f.WriteString("Defaults    env_reset\n")
+	f.WriteString("Defaults    !requiretty\n\n")
+	f.WriteString("# Allow all sudoers.\n")
+	f.WriteString("ALL  ALL=(ALL) NOPASSWD:ALL\n")
+
+	err = f.Chmod(0440)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) RunLocalScript(path string, captureOutput bool, log *client.Log) (*client.CommandResult, error) {
+	dstFile := "/tmp/script"
+	err := c.UploadFile(path, dstFile)
+	if err != nil {
+		return nil, err
+	}
+
+	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
+	_, err = cw.Run(false, log, a.lxc)
+	if err != nil {
+		return nil, err
+	}
+
+	cw = NewLxcCommand([]string{dstFile}, "ubuntu")
+	return cw.Run(captureOutput, log, c.lxc)
 }
 
 func (c *Container) getHomeDir(user string) string {
@@ -38,6 +169,15 @@ func (c *Container) getImagePath(snapshot string) string {
 	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.release, snapshot)
 }
 
+func (c *Container) snapshotIsCached(snapshot) bool {
+	for _, name := range lxc.ContainerNames() {
+		if snapshot == name {
+			return true
+		}
+	}
+	return false
+}
+
 // To avoid complexity of having a sort-of public host, and to ensure we
 // can just instead easily store images on S3 (or similar) we attempt to
 // sync images in a similar fashion to the LXC image downloader. This means
@@ -49,7 +189,7 @@ func (c *Container) ensureImageCached(snapshot string, log *client.Log) error {
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 
 	// list of files required to avoid network hit
-    // TODO(dcramer):
+	// TODO(dcramer):
 	// fileList := []string{"rootfs.tar.xz", "config", "snapshot_id"}
 	// if all(os.path.exists(os.path.join(local_path, f)) for f in file_list):
 	//     return
@@ -91,26 +231,5 @@ func (c *Container) uploadImage(snapshot string, log *client.Log) error {
 	stop := time.Now().Unix()
 	log.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start*100))
 
-    return nil
-}
-
-func (c *Container) GenerateCommand(command []string, user string) []string {
-	// TODO(dcramer):
-    // homeDir := c.getHomeDir(user)
-	// env = {
-	//     # TODO(dcramer): HOME is pretty hacky here
-	//     'USER': user,
-	//     'HOME': home_dir,
-	//     'PWD': cwd,
-	//     'DEBIAN_FRONTEND': 'noninteractive',
-	//     'LXC_NAME': self.name,
-	//     'HOST_HOSTNAME': socket.gethostname(),
-	//     'PATH': '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-	// }
-	//     if env:
-	//         new_env.update(env)
-
-	result := []string{"lxc-run", "-n", c.name, "--", "sudo", "-EHu", user}
-    result = append(result, command...)
-    return result
+	return nil
 }

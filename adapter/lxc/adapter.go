@@ -10,32 +10,30 @@ type Adapter struct {
 	container *Container
 }
 
-func NewAdapter(config *client.Config) *Adapter {
+func NewAdapter(config *client.Config) (*Adapter, error) {
+	container, err := NewContainer(config.JobstepID)
+	if err != nil {
+		return err
+	}
 	return &Adapter{
 		config: config,
 		// Reuse the UUID from the Jobstep as the container name
-		container: NewContainer(config.JobstepID),
-	}
+		container: container,
+	}, nil
 }
 
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
 func (a *Adapter) Prepare(log *client.Log) error {
+	err := a.container.Create("ubuntu", "-a", "amd64", "-r", "precise")
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
 // Runs a given command. This may be called multiple times depending
 func (a *Adapter) Run(cmd *client.Command, log *client.Log) (*client.CommandResult, error) {
-	return a.runCommandInContainer(cmd, log)
-}
-
-// Perform any cleanup actions within the environment.
-func (a *Adapter) Shutdown(log *client.Log) error {
-	return nil
-}
-
-// Runs a local script within the container.
-func (a *Adapter) runCommandInContainer(cmd *client.Command, log *client.Log) (*client.CommandResult, error) {
 	dstFile := "/tmp/script"
 	err := a.container.UploadFile(cmd.Path, dstFile)
 	if err != nil {
@@ -43,15 +41,17 @@ func (a *Adapter) runCommandInContainer(cmd *client.Command, log *client.Log) (*
 		return nil, err
 	}
 
-	lxcCmd := a.container.GenerateCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
-	cw := client.NewCmdWrapper(lxcCmd, "", []string{})
-	_, err = cw.Run(cmd.CaptureOutput, log)
+	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
+	_, err = cw.Run(false, log, a.lxc)
 	if err != nil {
 		return nil, err
 	}
 
-	// TODO(dcramer): ubuntu needs configurable
-	lxcCmd = a.container.GenerateCommand([]string{dstFile}, "ubuntu")
-	cw = client.NewCmdWrapper(lxcCmd, "", []string{})
-	return cw.Run(cmd.CaptureOutput, log)
+	cw = NewLxcCommand([]string{dstFile}, "ubuntu")
+	return cw.Run(cmd.CaptureOutput, log, a.lxc)
+}
+
+// Perform any cleanup actions within the environment.
+func (a *Adapter) Shutdown(log *client.Log) error {
+	return nil
 }

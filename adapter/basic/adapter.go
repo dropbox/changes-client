@@ -8,10 +8,10 @@ type Adapter struct {
 	config *client.Config
 }
 
-func NewAdapter(config *client.Config) *Adapter {
+func NewAdapter(config *client.Config) (*Adapter, error) {
 	return &Adapter{
 		config: config,
-	}
+	}, nil
 }
 
 // Prepare the environment for future commands. This is run before any

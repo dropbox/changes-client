@@ -1,11 +1,11 @@
 package engine
 
 import (
+	"fmt"
 	"github.com/dropbox/changes-client/adapter/basic"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common"
 	"github.com/dropbox/changes-client/reporter"
-	"log"
 	"os"
 	"sync"
 )
@@ -24,7 +24,13 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *r
 
 	result := RESULT_PASSED
 
-	adapter := basic.NewAdapter(config)
+	adapter, err := basic.NewAdapter(config)
+	if err != nil {
+		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
+		// so that we can report it upstream without giant logic blocks
+		return RESULT_FAILED
+	}
+
 	log := client.NewLog()
 
 	wg := sync.WaitGroup{}
@@ -82,7 +88,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *r
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, config.Workspace, artifacts)
+			publishArtifacts(reporter, log, config.Workspace, artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
 
@@ -117,20 +123,21 @@ func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
 	r.PushJobStatus(STATUS_FINISHED, result)
 }
 
-func publishArtifacts(r *reporter.Reporter, workspace string, artifacts []string) {
+func publishArtifacts(r *reporter.Reporter, log *client.Log, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
-		log.Printf("[engine] Skipping artifact collection")
+		log.Writeln(">> Skipping artifact collection")
 		return
 	}
 
-	log.Printf("[engine] Collecting artifacts in %s matching %s", workspace, artifacts)
+	log.Writeln(fmt.Sprintf(">> Collecting artifacts in %s matching %s", workspace, artifacts))
 
 	matches, err := common.GlobTree(workspace, artifacts)
 	if err != nil {
-		panic("Invalid artifact pattern" + err.Error())
+		log.Writeln(fmt.Sprintf("Invalid artifact pattern: " + err.Error()))
+		return
 	}
 
-	log.Printf("[engine] Found %d matching artifacts", len(matches))
+	log.Writeln(fmt.Sprintf("Found %d matching artifacts", len(matches)))
 
 	r.PushArtifacts(matches)
 }

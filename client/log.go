@@ -31,6 +31,12 @@ func (l *Log) Close() {
 	close(l.Chan)
 }
 
+func (l *Log) Write(payload []byte) error {
+	l.Chan <- payload
+
+	return nil
+}
+
 func (l *Log) Writeln(payload string) error {
 	l.Chan <- []byte(fmt.Sprintf("%s\n", payload))
 
