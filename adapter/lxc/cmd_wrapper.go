@@ -1,11 +1,13 @@
-package lxc
+package lxcadapter
 
 import (
 	"bytes"
 	"fmt"
-	"github.com/lxc/go-lxc"
+	"github.com/dropbox/changes-client/client"
+	"gopkg.in/lxc/go-lxc.v1"
 	"io"
 	"sync"
+	"strings"
 )
 
 type LxcCommand struct {
@@ -20,36 +22,18 @@ func NewLxcCommand(command []string, user string) *LxcCommand {
 	}
 }
 
-func (cw *LxcCommand) StdinPipe() (io.WriteCloser, error) {
-	if c.Stdin != nil {
-		return nil, errors.New("exec: Stdin already set")
-	}
-	if c.Process != nil {
-		return nil, errors.New("exec: StdinPipe after process started")
-	}
-	pr, pw, err := os.Pipe()
-	if err != nil {
-		return nil, err
-	}
-	c.Stdin = pr
-	c.closeAfterStart = append(c.closeAfterStart, pr)
-	wc := &closeOnce{File: pw}
-	c.closeAfterWait = append(c.closeAfterWait, wc)
-	return wc, nil
-}
-
-func (cw *LxcCommand) Run(captureOutput bool, log *Log, lxc *lxc.Container) (*CommandResult, error) {
+func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Container) (*client.CommandResult, error) {
 	var err error
 
-	stdin, err := cw.StdinPipe()
+	// TODO(dcramer):
+	log.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.command, " ")))
+
+	inreader, inwriter := io.Pipe()
 	if err != nil {
 		return nil, err
 	}
 
 	cmdreader, cmdwriter := io.Pipe()
-
-	// TODO(dcramer):
-	log.Writeln(fmt.Sprintf(">> %s", cw.cmd.Path))
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader
@@ -60,13 +44,14 @@ func (cw *LxcCommand) Run(captureOutput bool, log *Log, lxc *lxc.Container) (*Co
 		reader = io.TeeReader(cmdreader, buffer)
 	}
 
-	cmdwriterFd = cmdwriter.Fd()
+	cmdwriterFd := cmdwriter.Fd()
 
-	stdin.Close()
+	inreader.Close()
+	inwriter.Close()
 
 	cmdAsUser := cw.generateCommand(cw.command, cw.user)
 
-	err = lxc.RunCommandWithClearEnvironment(stdin.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
+	err = lxc.RunCommandWithClearEnvironment(inwriter.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +72,7 @@ func (cw *LxcCommand) Run(captureOutput bool, log *Log, lxc *lxc.Container) (*Co
 		return nil, err
 	}
 
-	result := &CommandResult{}
+	result := &client.CommandResult{}
 
 	if captureOutput {
 		result.Output = buffer.Bytes()
@@ -97,7 +82,7 @@ func (cw *LxcCommand) Run(captureOutput bool, log *Log, lxc *lxc.Container) (*Co
 	return result, nil
 }
 
-func (c *Container) generateCommand(command []string, user string) []string {
+func (cw *LxcCommand) generateCommand(command []string, user string) []string {
 	// TODO(dcramer):
 	// homeDir := c.getHomeDir(user)
 	// env = {

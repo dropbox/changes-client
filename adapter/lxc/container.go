@@ -1,9 +1,9 @@
-package lxc
+package lxcadapter
 
 import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"github.com/lxc/go-lxc"
+	"gopkg.in/lxc/go-lxc.v1"
 	"os"
 	"path"
 	"time"
@@ -24,45 +24,53 @@ func NewContainer(name string) (*Container, error) {
 		name: name,
 		arch: "amd64",
 		dist: "ubuntu",
-	}
+	}, nil
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	return os.Link(srcFile, path.Join(c.rootfs, dstFile))
+	return os.Link(srcFile, path.Join(c.RootFs(), dstFile))
 }
 
 func (c *Container) RootFs() string {
 	// May be real path or overlayfs:base-dir:delta-dir
-	return strings.Split(c.lxc.ConfigItem("lxc.rootfs"), ":")[1]
+	// TODO(dcramer): confirm this is actually split how we expect it
+	return c.lxc.ConfigItem("lxc.rootfs")[1]
 }
 
 func (c *Container) Launch(log *client.Log) error {
 	var err error
+	var base *lxc.Container
 
-	if c.snapshot != nil {
+	if c.snapshot != "" {
 		if c.snapshotIsCached(c.snapshot) == false {
-			c.ensureImageCached(c.snapshot)
+			c.ensureImageCached(c.snapshot, log)
 
-			base := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+			base, err = lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
+			if err != nil {
+				return err
+			}
 			err = base.Create("download", "--arch", c.arch, "--release", c.release,
 				"--dist", c.dist, "--variant", c.snapshot)
 			if err != nil {
-				return nil, err
+				return err
 			}
 		} else {
-			base := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+			base, err = lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
+			if err != nil {
+				return err
+			}
 		}
 
 		log.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.snapshot))
 		flags := lxc.CloneKeepName | lxc.CloneSnapshot
 		err = base.CloneUsing(c.name, lxc.Overlayfs, flags)
 		if err != nil {
-			return nil, err
+			return err
 		}
 	} else {
-		base, err := lxc.NewContainer(snapshot, lxc.DefaultConfigPath())
+		base, err := lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
 		if err != nil {
-			return nil, err
+			return err
 		}
 		log.Writeln("==> Creating container")
 		base.Create(c.dist, "--release", c.release, "--arch", c.arch)
@@ -78,49 +86,60 @@ func (c *Container) Launch(log *client.Log) error {
 	// XXX: More or less disable apparmor
 	c.lxc.SetConfigItem("lxc.aa_profile", "unconfined")
 	// Allow loop/squashfs in container
-	// TODO(dcramer): lxc package doesnt support append
-	c.lxc.AppendConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
-	c.lxc.AppendConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
+	// TODO(dcramer): lxc package doesnt support append, however SetConfigItem seems to append
+	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
+	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
 
 	log.Writeln("==> Starting container")
 	err = c.lxc.Start()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// TODO(dcramer): there is no timeout in go-lxc, we might need a spin loop
 	log.Writeln("==> Waiting for container to startup networking")
 	_, err = c.lxc.IPv4Addresses()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.Writeln("==> Install ca-certificates")
 	cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
 	_, err = cw.Run(false, log, c.lxc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
 	_, err = cw.Run(false, log, c.lxc)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	log.Writeln("==> Setting up sudoers")
 	err = c.setupSudoers()
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// TODO(dcramer):
 	// if post:
 	//     # Naively check if trying to run a file that exists outside the container
 	//     self.run_script(post)
+
+	return nil
+}
+
+func (c *Container) Destroy() error {
+    lxc.PutContainer(c.lxc)
+    err := c.lxc.Destroy()
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
 func (c *Container) setupSudoers() error {
-	sudoersPath = path.Join(c.RootFs(), "etc", "sudoers")
+	sudoersPath := path.Join(c.RootFs(), "etc", "sudoers")
 	f, err := os.Create(sudoersPath)
 	if err != nil {
 		return err
@@ -148,7 +167,7 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, log *client.
 	}
 
 	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
-	_, err = cw.Run(false, log, a.lxc)
+	_, err = cw.Run(false, log, c.lxc)
 	if err != nil {
 		return nil, err
 	}
@@ -169,7 +188,7 @@ func (c *Container) getImagePath(snapshot string) string {
 	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.release, snapshot)
 }
 
-func (c *Container) snapshotIsCached(snapshot) bool {
+func (c *Container) snapshotIsCached(snapshot string) bool {
 	for _, name := range lxc.ContainerNames() {
 		if snapshot == name {
 			return true
