@@ -19,7 +19,7 @@ const (
 	RESULT_FAILED = "failed"
 )
 
-func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *reporter.LogSource) string {
+func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.Log) string {
 	var err error
 
 	result := RESULT_PASSED
@@ -31,15 +31,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *r
 		return RESULT_FAILED
 	}
 
-	log := client.NewLog()
-
 	wg := sync.WaitGroup{}
-
-	wg.Add(1)
-	go func() {
-		logsource.ReportChunks(log.Chan)
-		wg.Done()
-	}()
 
 	err = adapter.Prepare(log)
 	if err != nil {
@@ -99,8 +91,6 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *r
 
 	err = adapter.Shutdown(log)
 
-	close(log.Chan)
-
 	wg.Wait()
 
 	if err != nil {
@@ -114,13 +104,31 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, logsource *r
 }
 
 func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
-	logsource := reporter.NewLogSource("console", r)
+	log := client.NewLog()
+
+	wg := sync.WaitGroup{}
+
+	wg.Add(1)
+	go func() {
+		reportLogChunks("console", log, r)
+		wg.Done()
+	}()
 
 	r.PushJobStatus(STATUS_IN_PROGRESS, "")
 
-	result := RunAllCmds(r, config, logsource)
+	result := RunAllCmds(r, config, log)
 
 	r.PushJobStatus(STATUS_FINISHED, result)
+
+	log.Close()
+
+	wg.Wait()
+}
+
+func reportLogChunks(name string, l *client.Log, r *reporter.Reporter) {
+	for chunk := range l.Chan {
+		r.PushLogChunk(name, chunk)
+	}
 }
 
 func publishArtifacts(r *reporter.Reporter, log *client.Log, workspace string, artifacts []string) {

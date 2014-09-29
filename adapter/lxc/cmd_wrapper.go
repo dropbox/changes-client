@@ -6,6 +6,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"gopkg.in/lxc/go-lxc.v1"
 	"io"
+	"os"
 	"sync"
 	"strings"
 )
@@ -28,12 +29,15 @@ func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Containe
 	// TODO(dcramer):
 	log.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.command, " ")))
 
-	inreader, inwriter := io.Pipe()
+	inreader, inwriter, err := os.Pipe()
 	if err != nil {
 		return nil, err
 	}
 
-	cmdreader, cmdwriter := io.Pipe()
+	cmdreader, cmdwriter, err := os.Pipe()
+	if err != nil {
+		return nil, err
+	}
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader
