@@ -12,10 +12,10 @@ import (
 )
 
 var (
-	server     string
-	jobstepID  string
-	workspace  string
-	debug      bool
+	server    string
+	jobstepID string
+	workspace string
+	debug     bool
 )
 
 type ConfigCmd struct {

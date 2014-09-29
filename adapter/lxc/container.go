@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"gopkg.in/lxc/go-lxc.v1"
+	"log"
 	"os"
 	"path"
 	"time"
@@ -26,6 +27,7 @@ func NewContainer(name string, preLaunch string, postLaunch string) (*Container,
 		name:       name,
 		arch:       "amd64",
 		dist:       "ubuntu",
+		release:    "precise",
 		preLaunch:  preLaunch,
 		postLaunch: postLaunch,
 	}, nil
@@ -41,18 +43,21 @@ func (c *Container) RootFs() string {
 	return c.lxc.ConfigItem("lxc.rootfs")[1]
 }
 
-func (c *Container) Launch(log *client.Log) error {
+func (c *Container) Launch(clientLog *client.Log) error {
 	var err error
 	var base *lxc.Container
 
 	if c.snapshot != "" {
+		log.Print("[lxc] Checking for cached snapshot")
 		if c.snapshotIsCached(c.snapshot) == false {
-			c.ensureImageCached(c.snapshot, log)
+			c.ensureImageCached(c.snapshot, clientLog)
 
 			base, err = lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
 			}
+			defer lxc.PutContainer(base)
+
 			err = base.Create("download", "--arch", c.arch, "--release", c.release,
 				"--dist", c.dist, "--variant", c.snapshot)
 			if err != nil {
@@ -63,77 +68,100 @@ func (c *Container) Launch(log *client.Log) error {
 			if err != nil {
 				return err
 			}
+			defer lxc.PutContainer(base)
 		}
 
-		log.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.snapshot))
+		clientLog.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.snapshot))
 		flags := lxc.CloneKeepName | lxc.CloneSnapshot
 		err = base.CloneUsing(c.name, lxc.Overlayfs, flags)
 		if err != nil {
 			return err
 		}
 	} else {
-		base, err := lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
+		log.Print("[lxc] Creating new container")
+		base, err := lxc.NewContainer(c.name, lxc.DefaultConfigPath())
+		base.SetVerbosity(lxc.Quiet)
 		if err != nil {
 			return err
 		}
-		log.Writeln("==> Creating container")
-		base.Create(c.dist, "--release", c.release, "--arch", c.arch)
+		defer lxc.PutContainer(base)
+
+		clientLog.Writeln("==> Creating container")
+		if os.Geteuid() != 0 {
+			err = base.CreateAsUser(c.dist, c.release, c.arch)
+		} else {
+			err = base.Create(c.dist, "--release", c.release, "--arch", c.arch)
+		}
+		if err != nil {
+			return err
+		}
 	}
 
 	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
-
+	c.lxc.SetVerbosity(lxc.Quiet)
+	log.Print("[lxc] Running pre-launch script")
 	if c.preLaunch != "" {
 		cw := client.NewCmdWrapper([]string{c.preLaunch}, "", []string{})
-		_, err = cw.Run(false, log)
+		_, err = cw.Run(false, clientLog)
 		if err != nil {
 			return err
 		}
 	}
 
-	// if pre:
-	//     pre_env = dict(os.environ, LXC_ROOTFS=self.rootfs, LXC_NAME=self.name)
-	//     subprocess.check_call(pre, cwd=self.rootfs, env=pre_env)
-
-	// XXX: More or less disable apparmor
+	log.Print("[lxc] Configuring container options")
+	// More or less disable apparmor
 	c.lxc.SetConfigItem("lxc.aa_profile", "unconfined")
 	// Allow loop/squashfs in container
 	// TODO(dcramer): lxc package doesnt support append, however SetConfigItem seems to append
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
 
-	log.Writeln("==> Starting container")
+	clientLog.Writeln("==> Waiting for container to be ready")
+
+	log.Print("[lxc] Starting the container")
 	err = c.lxc.Start()
 	if err != nil {
 		return err
 	}
 
 	// TODO(dcramer): there is no timeout in go-lxc, we might need a spin loop
-	log.Writeln("==> Waiting for container to startup networking")
-	_, err = c.lxc.IPv4Addresses()
-	if err != nil {
-		return err
-	}
+	log.Print("[lxc] Waiting for container to startup networking")
 
-	log.Writeln("==> Install ca-certificates")
+	// TODO(dcramer): add timeout
+	sem := make(chan bool)
+	go func() {
+		for {
+			_, err = c.lxc.IPv4Addresses()
+			if err == nil {
+				break
+			}
+			time.Sleep(100 * time.Millisecond)
+		}
+		sem <- true
+	}()
+	<-sem
+
+	log.Print("[lxc] Installing ca-certificates")
 	cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
-	_, err = cw.Run(false, log, c.lxc)
+	_, err = cw.Run(false, clientLog, c.lxc)
 	if err != nil {
 		return err
 	}
 	cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
-	_, err = cw.Run(false, log, c.lxc)
+	_, err = cw.Run(false, clientLog, c.lxc)
 	if err != nil {
 		return err
 	}
 
-	log.Writeln("==> Setting up sudoers")
+	log.Print("[lxc] Setting up sudoers")
 	err = c.setupSudoers()
 	if err != nil {
 		return err
 	}
 
+	log.Print("[lxc] Running post-launch script")
 	if c.postLaunch != "" {
-		_, err = c.RunLocalScript(c.postLaunch, false, log)
+		_, err = c.RunLocalScript(c.postLaunch, false, clientLog)
 		if err != nil {
 			return err
 		}
@@ -172,7 +200,7 @@ func (c *Container) setupSudoers() error {
 	return nil
 }
 
-func (c *Container) RunLocalScript(path string, captureOutput bool, log *client.Log) (*client.CommandResult, error) {
+func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log) (*client.CommandResult, error) {
 	dstFile := "/tmp/script"
 	err := c.UploadFile(path, dstFile)
 	if err != nil {
@@ -180,13 +208,13 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, log *client.
 	}
 
 	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
-	_, err = cw.Run(false, log, c.lxc)
+	_, err = cw.Run(false, clientLog, c.lxc)
 	if err != nil {
 		return nil, err
 	}
 
 	cw = NewLxcCommand([]string{dstFile}, "ubuntu")
-	return cw.Run(captureOutput, log, c.lxc)
+	return cw.Run(captureOutput, clientLog, c.lxc)
 }
 
 func (c *Container) getHomeDir(user string) string {
@@ -216,7 +244,7 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 // that when we attempt to run the image, the download will look for our
 // existing cache (that we've correctly populated) and just reference the
 // image from there.
-func (c *Container) ensureImageCached(snapshot string, log *client.Log) error {
+func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 
@@ -233,35 +261,35 @@ func (c *Container) ensureImageCached(snapshot string, log *client.Log) error {
 
 	remotePath := fmt.Sprintf("s3://%s/%s", c.s3Bucket, relPath)
 
-	log.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
+	clientLog.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
 	start := time.Now().Unix()
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", remotePath, localPath}, "", []string{})
-	_, err = cw.Run(false, log)
+	_, err = cw.Run(false, clientLog)
 	if err != nil {
 		return err
 	}
 	stop := time.Now().Unix()
-	log.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop-start*100))
+	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop-start*100))
 
 	return nil
 }
 
-func (c *Container) uploadImage(snapshot string, log *client.Log) error {
+func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.s3Bucket, relPath)
 
 	start := time.Now().Unix()
-	log.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
+	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", localPath, remotePath}, "", []string{})
-	_, err := cw.Run(false, log)
+	_, err := cw.Run(false, clientLog)
 	if err != nil {
 		return err
 	}
 	stop := time.Now().Unix()
-	log.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start*100))
+	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start*100))
 
 	return nil
 }

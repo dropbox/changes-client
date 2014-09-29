@@ -18,7 +18,8 @@ all:
 
 test:
 	go get -v -d ./...
-	go test ./... -timeout=120s -race
+	# We run with -bench so it enables streaming output
+	go test -bench -v ./... -timeout=3600s -race
 
 
 fmt:
