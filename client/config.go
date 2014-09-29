@@ -35,8 +35,8 @@ type Config struct {
 	Server    string
 	JobstepID string
 	Workspace string
-	Debug      bool
-	Source     struct {
+	Debug     bool
+	Source    struct {
 		Revision struct {
 			Sha string
 		}

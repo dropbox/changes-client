@@ -2,16 +2,17 @@ package basic
 
 import (
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
 )
 
 type Adapter struct {
 	config *client.Config
 }
 
-func NewAdapter(config *client.Config) (*Adapter, error) {
-	return &Adapter{
-		config: config,
-	}, nil
+func (a *Adapter) Init(config *client.Config) error {
+	a.config = config
+
+	return nil
 }
 
 // Prepare the environment for future commands. This is run before any
@@ -29,4 +30,8 @@ func (a *Adapter) Run(cmd *client.Command, log *client.Log) (*client.CommandResu
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(log *client.Log) error {
 	return nil
+}
+
+func init() {
+	adapter.Register("basic", &Adapter{})
 }

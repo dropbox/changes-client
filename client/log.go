@@ -85,7 +85,7 @@ func (l *Log) WriteStream(pipe io.Reader) {
 	}
 }
 
-func newLogLineReader(pipe io.Reader) <- chan *LogLine {
+func newLogLineReader(pipe io.Reader) <-chan *LogLine {
 	r := bufio.NewReader(pipe)
 	ch := make(chan *LogLine)
 

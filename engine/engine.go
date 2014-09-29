@@ -1,13 +1,18 @@
 package engine
 
 import (
+	"flag"
 	"fmt"
-	"github.com/dropbox/changes-client/adapter/basic"
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/common"
 	"github.com/dropbox/changes-client/reporter"
+	"log"
 	"os"
 	"sync"
+
+	// we import the default adapter here to ensure its always available
+	"github.com/dropbox/changes-client/adapter/basic"
 )
 
 const (
@@ -19,13 +24,26 @@ const (
 	RESULT_FAILED = "failed"
 )
 
-func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.Log) string {
+var (
+	selectedAdapter string
+)
+
+func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *client.Log) string {
 	var err error
 
 	result := RESULT_PASSED
 
-	adapter, err := basic.NewAdapter(config)
+	currentAdapter, err := adapter.Get(selectedAdapter)
 	if err != nil {
+		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
+		// so that we can report it upstream without giant logic blocks
+		log.Print(err.Error())
+		return RESULT_FAILED
+	}
+
+	err = currentAdapter.Init(config)
+	if err != nil {
+		log.Print(err.Error())
 		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
 		// so that we can report it upstream without giant logic blocks
 		return RESULT_FAILED
@@ -33,7 +51,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.
 
 	wg := sync.WaitGroup{}
 
-	err = adapter.Prepare(log)
+	err = currentAdapter.Prepare(clientLog)
 	if err != nil {
 		// TODO(dcramer): we need to ensure that logging gets generated for prepare
 		return RESULT_FAILED
@@ -60,7 +78,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.
 			cmd.Cwd = cmdConfig.Cwd
 		}
 
-		cmdResult, err := adapter.Run(cmd, log)
+		cmdResult, err := currentAdapter.Run(cmd, clientLog)
 
 		if err != nil {
 			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
@@ -80,7 +98,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, log, config.Workspace, artifacts)
+			publishArtifacts(reporter, clientLog, config.Workspace, artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
 
@@ -89,7 +107,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.
 		}
 	}
 
-	err = adapter.Shutdown(log)
+	err = currentAdapter.Shutdown(clientLog)
 
 	wg.Wait()
 
@@ -104,48 +122,55 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, log *client.
 }
 
 func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
-	log := client.NewLog()
+	clientLog := client.NewLog()
 
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
-		reportLogChunks("console", log, r)
+		reportLogChunks("console", clientLog, r)
 		wg.Done()
 	}()
 
 	r.PushJobStatus(STATUS_IN_PROGRESS, "")
 
-	result := RunAllCmds(r, config, log)
+	result := RunAllCmds(r, config, clientLog)
 
 	r.PushJobStatus(STATUS_FINISHED, result)
 
-	log.Close()
+	clientLog.Close()
 
 	wg.Wait()
 }
 
-func reportLogChunks(name string, l *client.Log, r *reporter.Reporter) {
-	for chunk := range l.Chan {
+func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
+	for chunk := range clientLog.Chan {
 		r.PushLogChunk(name, chunk)
 	}
 }
 
-func publishArtifacts(r *reporter.Reporter, log *client.Log, workspace string, artifacts []string) {
+func publishArtifacts(r *reporter.Reporter, clientLog *client.Log, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
-		log.Writeln(">> Skipping artifact collection")
+		clientLog.Writeln(">> Skipping artifact collection")
 		return
 	}
 
-	log.Writeln(fmt.Sprintf(">> Collecting artifacts in %s matching %s", workspace, artifacts))
+	clientLog.Writeln(fmt.Sprintf(">> Collecting artifacts in %s matching %s", workspace, artifacts))
 
 	matches, err := common.GlobTree(workspace, artifacts)
 	if err != nil {
-		log.Writeln(fmt.Sprintf("Invalid artifact pattern: " + err.Error()))
+		clientLog.Writeln(fmt.Sprintf("Invalid artifact pattern: " + err.Error()))
 		return
 	}
 
-	log.Writeln(fmt.Sprintf("Found %d matching artifacts", len(matches)))
+	clientLog.Writeln(fmt.Sprintf("Found %d matching artifacts", len(matches)))
 
 	r.PushArtifacts(matches)
+}
+
+func init() {
+	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
+
+	// TODO(dcramer): there must be a better way to allow us to "force" the initialization of basic?
+	adapter.Register("basic", &basic.Adapter{})
 }

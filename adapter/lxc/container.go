@@ -10,23 +10,23 @@ import (
 )
 
 type Container struct {
-	release  string
-	arch     string
-	dist     string
-	snapshot string
-	s3Bucket string
-	name     string
-	preLaunch string
+	release    string
+	arch       string
+	dist       string
+	snapshot   string
+	s3Bucket   string
+	name       string
+	preLaunch  string
 	postLaunch string
-	lxc      *lxc.Container
+	lxc        *lxc.Container
 }
 
 func NewContainer(name string, preLaunch string, postLaunch string) (*Container, error) {
 	return &Container{
-		name: name,
-		arch: "amd64",
-		dist: "ubuntu",
-		preLaunch: preLaunch,
+		name:       name,
+		arch:       "amd64",
+		dist:       "ubuntu",
+		preLaunch:  preLaunch,
 		postLaunch: postLaunch,
 	}, nil
 }

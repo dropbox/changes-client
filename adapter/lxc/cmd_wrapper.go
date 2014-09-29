@@ -7,8 +7,8 @@ import (
 	"gopkg.in/lxc/go-lxc.v1"
 	"io"
 	"os"
-	"sync"
 	"strings"
+	"sync"
 )
 
 type LxcCommand struct {
