@@ -1,7 +1,13 @@
 package lxcadapter
 
 import (
+	"flag"
 	"github.com/dropbox/changes-client/client"
+)
+
+var (
+	preLaunch     string
+	postLaunch  string
 )
 
 type Adapter struct {
@@ -10,7 +16,7 @@ type Adapter struct {
 }
 
 func NewAdapter(config *client.Config) (*Adapter, error) {
-	container, err := NewContainer(config.JobstepID)
+	container, err := NewContainer(config.JobstepID, preLaunch, postLaunch)
 	if err != nil {
 		return nil, err
 	}
@@ -36,4 +42,9 @@ func (a *Adapter) Run(cmd *client.Command, log *client.Log) (*client.CommandResu
 func (a *Adapter) Shutdown(log *client.Log) error {
 	a.container.Destroy()
 	return nil
+}
+
+func init() {
+	flag.StringVar(&preLaunch, "pre-launch", "", "Container pre-launch script")
+	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launchs cript")
 }

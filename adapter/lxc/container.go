@@ -16,14 +16,18 @@ type Container struct {
 	snapshot string
 	s3Bucket string
 	name     string
+	preLaunch string
+	postLaunch string
 	lxc      *lxc.Container
 }
 
-func NewContainer(name string) (*Container, error) {
+func NewContainer(name string, preLaunch string, postLaunch string) (*Container, error) {
 	return &Container{
 		name: name,
 		arch: "amd64",
 		dist: "ubuntu",
+		preLaunch: preLaunch,
+		postLaunch: postLaunch,
 	}, nil
 }
 
@@ -78,7 +82,14 @@ func (c *Container) Launch(log *client.Log) error {
 
 	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
 
-	// TODO(dcramer):
+	if c.preLaunch != "" {
+		cw := client.NewCmdWrapper([]string{c.preLaunch}, "", []string{})
+		_, err = cw.Run(false, log)
+		if err != nil {
+			return err
+		}
+	}
+
 	// if pre:
 	//     pre_env = dict(os.environ, LXC_ROOTFS=self.rootfs, LXC_NAME=self.name)
 	//     subprocess.check_call(pre, cwd=self.rootfs, env=pre_env)
@@ -121,21 +132,23 @@ func (c *Container) Launch(log *client.Log) error {
 		return err
 	}
 
-	// TODO(dcramer):
-	// if post:
-	//     # Naively check if trying to run a file that exists outside the container
-	//     self.run_script(post)
+	if c.postLaunch != "" {
+		_, err = c.RunLocalScript(c.postLaunch, false, log)
+		if err != nil {
+			return err
+		}
+	}
 
 	return nil
 }
 
 func (c *Container) Destroy() error {
-    lxc.PutContainer(c.lxc)
-    err := c.lxc.Destroy()
-    if err != nil {
-        return err
-    }
-    return nil
+	lxc.PutContainer(c.lxc)
+	err := c.lxc.Destroy()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Container) setupSudoers() error {
