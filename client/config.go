@@ -15,7 +15,6 @@ var (
 	server     string
 	jobstepID  string
 	workspace  string
-	runAsChild bool
 	debug      bool
 )
 
