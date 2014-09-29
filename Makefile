@@ -17,6 +17,7 @@ all:
 
 
 test:
+	go get -v -d ./...
 	go test ./... -timeout=120s -race
 
 

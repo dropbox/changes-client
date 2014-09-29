@@ -4,6 +4,7 @@ go:
   - tip
 
 before_install:
+  - support/bootstrap-ubuntu.sh
   - go install -race std
   - go get code.google.com/p/go.tools/cmd/cover
 
