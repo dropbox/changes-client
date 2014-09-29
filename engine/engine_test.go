@@ -130,104 +130,6 @@ func TestCompleteFlow(t *testing.T) {
 	}
 
 	expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
-	// expected := []FormData{
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/",
-	// 		params: map[string]string{
-	// 			"status": STATUS_IN_PROGRESS,
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_1/",
-	// 		params: map[string]string{
-	// 			"status": STATUS_IN_PROGRESS,
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/logappend/",
-	// 		params: map[string]string{
-	// 			"text":   ">> cmd_1\n",
-	// 			"source": "console",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/logappend/",
-	// 		params: map[string]string{
-	// 			"text":   "hello world",
-	// 			"source": "console",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_1/",
-	// 		params: map[string]string{
-	// 			"status":      STATUS_FINISHED,
-	// 			"return_code": "0",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_2/",
-	// 		params: map[string]string{
-	// 			"status": STATUS_IN_PROGRESS,
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/artifacts/",
-	// 		params: map[string]string{
-	// 			"name": filepath.Base(artifactPath),
-	// 		},
-	// 		files: map[string]string{
-	// 			"file": string(expectedFileContents),
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/logappend/",
-	// 		params: map[string]string{
-	// 			"text":   ">> cmd_2\n",
-	// 			"source": "console",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_2/",
-	// 		params: map[string]string{
-	// 			"status":      STATUS_FINISHED,
-	// 			"return_code": "255",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_3/",
-	// 		params: map[string]string{
-	// 			"status": STATUS_IN_PROGRESS,
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/logappend/",
-	// 		params: map[string]string{
-	// 			"text":   ">> cmd_3\n",
-	// 			"source": "console",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/logappend/",
-	// 		params: map[string]string{
-	// 			"text":   "test\n",
-	// 			"source": "console",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/commands/cmd_3/",
-	// 		params: map[string]string{
-	// 			"status":      STATUS_FINISHED,
-	// 			"return_code": "0",
-	// 		},
-	// 	},
-	// 	FormData{
-	// 		path: "/jobsteps/job_1/",
-	// 		params: map[string]string{
-	// 			"status": STATUS_FINISHED,
-	// 			"result": "failed",
-	// 		},
-	// 	},
-	// }
 
 	testHttpCall(t, formData, 0, FormData{
 		path: "/jobsteps/job_1/",
@@ -274,7 +176,10 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 6, FormData{
+	// call #6 is the "running command" log
+	// call #7 is the "collecting artifacts" log
+
+	testHttpCall(t, formData, 8, FormData{
 		path: "/jobsteps/job_1/artifacts/",
 		params: map[string]string{
 			"name": filepath.Base(artifactPath),
@@ -284,15 +189,9 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	// testHttpCall(t, formData, 7, FormData{
-	// 	path: "/jobsteps/job_1/logappend/",
-	// 	params: map[string]string{
-	// 		"text":   ">> cmd_2\n",
-	// 		"source": "console",
-	// 	},
-	// })
+	// call #9 is the "found N artifacts" log
 
-	testHttpCall(t, formData, 8, FormData{
+	testHttpCall(t, formData, 10, FormData{
 		path: "/commands/cmd_2/",
 		params: map[string]string{
 			"status":      STATUS_FINISHED,
@@ -300,7 +199,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 9, FormData{
+	testHttpCall(t, formData, 11, FormData{
 		path: "/jobsteps/job_1/logappend/",
 		params: map[string]string{
 			"text":   "exit status 1\n",
@@ -308,7 +207,9 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 10, FormData{
+	// call #12 is the "skipping artifact collection" log
+
+	testHttpCall(t, formData, 13, FormData{
 		path: "/jobsteps/job_1/",
 		params: map[string]string{
 			"status": STATUS_FINISHED,
@@ -316,7 +217,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	if len(formData) != 11 {
-		t.Errorf("Expected 11 HTTP calls, found %d", len(formData))
+	if len(formData) != 14 {
+		t.Errorf("Expected 14 HTTP calls, found %d", len(formData))
 	}
 }
