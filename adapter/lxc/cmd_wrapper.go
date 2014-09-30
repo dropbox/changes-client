@@ -107,6 +107,9 @@ func generateCommand(command []string, user string) []string {
 	// }
 	//     if env:
 	//         new_env.update(env)
+	if user == "root" {
+		return command
+	}
 
 	result := []string{"sudo", "-EHu", user}
 	result = append(result, command...)
