@@ -38,7 +38,7 @@ func (a *Adapter) Prepare(clientLog *client.Log) error {
 
 // Runs a given command. This may be called multiple times depending
 func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.CommandResult, error) {
-	return a.container.RunLocalScript(cmd.Path, cmd.CaptureOutput, clientLog)
+	return a.container.RunLocalScript(cmd.Path, cmd.CaptureOutput, clientLog, "ubuntu")
 }
 
 // Perform any cleanup actions within the environment.

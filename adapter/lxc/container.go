@@ -4,6 +4,7 @@ package lxcadapter
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/go-lxc"
@@ -104,10 +105,10 @@ func (c *Container) Launch(clientLog *client.Log) error {
 
 	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
 	c.lxc.SetVerbosity(lxc.Quiet)
+
 	if c.preLaunch != "" {
 		log.Print("[lxc] Running pre-launch script")
-		cw := client.NewCmdWrapper([]string{c.preLaunch}, "", []string{})
-		_, err = cw.Run(false, clientLog)
+		err = c.runPreLaunch(clientLog)
 		if err != nil {
 			return err
 		}
@@ -166,7 +167,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 
 	if c.postLaunch != "" {
 		log.Print("[lxc] Running post-launch script")
-		_, err = c.RunLocalScript(c.postLaunch, false, clientLog)
+		err = c.runPostLaunch(clientLog)
 		if err != nil {
 			return err
 		}
@@ -176,6 +177,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 }
 
 func (c *Container) Destroy() error {
+	// Destroy must operate idempotently
 	var err error
 
 	defer lxc.PutContainer(c.lxc)
@@ -229,7 +231,7 @@ func randString(n int) string {
     return string(bytes)
 }
 
-func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log) (*client.CommandResult, error) {
+func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log, user string) (*client.CommandResult, error) {
 	dstFile := fmt.Sprintf("/tmp/script-%s", randString(10))
 
 	log.Printf("[lxc] Writing local script %s to %s", path, dstFile)
@@ -245,7 +247,7 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *c
 		return nil, err
 	}
 
-	cw = NewLxcCommand([]string{dstFile}, "ubuntu")
+	cw = NewLxcCommand([]string{dstFile}, user)
 	return cw.Run(captureOutput, clientLog, c.lxc)
 }
 
@@ -322,6 +324,34 @@ func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	}
 	stop := time.Now().Unix()
 	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start*100))
+
+	return nil
+}
+
+func (c *Container) runPreLaunch(clientLog *client.Log) error {
+	preEnv := []string{fmt.Sprintf("LXC_ROOTFS=%s", c.RootFs()), fmt.Sprintf("LXC_NAME=%s", c.name)}
+	cw := client.NewCmdWrapper([]string{c.preLaunch}, "", preEnv)
+	result, err := cw.Run(false, clientLog)
+	if err != nil {
+		return err
+	}
+
+	if !result.Success {
+		return errors.New("Post-launch script failed")
+	}
+
+	return nil
+}
+
+func (c *Container) runPostLaunch(clientLog *client.Log) error {
+	result, err := c.RunLocalScript(c.postLaunch, false, clientLog, "root")
+	if err != nil {
+		return err
+	}
+
+	if !result.Success {
+		return errors.New("Post-launch script failed")
+	}
 
 	return nil
 }
