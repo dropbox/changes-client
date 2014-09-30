@@ -79,12 +79,6 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 
 	wg.Wait()
 
-	if err != nil {
-		// TODO(dcramer): what should we do here?
-		clientLog.Writeln(err.Error())
-		return nil, err
-	}
-
 	result := &client.CommandResult{
 		Success: true,
 	}
