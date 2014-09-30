@@ -3,6 +3,7 @@
 package lxcadapter
 
 import (
+	"crypto/rand"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"gopkg.in/lxc/go-lxc.v1"
@@ -218,8 +219,18 @@ func (c *Container) setupSudoers() error {
 	return nil
 }
 
+func randString(n int) string {
+    const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+    var bytes = make([]byte, n)
+    rand.Read(bytes)
+    for i, b := range bytes {
+        bytes[i] = alphanum[b % byte(len(alphanum))]
+    }
+    return string(bytes)
+}
+
 func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log) (*client.CommandResult, error) {
-	dstFile := "/tmp/script"
+	dstFile := fmt.Sprintf("/tmp/script-%s", randString(10))
 
 	log.Printf("[lxc] Writing local script %s to %s", path, dstFile)
 
