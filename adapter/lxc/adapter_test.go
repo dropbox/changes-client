@@ -52,6 +52,10 @@ func (s *AdapterSuite) SetUpSuite(c *C) {
 }
 
 func (s *AdapterSuite) TestCompleteFlow(c *C) {
+	var cmd *client.Command
+	var err error
+	var result *client.CommandResult
+
 	clientLog := client.NewLog()
 	adapter, err := adapter.Get("lxc")
 	c.Assert(err, IsNil)
@@ -74,13 +78,22 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
-	cmd, err := client.NewCommand("test", "#!/bin/bash\necho 1")
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 0")
+	cmd.CaptureOutput = true
 	c.Assert(err, IsNil)
 
-	result, err := adapter.Run(cmd, clientLog)
+	result, err = adapter.Run(cmd, clientLog)
 	c.Assert(err, IsNil)
-
+	c.Assert(string(result.Output), Equals, "hello\n")
 	c.Assert(result.Success, Equals, true)
+
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 1")
+	c.Assert(err, IsNil)
+
+	result, err = adapter.Run(cmd, clientLog)
+	c.Assert(err, IsNil)
+	c.Assert(string(result.Output), Equals, "")
+	c.Assert(result.Success, Equals, false)
 
 	clientLog.Close()
 
