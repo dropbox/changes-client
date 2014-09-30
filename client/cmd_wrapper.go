@@ -34,7 +34,7 @@ func (cw *CmdWrapper) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 	return pr, pw
 }
 
-func (cw *CmdWrapper) Run(captureOutput bool, log *Log) (*CommandResult, error) {
+func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, error) {
 	var err error
 
 	stdin, err := cw.StdinPipe()
@@ -45,7 +45,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, log *Log) (*CommandResult, error) 
 	cmdreader, cmdwriter := cw.CombinedOutputPipe()
 
 	// TODO(dcramer):
-	log.Writeln(fmt.Sprintf(">> %s", cw.cmd.Path))
+	clientLog.Writeln(fmt.Sprintf(">> %s", cw.cmd.Path))
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader
@@ -61,14 +61,14 @@ func (cw *CmdWrapper) Run(captureOutput bool, log *Log) (*CommandResult, error) 
 	stdin.Close()
 
 	if err != nil {
-		log.Writeln(fmt.Sprintf("Failed to start %s %s", cw.cmd.Args, err.Error()))
+		clientLog.Writeln(fmt.Sprintf("Failed to start %s %s", cw.cmd.Args, err.Error()))
 		return nil, err
 	}
 
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
-		log.WriteStream(reader)
+		clientLog.WriteStream(reader)
 		wg.Done()
 	}()
 
@@ -79,7 +79,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, log *Log) (*CommandResult, error) 
 
 	if err != nil {
 		// TODO(dcramer): what should we do here?
-		log.Writeln(err.Error())
+		clientLog.Writeln(err.Error())
 		return nil, err
 	}
 

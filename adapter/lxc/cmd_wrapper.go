@@ -25,11 +25,11 @@ func NewLxcCommand(command []string, user string) *LxcCommand {
 	}
 }
 
-func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Container) (*client.CommandResult, error) {
+func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Container) (*client.CommandResult, error) {
 	var err error
 
 	// TODO(dcramer):
-	log.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.command, " ")))
+	clientLog.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.command, " ")))
 
 	inreader, inwriter, err := os.Pipe()
 	if err != nil {
@@ -66,7 +66,7 @@ func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Containe
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		log.WriteStream(reader)
+		clientLog.WriteStream(reader)
 	}()
 
 	cmdwriter.Close()
@@ -75,7 +75,7 @@ func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Containe
 
 	if err != nil {
 		// TODO(dcramer): what should we do here?
-		log.Writeln(err.Error())
+		clientLog.Writeln(err.Error())
 		return nil, err
 	}
 

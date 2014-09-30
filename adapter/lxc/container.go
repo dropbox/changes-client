@@ -220,6 +220,9 @@ func (c *Container) setupSudoers() error {
 
 func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log) (*client.CommandResult, error) {
 	dstFile := "/tmp/script"
+
+	log.Printf("[lxc] Writing local script %s to %s", path, dstFile)
+
 	err := c.UploadFile(path, dstFile)
 	if err != nil {
 		return nil, err
