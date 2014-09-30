@@ -6,11 +6,12 @@ go:
 before_install:
   - support/bootstrap-ubuntu.sh
   - go install -race std
-  - go get code.google.com/p/go.tools/cmd/cover
+
+install:
+  -	go get -v -d ./...
 
 script:
-  - go test -race ./...
-  - go test -cover ./...
+  - go test ./... -timeout=120s -race
 
 matrix:
   allow_failures:
