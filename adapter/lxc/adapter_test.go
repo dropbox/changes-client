@@ -1,3 +1,5 @@
+// +build linux lxc
+
 package lxcadapter
 
 import (
