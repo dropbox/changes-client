@@ -37,7 +37,7 @@ func NewContainer(name string, preLaunch string, postLaunch string) (*Container,
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	return os.Link(srcFile, path.Join(c.RootFs(), dstFile))
+	return os.Link(srcFile, path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
 }
 
 func (c *Container) RootFs() string {
@@ -228,7 +228,7 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *c
 		return nil, err
 	}
 
-	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "ubuntu")
+	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "root")
 	_, err = cw.Run(false, clientLog, c.lxc)
 	if err != nil {
 		return nil, err

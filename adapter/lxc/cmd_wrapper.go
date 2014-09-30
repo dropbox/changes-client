@@ -8,6 +8,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"gopkg.in/lxc/go-lxc.v1"
 	"io"
+	"log"
 	"os"
 	"strings"
 	"sync"
@@ -55,10 +56,15 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 	inreader.Close()
 	inwriter.Close()
 
-	cmdAsUser := cw.generateCommand(cw.command, cw.user)
+	cmdAsUser := generateCommand(cw.command, cw.user)
 
+	log.Printf("[lxc] Executing %s", cmdAsUser)
+
+	// TODO(dcramer): we are currently unable to get the exit status of
+	// the command. https://github.com/lxc/go-lxc/issues/9
 	err = lxc.RunCommandWithClearEnvironment(inwriter.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
 	if err != nil {
+		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
 		return nil, err
 	}
 
@@ -91,7 +97,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 	return result, nil
 }
 
-func (cw *LxcCommand) generateCommand(command []string, user string) []string {
+func generateCommand(command []string, user string) []string {
 	// TODO(dcramer):
 	// homeDir := c.getHomeDir(user)
 	// env = {
