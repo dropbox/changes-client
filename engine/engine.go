@@ -11,8 +11,8 @@ import (
 	"os"
 	"sync"
 
-	// we import the default adapter here to ensure its always available
-	"github.com/dropbox/changes-client/adapter/basic"
+	_ "github.com/dropbox/changes-client/adapter/basic"
+	_ "github.com/dropbox/changes-client/adapter/lxc"
 )
 
 const (
@@ -37,13 +37,13 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 	if err != nil {
 		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
 		// so that we can report it upstream without giant logic blocks
-		log.Print(err.Error())
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		return RESULT_FAILED
 	}
 
 	err = currentAdapter.Init(config)
 	if err != nil {
-		log.Print(err.Error())
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
 		// so that we can report it upstream without giant logic blocks
 		return RESULT_FAILED
@@ -53,6 +53,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 
 	err = currentAdapter.Prepare(clientLog)
 	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		// TODO(dcramer): we need to ensure that logging gets generated for prepare
 		return RESULT_FAILED
 	}
@@ -169,7 +170,4 @@ func publishArtifacts(r *reporter.Reporter, clientLog *client.Log, workspace str
 
 func init() {
 	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
-
-	// TODO(dcramer): there must be a better way to allow us to "force" the initialization of basic?
-	adapter.Register("basic", &basic.Adapter{})
 }
