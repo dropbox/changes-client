@@ -3,46 +3,82 @@ package lxcadapter
 import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"gopkg.in/lxc/go-lxc.v1"
 	"log"
 	"sync"
 	"testing"
+
+    . "gopkg.in/check.v1"
 )
 
-func reportLogChunks(clientLog *client.Log) {
+var (
+	containerName string
+)
+
+func Test(t *testing.T) { TestingT(t) }
+
+type AdapterSuite struct{}
+
+var _ = Suite(&AdapterSuite{})
+
+// we want to output the log from running the container
+func (s *AdapterSuite) reportLogChunks(clientLog *client.Log) {
 	for chunk := range clientLog.Chan {
 		log.Print(string(chunk))
 	}
 }
 
-// TODO(dcramer): this needs to guarantee that the container isnt running already
-func TestCompleteFlow(t *testing.T) {
+func (s *AdapterSuite) ensureContainerRemoved(c *C) {
+	container, err := lxc.NewContainer(containerName, lxc.DefaultConfigPath())
+	c.Assert(err, IsNil)
+	defer lxc.PutContainer(container)
+
+	if container.Running() {
+		err = container.Stop()
+		c.Assert(err, IsNil)
+	}
+	c.Assert(container.Running(), Equals, false)
+
+	if container.Defined() {
+		err = container.Destroy()
+		c.Assert(err, IsNil)
+	}
+	c.Assert(container.Defined(), Equals, false)
+}
+
+
+func (s *AdapterSuite) SetUpSuite(c *C) {
+	s.ensureContainerRemoved(c)
+}
+
+func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	clientLog := client.NewLog()
 	adapter, err := adapter.Get("lxc")
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	c.Assert(err, IsNil)
 
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
-		reportLogChunks(clientLog)
-		wg.Done()
+		defer wg.Done()
+		s.reportLogChunks(clientLog)
 	}()
 
 	config := &client.Config{}
-	config.JobstepID = "job_1"
+	config.JobstepID = containerName
 
 	err = adapter.Init(config)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	c.Assert(err, IsNil)
 
 	err = adapter.Prepare(clientLog)
-	if err != nil {
-		t.Fatal(err.Error())
-	}
+	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
+	clientLog.Close()
+
 	wg.Wait()
+}
+
+func init() {
+	containerName = "changes-client-test"
 }

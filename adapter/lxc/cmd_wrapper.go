@@ -63,12 +63,13 @@ func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Containe
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		log.WriteStream(reader)
-		wg.Done()
 	}()
 
-	wg.Wait()
 	cmdwriter.Close()
+
+	wg.Wait()
 
 	if err != nil {
 		// TODO(dcramer): what should we do here?

@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 	"time"
 )
 
@@ -40,7 +41,8 @@ func (c *Container) UploadFile(srcFile string, dstFile string) error {
 func (c *Container) RootFs() string {
 	// May be real path or overlayfs:base-dir:delta-dir
 	// TODO(dcramer): confirm this is actually split how we expect it
-	return c.lxc.ConfigItem("lxc.rootfs")[1]
+	bits := strings.Split(c.lxc.ConfigItem("lxc.rootfs")[0], ":")
+	return bits[len(bits) - 1]
 }
 
 func (c *Container) Launch(clientLog *client.Log) error {
@@ -99,8 +101,8 @@ func (c *Container) Launch(clientLog *client.Log) error {
 
 	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
 	c.lxc.SetVerbosity(lxc.Quiet)
-	log.Print("[lxc] Running pre-launch script")
 	if c.preLaunch != "" {
+		log.Print("[lxc] Running pre-launch script")
 		cw := client.NewCmdWrapper([]string{c.preLaunch}, "", []string{})
 		_, err = cw.Run(false, clientLog)
 		if err != nil {
@@ -159,8 +161,8 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		return err
 	}
 
-	log.Print("[lxc] Running post-launch script")
 	if c.postLaunch != "" {
+		log.Print("[lxc] Running post-launch script")
 		_, err = c.RunLocalScript(c.postLaunch, false, clientLog)
 		if err != nil {
 			return err
@@ -171,10 +173,24 @@ func (c *Container) Launch(clientLog *client.Log) error {
 }
 
 func (c *Container) Destroy() error {
-	lxc.PutContainer(c.lxc)
-	err := c.lxc.Destroy()
-	if err != nil {
-		return err
+	var err error
+
+	defer lxc.PutContainer(c.lxc)
+
+	if c.lxc.Running() {
+		log.Print("[lxc] Stopping container")
+		err = c.lxc.Stop()
+		if err != nil {
+			return err
+		}
+	}
+
+	if c.lxc.Defined() {
+		log.Print("[lxc] Destroying container")
+		err = c.lxc.Destroy()
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }
