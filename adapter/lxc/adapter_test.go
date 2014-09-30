@@ -74,6 +74,14 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
+	cmd, err := client.NewCommand("test", "#!/bin/bash\necho 1")
+	c.Assert(err, IsNil)
+
+	result, err := adapter.Run(cmd, clientLog)
+	c.Assert(err, IsNil)
+
+	c.Assert(result.Success(), Equals, true)
+
 	clientLog.Close()
 
 	wg.Wait()
