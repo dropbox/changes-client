@@ -86,7 +86,7 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
-			if cmdResult.Success() {
+			if cmdResult.Success {
 				if cmd.CaptureOutput {
 					reporter.PushOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {

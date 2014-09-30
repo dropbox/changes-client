@@ -15,11 +15,7 @@ type Command struct {
 
 type CommandResult struct {
 	Output       []byte // buffered output if requested
-	ProcessState *os.ProcessState
-}
-
-func (cr *CommandResult) Success() bool {
-	return cr.ProcessState.Success()
+	Success 	 bool
 }
 
 // Build a new Command out of an arbitrary script

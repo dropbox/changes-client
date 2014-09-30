@@ -80,7 +80,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	result, err := adapter.Run(cmd, clientLog)
 	c.Assert(err, IsNil)
 
-	c.Assert(result.Success(), Equals, true)
+	c.Assert(result.Success, Equals, true)
 
 	clientLog.Close()
 

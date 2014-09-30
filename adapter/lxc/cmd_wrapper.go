@@ -79,7 +79,9 @@ func (cw *LxcCommand) Run(captureOutput bool, log *client.Log, lxc *lxc.Containe
 		return nil, err
 	}
 
-	result := &client.CommandResult{}
+	result := &client.CommandResult{
+		Success: true,
+	}
 
 	if captureOutput {
 		result.Output = buffer.Bytes()

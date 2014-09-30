@@ -84,7 +84,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, log *Log) (*CommandResult, error) 
 	}
 
 	result := &CommandResult{
-		ProcessState: cw.cmd.ProcessState,
+		Success: cw.cmd.ProcessState.Success(),
 	}
 
 	if captureOutput {
