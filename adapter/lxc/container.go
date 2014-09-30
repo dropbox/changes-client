@@ -6,7 +6,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"gopkg.in/lxc/go-lxc.v1"
+	"github.com/dropbox/go-lxc"
 	"log"
 	"os"
 	"path"

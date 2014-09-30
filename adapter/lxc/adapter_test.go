@@ -5,7 +5,7 @@ package lxcadapter
 import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"gopkg.in/lxc/go-lxc.v1"
+	"github.com/dropbox/go-lxc"
 	"log"
 	"sync"
 	"testing"

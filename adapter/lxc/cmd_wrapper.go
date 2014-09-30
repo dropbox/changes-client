@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"gopkg.in/lxc/go-lxc.v1"
+	"github.com/dropbox/go-lxc"
 	"io"
 	"log"
 	"os"
@@ -62,7 +62,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 
 	// TODO(dcramer): we are currently unable to get the exit status of
 	// the command. https://github.com/lxc/go-lxc/issues/9
-	err = lxc.RunCommandWithClearEnvironment(inwriter.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
+	ok, err := lxc.RunCommandWithClearEnvironment(inwriter.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
 		cmdwriter.Close()
@@ -81,7 +81,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 	wg.Wait()
 
 	result := &client.CommandResult{
-		Success: true,
+		Success: ok,
 	}
 
 	if captureOutput {
