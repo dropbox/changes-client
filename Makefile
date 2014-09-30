@@ -28,6 +28,10 @@ dev:
 	go build -v ./...
 
 
+install:
+	go install -v ./...
+
+
 deps:
 	go get -v -t ./...
 
