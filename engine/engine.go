@@ -52,12 +52,12 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 	wg := sync.WaitGroup{}
 
 	err = currentAdapter.Prepare(clientLog)
+	defer currentAdapter.Shutdown(clientLog)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		// TODO(dcramer): we need to ensure that logging gets generated for prepare
 		return RESULT_FAILED
 	}
-	defer currentAdapter.Shutdown(clientLog)
 
 	for _, cmdConfig := range config.Cmds {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
