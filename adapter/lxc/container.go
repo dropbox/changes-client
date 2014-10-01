@@ -235,12 +235,12 @@ func randString(n int) string {
     return string(bytes)
 }
 
-func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *client.Log, user string) (*client.CommandResult, error) {
+func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client.Log, user string) (*client.CommandResult, error) {
 	dstFile := fmt.Sprintf("/tmp/script-%s", randString(10))
 
-	log.Printf("[lxc] Writing local script %s to %s", path, dstFile)
+	log.Printf("[lxc] Writing local script %s to %s", cmd.Path, dstFile)
 
-	err := c.UploadFile(path, dstFile)
+	err := c.UploadFile(cmd.Path, dstFile)
 	if err != nil {
 		return nil, err
 	}
@@ -251,8 +251,13 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *c
 		return nil, err
 	}
 
-	cw = NewLxcCommand([]string{dstFile}, user)
-	return cw.Run(captureOutput, clientLog, c.lxc)
+	cw = &LxcCommand{
+		Args: []string{dstFile},
+		User: user,
+		Cwd: cmd.Cwd,
+		Env: cmd.Env,
+	}
+	return cw.Run(cmd.CaptureOutput, clientLog, c.lxc)
 }
 
 func (c *Container) getImagePath(snapshot string) string {
@@ -340,7 +345,11 @@ func (c *Container) runPreLaunch(clientLog *client.Log) error {
 }
 
 func (c *Container) runPostLaunch(clientLog *client.Log) error {
-	result, err := c.RunLocalScript(c.postLaunch, false, clientLog, "root")
+	cw := &LxcCommand{
+		Args: []string{c.postLaunch},
+		User: "root",
+	}
+	result, err := cw.Run(false, clientLog, c.lxc)
 	if err != nil {
 		return err
 	}

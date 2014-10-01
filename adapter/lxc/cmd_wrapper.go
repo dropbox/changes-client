@@ -10,6 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
+	"path"
 	"strings"
 	"sync"
 )
@@ -60,14 +61,11 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	cmdAsUser := generateCommand(cw.Args, cw.User)
 
-	log.Printf("[lxc] Executing %s", cmdAsUser)
-
 	homeDir := getHomeDir(cw.User)
 
-	var cwd string = cw.Cwd
-	if cw.Cwd == "" {
-		cwd = homeDir
-	}
+	// we want to ensure that our path is always treated as relative to our
+	// home directory
+	cwd := path.Join(homeDir, cw.Cwd)
 
 	env := []string{
 		fmt.Sprintf("USER=%s", cw.User),
@@ -83,6 +81,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	// TODO(dcramer): we are currently unable to get the exit status of
 	// the command. https://github.com/lxc/go-lxc/issues/9
+	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
 	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
 		Stdinfd: inwriter.Fd(),
 		Stdoutfd: cmdwriterFd,
