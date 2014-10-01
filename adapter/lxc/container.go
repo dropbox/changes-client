@@ -251,14 +251,6 @@ func (c *Container) RunLocalScript(path string, captureOutput bool, clientLog *c
 	return cw.Run(captureOutput, clientLog, c.lxc)
 }
 
-func (c *Container) getHomeDir(user string) string {
-	if user == "root" {
-		return "/root"
-	} else {
-		return fmt.Sprintf("/home/%s", user)
-	}
-}
-
 func (c *Container) getImagePath(snapshot string) string {
 	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.release, snapshot)
 }

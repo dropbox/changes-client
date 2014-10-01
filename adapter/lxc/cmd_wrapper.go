@@ -15,22 +15,24 @@ import (
 )
 
 type LxcCommand struct {
-	command []string
-	user    string
+	Args []string
+	User    string
+	Env     []string
+	Cwd     string
 }
 
-func NewLxcCommand(command []string, user string) *LxcCommand {
+func NewLxcCommand(args []string, user string) *LxcCommand {
 	return &LxcCommand{
-		command: command,
-		user:    user,
+		Args: args,
+		User:    user,
 	}
 }
 
-func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Container) (*client.CommandResult, error) {
+func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *lxc.Container) (*client.CommandResult, error) {
 	var err error
 
 	// TODO(dcramer):
-	clientLog.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.command, " ")))
+	clientLog.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.Args, " ")))
 
 	inreader, inwriter, err := os.Pipe()
 	if err != nil {
@@ -56,13 +58,38 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 	inreader.Close()
 	inwriter.Close()
 
-	cmdAsUser := generateCommand(cw.command, cw.user)
+	cmdAsUser := generateCommand(cw.Args, cw.User)
 
 	log.Printf("[lxc] Executing %s", cmdAsUser)
 
+	homeDir := getHomeDir(cw.User)
+
+	var cwd string = cw.Cwd
+	if cw.Cwd == "" {
+		cwd = homeDir
+	}
+
+	env := []string{
+		fmt.Sprintf("USER=%s", cw.User),
+		// TODO(dcramer): HOME is pretty hacky here
+		fmt.Sprintf("HOME=%s", homeDir),
+		fmt.Sprintf("PWD=%s", cwd),
+		fmt.Sprintf("DEBIAN_FRONTEND=noninteractive"),
+		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+	}
+	for i := 0; i < len(cw.Env); i++ {
+        env = append(env, cw.Env[i])
+    }
+
 	// TODO(dcramer): we are currently unable to get the exit status of
 	// the command. https://github.com/lxc/go-lxc/issues/9
-	ok, err := lxc.RunCommandWithClearEnvironment(inwriter.Fd(), cmdwriterFd, cmdwriterFd, cmdAsUser...)
+	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
+		Stdinfd: inwriter.Fd(),
+		Stdoutfd: cmdwriterFd,
+		Stderrfd: cmdwriterFd,
+		Env: env,
+		Cwd: cw.Cwd,
+	})
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
 		cmdwriter.Close()
@@ -92,26 +119,21 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, lxc *lxc.Co
 	return result, nil
 }
 
-func generateCommand(command []string, user string) []string {
-	// TODO(dcramer):
-	// homeDir := c.getHomeDir(user)
-	// env = {
-	//     # TODO(dcramer): HOME is pretty hacky here
-	//     'USER': user,
-	//     'HOME': home_dir,
-	//     'PWD': cwd,
-	//     'DEBIAN_FRONTEND': 'noninteractive',
-	//     'LXC_NAME': self.name,
-	//     'HOST_HOSTNAME': socket.gethostname(),
-	//     'PATH': '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-	// }
-	//     if env:
-	//         new_env.update(env)
+func generateCommand(args []string, user string) []string {
 	if user == "root" {
-		return command
+		return args
 	}
 
 	result := []string{"sudo", "-EHu", user}
-	result = append(result, command...)
+	result = append(result, args...)
 	return result
+}
+
+
+func getHomeDir(user string) string {
+	if user == "root" {
+		return "/root"
+	} else {
+		return fmt.Sprintf("/home/%s", user)
+	}
 }
