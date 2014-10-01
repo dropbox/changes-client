@@ -81,12 +81,20 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	defer adapter.Shutdown(clientLog)
 
 	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 0")
+	c.Assert(err, IsNil)
+
+	result, err = adapter.Run(cmd, clientLog)
+	c.Assert(err, IsNil)
+	c.Assert(string(result.Output), Equals, "")
+	c.Assert(result.Success, Equals, true)
+
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho $HOME\nexit 0")
 	cmd.CaptureOutput = true
 	c.Assert(err, IsNil)
 
 	result, err = adapter.Run(cmd, clientLog)
 	c.Assert(err, IsNil)
-	c.Assert(string(result.Output), Equals, "hello\n")
+	c.Assert(string(result.Output), Equals, "/home/ubuntu\n")
 	c.Assert(result.Success, Equals, true)
 
 	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 1")
