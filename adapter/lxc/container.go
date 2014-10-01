@@ -180,6 +180,10 @@ func (c *Container) Destroy() error {
 	// Destroy must operate idempotently
 	var err error
 
+	if c.lxc == nil {
+		return nil
+	}
+
 	defer lxc.PutContainer(c.lxc)
 
 	if c.lxc.Running() {
