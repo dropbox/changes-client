@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/go-lxc"
+	"gopkg.in/lxc/go-lxc.v2"
 	"io"
 	"log"
 	"os"
