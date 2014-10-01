@@ -9,6 +9,7 @@ import (
 	"github.com/dropbox/changes-client/reporter"
 	"log"
 	"os"
+	"os/signal"
 	"sync"
 
 	_ "github.com/dropbox/changes-client/adapter/basic"
@@ -50,6 +51,24 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 	}
 
 	wg := sync.WaitGroup{}
+
+	// capture ctrl+c and enforce a clean shutdown
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		shuttingDown := false
+		for _ = range c {
+			if shuttingDown {
+				log.Printf("Second interrupt received. Terminating!")
+				os.Exit(1)
+			} else {
+				shuttingDown = true
+				log.Printf("Interrupted! Cleaning up..")
+				currentAdapter.Shutdown(clientLog)
+				os.Exit(1)
+			}
+		}
+	}()
 
 	err = currentAdapter.Prepare(clientLog)
 	defer currentAdapter.Shutdown(clientLog)
