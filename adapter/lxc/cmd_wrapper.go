@@ -88,7 +88,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		Stdoutfd: cmdwriterFd,
 		Stderrfd: cmdwriterFd,
 		Env: env,
-		Cwd: cw.Cwd,
+		Cwd: cwd,
 	})
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
