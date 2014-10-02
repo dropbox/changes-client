@@ -25,6 +25,11 @@ func formatUUID(uuid string) string {
 }
 
 func (a *Adapter) Init(config *client.Config) error {
+	var snapshot string = config.Snapshot.ID
+	if snapshot != "" {
+		snapshot = formatUUID(snapshot)
+	}
+
 	container := &Container{
 		Name:       formatUUID(config.JobstepID),
 		Arch:       "amd64",
@@ -32,7 +37,7 @@ func (a *Adapter) Init(config *client.Config) error {
 		Release:    "precise",
 		PreLaunch:  preLaunch,
 		PostLaunch: postLaunch,
-		Snapshot:   formatUUID(config.Snapshot.ID),
+		Snapshot:   snapshot,
 		S3Bucket:   s3Bucket,
 	}
 
