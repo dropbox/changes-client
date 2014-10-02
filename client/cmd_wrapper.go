@@ -8,7 +8,6 @@ import (
 	"sync"
 )
 
-
 type CmdWrapper struct {
 	cmd *exec.Cmd
 }
