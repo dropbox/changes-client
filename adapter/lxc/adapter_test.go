@@ -117,5 +117,5 @@ func (s *AdapterSuite) TestFormatUUID(c *C) {
 
 
 func init() {
-	containerName = "changes-client-test"
+	containerName = "84e6165919c04514a330fe789f367007"
 }
