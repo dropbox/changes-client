@@ -45,7 +45,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 	cmdreader, cmdwriter := cw.CombinedOutputPipe()
 
 	// TODO(dcramer):
-	clientLog.Writeln(fmt.Sprintf("==> %s", cw.cmd.Args))
+	clientLog.Writeln(fmt.Sprintf("==> Executing %s", cw.cmd.Args))
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader
