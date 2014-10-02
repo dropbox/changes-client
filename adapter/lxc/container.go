@@ -53,12 +53,14 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			}
 			defer lxc.PutContainer(base)
 
+			log.Print("[lxc] Create base container")
 			err = base.Create("download", "--arch", c.Arch, "--release", c.Release,
 				"--dist", c.Dist, "--variant", c.Snapshot)
 			if err != nil {
 				return err
 			}
 		} else {
+			log.Print("[lxc] Create base container")
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
@@ -286,15 +288,23 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	clientLog.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
-	start := time.Now().Unix()
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", remotePath, localPath}, "", []string{})
-	_, err = cw.Run(false, clientLog)
+	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", remotePath, localPath}, "", []string{
+		"HOME=/root",
+	})
+
+	start := time.Now().Unix()
+	result, err := cw.Run(false, clientLog)
+	stop := time.Now().Unix()
+
 	if err != nil {
 		return err
 	}
-	stop := time.Now().Unix()
-	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop-start*100))
+	if !result.Success {
+		return errors.New("Failed downloading image")
+	}
+
+	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", (stop-start)*100))
 
 	return nil
 }
@@ -304,16 +314,21 @@ func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
-	start := time.Now().Unix()
 	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", localPath, remotePath}, "", []string{})
-	_, err := cw.Run(false, clientLog)
+
+	start := time.Now().Unix()
+	result, err := cw.Run(false, clientLog)
+	stop := time.Now().Unix()
+
 	if err != nil {
 		return err
 	}
-	stop := time.Now().Unix()
-	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start*100))
+	if !result.Success {
+		return errors.New("Failed uploading image")
+	}
+	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", (stop-start)*100))
 
 	return nil
 }

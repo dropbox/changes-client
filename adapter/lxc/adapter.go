@@ -4,6 +4,7 @@ package lxcadapter
 
 import (
 	"flag"
+	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 )
@@ -19,15 +20,19 @@ type Adapter struct {
 	container *Container
 }
 
+func formatUUID(uuid string) string {
+	return fmt.Sprintf("%s-%s-%s-%s-%s", uuid[0:8], uuid[8:12], uuid[12:16], uuid[16:20], uuid[20:])
+}
+
 func (a *Adapter) Init(config *client.Config) error {
 	container := &Container{
-		Name:       config.JobstepID,
+		Name:       formatUUID(config.JobstepID),
 		Arch:       "amd64",
 		Dist:       "ubuntu",
 		Release:    "precise",
 		PreLaunch:  preLaunch,
 		PostLaunch: postLaunch,
-		Snapshot:   config.Snapshot.ID,
+		Snapshot:   formatUUID(config.Snapshot.ID),
 		S3Bucket:   s3Bucket,
 	}
 
