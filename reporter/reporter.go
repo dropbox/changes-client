@@ -1,4 +1,4 @@
-package runner
+package reporter
 
 import (
 	"bytes"
@@ -26,6 +26,7 @@ type ReportPayload struct {
 }
 
 type Reporter struct {
+	jobstepID       string
 	publishUri      string
 	publishChannel  chan ReportPayload
 	shutdownChannel chan bool
@@ -134,9 +135,10 @@ func transportSend(r *Reporter) {
 	r.shutdownChannel <- true
 }
 
-func NewReporter(publishUri string, debug bool) *Reporter {
+func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
 	log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
 	r := &Reporter{}
+	r.jobstepID = jobstepID
 	r.publishUri = publishUri
 	r.publishChannel = make(chan ReportPayload, maxPendingReports)
 	r.shutdownChannel = make(chan bool)
@@ -146,13 +148,13 @@ func NewReporter(publishUri string, debug bool) *Reporter {
 	return r
 }
 
-func (r *Reporter) PushJobStatus(jobID string, status string, result string) {
+func (r *Reporter) PushJobStatus(status string, result string) {
 	form := make(map[string]string)
 	form["status"] = status
 	if len(result) > 0 {
 		form["result"] = result
 	}
-	r.publishChannel <- ReportPayload{"/jobsteps/" + jobID + "/", form, ""}
+	r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/", form, ""}
 }
 
 func (r *Reporter) PushStatus(cId string, status string, retCode int) {
@@ -164,13 +166,14 @@ func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
-func (r *Reporter) PushLogChunk(ID string, source string, offset int, payload []byte) {
+func (r *Reporter) PushLogChunk(source string, payload []byte) {
 	form := make(map[string]string)
 	form["source"] = source
-	// XXX(dcramer): disable offset reporting to play nice with changes-lxc-wrapper
-	// form["offset"] = strconv.Itoa(offset)
 	form["text"] = string(payload)
-	r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/logappend/", form, ""}
+	if r.debug {
+		log.Print(string(payload))
+	}
+	r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/logappend/", form, ""}
 }
 
 func (r *Reporter) PushOutput(cId string, status string, retCode int, output []byte) {
@@ -183,9 +186,9 @@ func (r *Reporter) PushOutput(cId string, status string, retCode int, output []b
 	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
-func (r *Reporter) PushArtifacts(ID string, artifacts []string) {
+func (r *Reporter) PushArtifacts(artifacts []string) {
 	for _, artifact := range artifacts {
-		r.publishChannel <- ReportPayload{"/jobsteps/" + ID + "/artifacts/", nil, artifact}
+		r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/artifacts/", nil, artifact}
 	}
 }
 

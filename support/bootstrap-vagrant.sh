@@ -1,23 +1,7 @@
 #!/bin/bash -eux
 
-export DEBIAN_FRONTEND=noninteractive
+cd /vagrant/
 
-GO_VERSION=1.3
+support/bootstrap-ubuntu.sh
 
-sudo apt-get update -y
-
-# Install git
-sudo apt-get install -y git
-
-# Install go
-sudo apt-get install -y wget
-set -ex
-cd /tmp
-wget "http://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz"
-tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
-echo 'export PATH=/usr/local/go/bin:$PATH' > /etc/profile.d/golang.sh
-echo 'export GOPATH=~/' > /etc/profile.d/gopath.sh
-
-# Install fpm
-sudo apt-get install -y ruby-dev gcc
-sudo gem install fpm --no-ri --no-rdoc
+echo "alias work='cd \$GOPATH/src/github.com/dropbox/changes-client'" > /etc/profile.d/work-alias.sh

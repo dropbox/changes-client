@@ -24,6 +24,7 @@ go install github.com/dropbox/changes-client/client
 
 The binary will be installed at `./bin/client` folder
 
+
 Example Run
 -----------
 
@@ -34,21 +35,34 @@ Example Run
 
 > NOTE: There is no `/` at the end of `--server`
 
+
+Development
+-----------
+
+A Vagrant VM is included to make development easy:
+
+```
+$ vagrant up --provision
+```
+
+Jump into the VM with `vagrant ssh`, and then use the `work` alias to hop into the environment:
+
+```
+$ work
+$ make dev
+$ make test
+```
+
+
 Building package
 ----------------
 
-We will use [fpm](https://github.com/jordansissel/fpm) to build our deb file.
+We use [fpm](https://github.com/jordansissel/fpm) to build our deb file.
 
 ```
-mkdir -p /tmp/changes-client-build/usr/bin
-cp ./bin/client /tmp/changes-client-build/usr/bin/changes-client
-fpm -s dir -t deb -n "changes-client" -v $VERSION -C /tmp/changes-client-build .
+$ work
+$ make deb
 ```
 
-Or run
+Thats it. A `.deb` file should be available as changes-client\_$VERSION\_amd64.deb
 
-```
-make -C src/github.com/dropbox/changes-client/
-```
-
-Thats it. `.deb` file should be available as changes-client\_$VERSION\_amd64.deb

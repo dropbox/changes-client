@@ -17,4 +17,24 @@ all:
 
 
 test:
-	go test
+	go test ./... -timeout=120s -race
+
+
+dev:
+	@echo "==> Getting dependencies..."
+	@make deps
+
+	@echo "==> Building..."
+	go build -v ./...
+
+
+install:
+	go install -v ./...
+
+
+deps:
+	go get -v -t ./...
+
+
+fmt:
+	go fmt ./...
