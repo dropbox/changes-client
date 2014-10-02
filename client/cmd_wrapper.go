@@ -8,6 +8,7 @@ import (
 	"sync"
 )
 
+
 type CmdWrapper struct {
 	cmd *exec.Cmd
 }
@@ -45,7 +46,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 	cmdreader, cmdwriter := cw.CombinedOutputPipe()
 
 	// TODO(dcramer):
-	clientLog.Writeln(fmt.Sprintf(">> %s", cw.cmd.Path))
+	clientLog.Writeln(fmt.Sprintf("==> %s", cw.cmd.Args))
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader

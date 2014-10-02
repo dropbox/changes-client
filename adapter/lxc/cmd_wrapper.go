@@ -33,7 +33,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	var err error
 
 	// TODO(dcramer):
-	clientLog.Writeln(fmt.Sprintf(">> %s", strings.Join(cw.Args, " ")))
+	clientLog.Writeln(fmt.Sprintf("==> %s", strings.Join(cw.Args, " ")))
 
 	inreader, inwriter, err := os.Pipe()
 	if err != nil {
