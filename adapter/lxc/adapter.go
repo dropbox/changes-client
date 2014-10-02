@@ -11,6 +11,7 @@ import (
 var (
 	preLaunch  string
 	postLaunch string
+	s3Bucket   string
 )
 
 type Adapter struct {
@@ -19,9 +20,15 @@ type Adapter struct {
 }
 
 func (a *Adapter) Init(config *client.Config) error {
-	container, err := NewContainer(config.JobstepID, preLaunch, postLaunch)
-	if err != nil {
-		return err
+	container := &Container{
+		Name:       config.JobstepID,
+		Arch:       "amd64",
+		Dist:       "ubuntu",
+		Release:    "precise",
+		PreLaunch:  preLaunch,
+		PostLaunch: postLaunch,
+		Snapshot:   config.Snapshot.ID,
+		S3Bucket:   s3Bucket,
 	}
 
 	a.config = config
@@ -48,7 +55,8 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 
 func init() {
 	flag.StringVar(&preLaunch, "pre-launch", "", "Container pre-launch script")
-	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launchs cript")
+	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launch script")
+	flag.StringVar(&s3Bucket, "s3-bucket", "", "S3 bucket name")
 
 	adapter.Register("lxc", &Adapter{})
 }

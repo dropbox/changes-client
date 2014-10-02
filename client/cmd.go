@@ -14,8 +14,8 @@ type Command struct {
 }
 
 type CommandResult struct {
-	Output       []byte // buffered output if requested
-	Success 	 bool
+	Output  []byte // buffered output if requested
+	Success bool
 }
 
 // Build a new Command out of an arbitrary script

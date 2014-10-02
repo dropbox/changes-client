@@ -16,26 +16,15 @@ import (
 )
 
 type Container struct {
-	release    string
-	arch       string
-	dist       string
-	snapshot   string
-	s3Bucket   string
-	name       string
-	preLaunch  string
-	postLaunch string
+	Release    string
+	Arch       string
+	Dist       string
+	Snapshot   string
+	S3Bucket   string
+	Name       string
+	PreLaunch  string
+	PostLaunch string
 	lxc        *lxc.Container
-}
-
-func NewContainer(name string, preLaunch string, postLaunch string) (*Container, error) {
-	return &Container{
-		name:       name,
-		arch:       "amd64",
-		dist:       "ubuntu",
-		release:    "precise",
-		preLaunch:  preLaunch,
-		postLaunch: postLaunch,
-	}, nil
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
@@ -53,39 +42,39 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	var err error
 	var base *lxc.Container
 
-	if c.snapshot != "" {
+	if c.Snapshot != "" {
 		log.Print("[lxc] Checking for cached snapshot")
-		if c.snapshotIsCached(c.snapshot) == false {
-			c.ensureImageCached(c.snapshot, clientLog)
+		if c.snapshotIsCached(c.Snapshot) == false {
+			c.ensureImageCached(c.Snapshot, clientLog)
 
-			base, err = lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
+			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
 			}
 			defer lxc.PutContainer(base)
 
-			err = base.Create("download", "--arch", c.arch, "--release", c.release,
-				"--dist", c.dist, "--variant", c.snapshot)
+			err = base.Create("download", "--arch", c.Arch, "--release", c.Release,
+				"--dist", c.Dist, "--variant", c.Snapshot)
 			if err != nil {
 				return err
 			}
 		} else {
-			base, err = lxc.NewContainer(c.snapshot, lxc.DefaultConfigPath())
+			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
 			}
 			defer lxc.PutContainer(base)
 		}
 
-		clientLog.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.snapshot))
+		clientLog.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.Snapshot))
 		flags := lxc.CloneKeepName | lxc.CloneSnapshot
-		err = base.CloneUsing(c.name, lxc.Overlayfs, flags)
+		err = base.CloneUsing(c.Name, lxc.Overlayfs, flags)
 		if err != nil {
 			return err
 		}
 	} else {
 		log.Print("[lxc] Creating new container")
-		base, err := lxc.NewContainer(c.name, lxc.DefaultConfigPath())
+		base, err := lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
 		base.SetVerbosity(lxc.Quiet)
 		if err != nil {
 			return err
@@ -94,19 +83,19 @@ func (c *Container) Launch(clientLog *client.Log) error {
 
 		clientLog.Writeln("==> Creating container")
 		if os.Geteuid() != 0 {
-			err = base.CreateAsUser(c.dist, c.release, c.arch)
+			err = base.CreateAsUser(c.Dist, c.Release, c.Arch)
 		} else {
-			err = base.Create(c.dist, "--release", c.release, "--arch", c.arch)
+			err = base.Create(c.Dist, "--release", c.Release, "--arch", c.Arch)
 		}
 		if err != nil {
 			return err
 		}
 	}
 
-	c.lxc, err = lxc.NewContainer(c.name, lxc.DefaultConfigPath())
+	c.lxc, err = lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
 	c.lxc.SetVerbosity(lxc.Quiet)
 
-	if c.preLaunch != "" {
+	if c.PreLaunch != "" {
 		log.Print("[lxc] Running pre-launch script")
 		err = c.runPreLaunch(clientLog)
 		if err != nil {
@@ -165,7 +154,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		return err
 	}
 
-	if c.postLaunch != "" {
+	if c.PostLaunch != "" {
 		log.Print("[lxc] Running post-launch script")
 		err = c.runPostLaunch(clientLog)
 		if err != nil {
@@ -261,7 +250,7 @@ func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client
 }
 
 func (c *Container) getImagePath(snapshot string) string {
-	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.release, snapshot)
+	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.Release, snapshot)
 }
 
 func (c *Container) snapshotIsCached(snapshot string) bool {
@@ -294,7 +283,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		return err
 	}
 
-	remotePath := fmt.Sprintf("s3://%s/%s", c.s3Bucket, relPath)
+	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	clientLog.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
 	start := time.Now().Unix()
@@ -313,7 +302,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
-	remotePath := fmt.Sprintf("s3://%s/%s", c.s3Bucket, relPath)
+	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	start := time.Now().Unix()
 	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
@@ -330,8 +319,8 @@ func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 }
 
 func (c *Container) runPreLaunch(clientLog *client.Log) error {
-	preEnv := []string{fmt.Sprintf("LXC_ROOTFS=%s", c.RootFs()), fmt.Sprintf("LXC_NAME=%s", c.name)}
-	cw := client.NewCmdWrapper([]string{c.preLaunch}, "", preEnv)
+	preEnv := []string{fmt.Sprintf("LXC_ROOTFS=%s", c.RootFs()), fmt.Sprintf("LXC_NAME=%s", c.Name)}
+	cw := client.NewCmdWrapper([]string{c.PreLaunch}, "", preEnv)
 	result, err := cw.Run(false, clientLog)
 	if err != nil {
 		return err
@@ -346,7 +335,7 @@ func (c *Container) runPreLaunch(clientLog *client.Log) error {
 
 func (c *Container) runPostLaunch(clientLog *client.Log) error {
 	cw := &LxcCommand{
-		Args: []string{c.postLaunch},
+		Args: []string{c.PostLaunch},
 		User: "root",
 	}
 	result, err := cw.Run(false, clientLog, c.lxc)
