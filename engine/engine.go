@@ -61,12 +61,15 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 			if shuttingDown {
 				log.Printf("Second interrupt received. Terminating!")
 				os.Exit(1)
-			} else {
-				shuttingDown = true
+			}
+
+			shuttingDown = true
+
+			go func() {
 				log.Printf("Interrupted! Cleaning up..")
 				currentAdapter.Shutdown(clientLog)
 				os.Exit(1)
-			}
+			}()
 		}
 	}()
 
