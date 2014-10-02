@@ -1,11 +1,11 @@
 
-BIN=${GOPATH}/bin/client
+BIN=${GOPATH}/bin/changes-client
 
 REV=`git rev-list HEAD --count`
 
 all:
 	@echo "Compiling changes-client"
-	go install github.com/dropbox/changes-client/client
+	@make install
 
 	@echo "Setting up temp build folder"
 	rm -rf /tmp/changes-client-build
