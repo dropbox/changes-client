@@ -81,6 +81,14 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	// TODO(dcramer): we are currently unable to get the exit status of
 	// the command. https://github.com/lxc/go-lxc/issues/9
+
+	wg := sync.WaitGroup{}
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		clientLog.WriteStream(reader)
+	}()
+
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
 	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
 		Stdinfd: inwriter.Fd(),
@@ -94,13 +102,6 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		cmdwriter.Close()
 		return nil, err
 	}
-
-	wg := sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		clientLog.WriteStream(reader)
-	}()
 
 	cmdwriter.Close()
 
