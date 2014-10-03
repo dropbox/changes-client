@@ -54,14 +54,14 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			}
 			defer lxc.PutContainer(base)
 
-			log.Print("[lxc] Create base container")
+			log.Print("[lxc] Creating base container")
 			err = base.Create("download", "--arch", c.Arch, "--release", c.Release,
 				"--dist", c.Dist, "--variant", c.Snapshot)
 			if err != nil {
 				return err
 			}
 		} else {
-			log.Print("[lxc] Create base container")
+			log.Print("[lxc] Creating base container")
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
