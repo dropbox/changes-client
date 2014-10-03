@@ -13,6 +13,9 @@ var (
 	preLaunch  string
 	postLaunch string
 	s3Bucket   string
+	release string
+	arch string
+	dist string
 )
 
 type Adapter struct {
@@ -32,9 +35,9 @@ func (a *Adapter) Init(config *client.Config) error {
 
 	container := &Container{
 		Name:       formatUUID(config.JobstepID),
-		Arch:       "amd64",
-		Dist:       "ubuntu",
-		Release:    "precise",
+		Arch:       arch,
+		Dist:       dist,
+		Release:    release,
 		PreLaunch:  preLaunch,
 		PostLaunch: postLaunch,
 		Snapshot:   snapshot,
@@ -67,6 +70,9 @@ func init() {
 	flag.StringVar(&preLaunch, "pre-launch", "", "Container pre-launch script")
 	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launch script")
 	flag.StringVar(&s3Bucket, "s3-bucket", "", "S3 bucket name")
+	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
+	flag.StringVar(&release, "release", "precise", "Distribution release")
+	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
 
 	adapter.Register("lxc", &Adapter{})
 }
