@@ -88,11 +88,11 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 	for _, cmdConfig := range config.Cmds {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
+			reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
-		reporter.PushStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
+		reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
@@ -109,17 +109,17 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 		cmdResult, err := currentAdapter.Run(cmd, clientLog)
 
 		if err != nil {
-			reporter.PushStatus(cmd.ID, STATUS_FINISHED, 255)
+			reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
 				if cmd.CaptureOutput {
-					reporter.PushOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
+					reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					reporter.PushStatus(cmd.ID, STATUS_FINISHED, 0)
+					reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				reporter.PushStatus(cmd.ID, STATUS_FINISHED, 1)
+				reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
@@ -163,11 +163,11 @@ func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
 		wg.Done()
 	}()
 
-	r.PushJobStatus(STATUS_IN_PROGRESS, "")
+	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
 	result = runBuildPlan(r, config, clientLog)
 
-	r.PushJobStatus(STATUS_FINISHED, result)
+	r.PushJobstepStatus(STATUS_FINISHED, result)
 
 	clientLog.Close()
 

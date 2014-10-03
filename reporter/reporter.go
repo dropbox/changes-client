@@ -148,7 +148,7 @@ func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
 	return r
 }
 
-func (r *Reporter) PushJobStatus(status string, result string) {
+func (r *Reporter) PushJobstepStatus(status string, result string) {
 	form := make(map[string]string)
 	form["status"] = status
 	if len(result) > 0 {
@@ -162,13 +162,13 @@ func (r *Reporter) PushJobStatus(status string, result string) {
 	r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/", form, ""}
 }
 
-func (r *Reporter) PushStatus(cId string, status string, retCode int) {
+func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 	form := make(map[string]string)
 	form["status"] = status
 	if retCode >= 0 {
 		form["return_code"] = strconv.Itoa(retCode)
 	}
-	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
+	r.publishChannel <- ReportPayload{"/commands/" + cID + "/", form, ""}
 }
 
 func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
@@ -188,14 +188,14 @@ func (r *Reporter) PushLogChunk(source string, payload []byte) {
 	r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/logappend/", form, ""}
 }
 
-func (r *Reporter) PushOutput(cId string, status string, retCode int, output []byte) {
+func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {
 	form := make(map[string]string)
 	form["status"] = status
 	form["output"] = string(output)
 	if retCode >= 0 {
 		form["return_code"] = strconv.Itoa(retCode)
 	}
-	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
+	r.publishChannel <- ReportPayload{"/commands/" + cID + "/", form, ""}
 }
 
 func (r *Reporter) PushArtifacts(artifacts []string) {
