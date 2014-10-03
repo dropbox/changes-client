@@ -304,7 +304,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		return errors.New("Failed downloading image")
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", (stop-start)*100))
+	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop - start))
 
 	return nil
 }
@@ -328,7 +328,7 @@ func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	if !result.Success {
 		return errors.New("Failed uploading image")
 	}
-	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", (stop-start)*100))
+	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop - start))
 
 	return nil
 }
