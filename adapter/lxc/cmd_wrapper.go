@@ -17,15 +17,15 @@ import (
 
 type LxcCommand struct {
 	Args []string
-	User    string
-	Env     []string
-	Cwd     string
+	User string
+	Env  []string
+	Cwd  string
 }
 
 func NewLxcCommand(args []string, user string) *LxcCommand {
 	return &LxcCommand{
 		Args: args,
-		User:    user,
+		User: user,
 	}
 }
 
@@ -76,8 +76,8 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
 	}
 	for i := 0; i < len(cw.Env); i++ {
-        env = append(env, cw.Env[i])
-    }
+		env = append(env, cw.Env[i])
+	}
 
 	// TODO(dcramer): we are currently unable to get the exit status of
 	// the command. https://github.com/lxc/go-lxc/issues/9
@@ -91,11 +91,11 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
 	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
-		Stdinfd: inwriter.Fd(),
+		Stdinfd:  inwriter.Fd(),
 		Stdoutfd: cmdwriterFd,
 		Stderrfd: cmdwriterFd,
-		Env: env,
-		Cwd: cwd,
+		Env:      env,
+		Cwd:      cwd,
 	})
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
@@ -128,7 +128,6 @@ func generateCommand(args []string, user string) []string {
 	result = append(result, args...)
 	return result
 }
-
 
 func getHomeDir(user string) string {
 	if user == "root" {

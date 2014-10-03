@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-    . "gopkg.in/check.v1"
+	. "gopkg.in/check.v1"
 )
 
 var (
@@ -47,7 +47,6 @@ func (s *AdapterSuite) ensureContainerRemoved(c *C) {
 	}
 	c.Assert(container.Defined(), Equals, false)
 }
-
 
 func (s *AdapterSuite) SetUpSuite(c *C) {
 	s.ensureContainerRemoved(c)
@@ -109,12 +108,6 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 
 	wg.Wait()
 }
-
-func (s *AdapterSuite) TestFormatUUID(c *C) {
-	res := formatUUID("a6f70a68e4384cf68bcc2dd1a44b8554")
-	c.Assert(res, Equals, "a6f70a68-e438-4cf6-8bcc-2dd1a44b8554")
-}
-
 
 func init() {
 	containerName = "84e6165919c04514a330fe789f367007"

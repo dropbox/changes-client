@@ -4,7 +4,6 @@ package lxcadapter
 
 import (
 	"flag"
-	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 )
@@ -13,9 +12,9 @@ var (
 	preLaunch  string
 	postLaunch string
 	s3Bucket   string
-	release string
-	arch string
-	dist string
+	release    string
+	arch       string
+	dist       string
 )
 
 type Adapter struct {
@@ -23,25 +22,22 @@ type Adapter struct {
 	container *Container
 }
 
-func formatUUID(uuid string) string {
-	return fmt.Sprintf("%s-%s-%s-%s-%s", uuid[0:8], uuid[8:12], uuid[12:16], uuid[16:20], uuid[20:])
-}
-
 func (a *Adapter) Init(config *client.Config) error {
 	var snapshot string = config.Snapshot.ID
 	if snapshot != "" {
-		snapshot = formatUUID(snapshot)
+		snapshot = adapter.FormatUUID(snapshot)
 	}
 
 	container := &Container{
-		Name:       formatUUID(config.JobstepID),
+		Name:       config.JobstepID,
 		Arch:       arch,
 		Dist:       dist,
 		Release:    release,
 		PreLaunch:  preLaunch,
 		PostLaunch: postLaunch,
 		Snapshot:   snapshot,
-		S3Bucket:   s3Bucket,
+		// TODO(dcramer):  Move S3 logic into core engine
+		S3Bucket: s3Bucket,
 	}
 
 	a.config = config
@@ -64,6 +60,23 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
 	return a.container.Destroy()
+}
+
+func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
+	outputSnapshot = adapter.FormatUUID(outputSnapshot)
+
+	err := a.container.CreateImage(outputSnapshot, clientLog)
+	if err != nil {
+		return err
+	}
+
+	if a.container.S3Bucket != "" {
+		err = a.container.UploadImage(outputSnapshot, clientLog)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func init() {

@@ -16,15 +16,16 @@ import (
 )
 
 type Container struct {
-	Release    string
-	Arch       string
-	Dist       string
-	Snapshot   string
-	S3Bucket   string
-	Name       string
-	PreLaunch  string
-	PostLaunch string
-	lxc        *lxc.Container
+	Release        string
+	Arch           string
+	Dist           string
+	Snapshot       string
+	S3Bucket       string
+	Name           string
+	PreLaunch      string
+	PostLaunch     string
+	OutputSnapshot string
+	lxc            *lxc.Container
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
@@ -35,7 +36,7 @@ func (c *Container) RootFs() string {
 	// May be real path or overlayfs:base-dir:delta-dir
 	// TODO(dcramer): confirm this is actually split how we expect it
 	bits := strings.Split(c.lxc.ConfigItem("lxc.rootfs")[0], ":")
-	return bits[len(bits) - 1]
+	return bits[len(bits)-1]
 }
 
 func (c *Container) Launch(clientLog *client.Log) error {
@@ -167,6 +168,20 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	return nil
 }
 
+func (c *Container) Stop() error {
+	if c.lxc.Running() {
+		log.Print("[lxc] Stopping container")
+		err := c.lxc.Stop()
+		if err != nil {
+			return err
+		}
+	}
+	if c.lxc.Running() {
+		return errors.New("Container is still running")
+	}
+	return nil
+}
+
 func (c *Container) Destroy() error {
 	// Destroy must operate idempotently
 	var err error
@@ -177,13 +192,7 @@ func (c *Container) Destroy() error {
 
 	defer lxc.PutContainer(c.lxc)
 
-	if c.lxc.Running() {
-		log.Print("[lxc] Stopping container")
-		err = c.lxc.Stop()
-		if err != nil {
-			return err
-		}
-	}
+	c.Stop()
 
 	if c.lxc.Defined() {
 		log.Print("[lxc] Destroying container")
@@ -191,6 +200,9 @@ func (c *Container) Destroy() error {
 		if err != nil {
 			return err
 		}
+	}
+	if c.lxc.Defined() {
+		return errors.New("Container was not destroyed")
 	}
 	return nil
 }
@@ -217,13 +229,13 @@ func (c *Container) setupSudoers() error {
 }
 
 func randString(n int) string {
-    const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    var bytes = make([]byte, n)
-    rand.Read(bytes)
-    for i, b := range bytes {
-        bytes[i] = alphanum[b % byte(len(alphanum))]
-    }
-    return string(bytes)
+	const alphanum = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	var bytes = make([]byte, n)
+	rand.Read(bytes)
+	for i, b := range bytes {
+		bytes[i] = alphanum[b%byte(len(alphanum))]
+	}
+	return string(bytes)
 }
 
 func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client.Log, user string) (*client.CommandResult, error) {
@@ -245,8 +257,8 @@ func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client
 	cw = &LxcCommand{
 		Args: []string{dstFile},
 		User: user,
-		Cwd: cmd.Cwd,
-		Env: cmd.Env,
+		Cwd:  cmd.Cwd,
+		Env:  cmd.Env,
 	}
 	return cw.Run(cmd.CaptureOutput, clientLog, c.lxc)
 }
@@ -271,16 +283,30 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 // existing cache (that we've correctly populated) and just reference the
 // image from there.
 func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) error {
+	var err error
+
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 
 	// list of files required to avoid network hit
-	// TODO(dcramer):
-	// fileList := []string{"rootfs.tar.xz", "config", "snapshot_id"}
-	// if all(os.path.exists(os.path.join(local_path, f)) for f in file_list):
-	//     return
+	fileList := []string{"rootfs.tar.xz", "config", "snapshot_id"}
 
-	err := os.MkdirAll(localPath, 0755)
+	var missingFiles bool = false
+	for n := range fileList {
+		if _, err = os.Stat(path.Join(localPath, fileList[n])); os.IsNotExist(err) {
+			missingFiles = true
+			break
+		}
+	}
+	if !missingFiles {
+		return nil
+	}
+
+	if c.S3Bucket == "" {
+		return errors.New("Unable to find cached image, and no S3 bucket defined.")
+	}
+
+	err = os.MkdirAll(localPath, 0755)
 	if err != nil {
 		return err
 	}
@@ -304,12 +330,101 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		return errors.New("Failed downloading image")
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop - start))
+	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop-start))
 
 	return nil
 }
 
-func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
+func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
+	var err error
+
+	err = c.Stop()
+	if err != nil {
+		return err
+	}
+
+	dest := fmt.Sprintf("/var/cache/lxc/download/%s", c.getImagePath(snapshot))
+	clientLog.Writeln(fmt.Sprintf("==> Saving snapshot to %s", dest))
+	start := time.Now().Unix()
+
+	os.MkdirAll(dest, 0755)
+
+	err = c.createImageMetadata(dest, clientLog)
+	if err != nil {
+		return err
+	}
+
+	err = c.createImageSnapshotID(dest, clientLog)
+	if err != nil {
+		return err
+	}
+
+	err = c.createImageRootFs(dest, clientLog)
+	if err != nil {
+		return err
+	}
+
+	stop := time.Now().Unix()
+	clientLog.Writeln(fmt.Sprintf("==> Snapshot created in %ds", stop-start))
+
+	return nil
+}
+
+func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.Log) error {
+	metadataPath := path.Join(snapshotPath, "config")
+	f, err := os.Create(metadataPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	f.WriteString("lxc.include = LXC_TEMPLATE_CONFIG/ubuntu.common.conf\n")
+	f.WriteString("lxc.arch = x86_64\n")
+
+	err = f.Chmod(0440)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log) error {
+	rootFsTxz := path.Join(snapshotPath, "rootfs.tar.xz")
+
+	clientLog.Writeln("==> Creating rootfs.tar.xz")
+
+	cw := client.NewCmdWrapper([]string{"tar", "-Jcf", rootFsTxz, "-C", c.RootFs(), "."}, "", []string{})
+	result, err := cw.Run(false, clientLog)
+
+	if err != nil {
+		return err
+	}
+	if !result.Success {
+		return errors.New("Failed creating rootfs.tar.xz")
+	}
+
+	return nil
+}
+
+func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client.Log) error {
+	metadataPath := path.Join(snapshotPath, "snapshot_id")
+	f, err := os.Create(metadataPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	f.WriteString(fmt.Sprintf("%s\n", c.Name))
+
+	err = f.Chmod(0440)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+
+func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
@@ -328,7 +443,7 @@ func (c *Container) uploadImage(snapshot string, clientLog *client.Log) error {
 	if !result.Success {
 		return errors.New("Failed uploading image")
 	}
-	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop - start))
+	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start))
 
 	return nil
 }

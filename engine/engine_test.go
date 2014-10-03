@@ -137,7 +137,7 @@ func TestCompleteFlow(t *testing.T) {
 		path: "/jobsteps/job_1/",
 		params: map[string]string{
 			"status": STATUS_IN_PROGRESS,
-			"node": host,
+			"node":   host,
 		},
 	})
 
@@ -217,7 +217,7 @@ func TestCompleteFlow(t *testing.T) {
 		params: map[string]string{
 			"status": STATUS_FINISHED,
 			"result": "failed",
-			"node": host,
+			"node":   host,
 		},
 	})
 

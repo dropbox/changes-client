@@ -32,6 +32,11 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 	return nil
 }
 
+// If applicable, capture a snapshot of the workspace for later re-use
+func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
+	return nil
+}
+
 func init() {
 	adapter.Register("basic", &Adapter{})
 }

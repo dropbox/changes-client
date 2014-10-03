@@ -27,9 +27,10 @@ const (
 
 var (
 	selectedAdapter string
+	outputSnapshot  string
 )
 
-func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *client.Log) string {
+func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog *client.Log) string {
 	var err error
 
 	result := RESULT_PASSED
@@ -133,17 +134,20 @@ func RunAllCmds(reporter *reporter.Reporter, config *client.Config, clientLog *c
 
 	wg.Wait()
 
-	if err != nil {
-		// TODO(dcramer): we need to ensure that logging gets generated for prepare
-		// XXX(dcramer): we probably don't need to fail here as a shutdown operation
-		// should be recoverable
-		return RESULT_FAILED
+	if outputSnapshot != "" {
+		log.Printf("[adapter] Capturing snapshot %s", outputSnapshot)
+		err = currentAdapter.CaptureSnapshot(outputSnapshot, clientLog)
+		if err != nil {
+			log.Printf("[adapter] Failed to capture snapshot: %s", err.Error())
+			return RESULT_FAILED
+		}
 	}
 
 	return result
 }
 
 func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
+	var result string
 	clientLog := client.NewLog()
 
 	wg := sync.WaitGroup{}
@@ -156,7 +160,7 @@ func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
 
 	r.PushJobStatus(STATUS_IN_PROGRESS, "")
 
-	result := RunAllCmds(r, config, clientLog)
+	result = runBuildPlan(r, config, clientLog)
 
 	r.PushJobStatus(STATUS_FINISHED, result)
 
@@ -192,4 +196,5 @@ func publishArtifacts(r *reporter.Reporter, clientLog *client.Log, workspace str
 
 func init() {
 	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
+	flag.StringVar(&outputSnapshot, "save-snapshot", "", "Save the resulting container snapshot")
 }
