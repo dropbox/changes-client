@@ -17,6 +17,8 @@ all:
 
 
 test:
+	# force an lxc-execute so we have a working base image before running tests
+	sudo lxc-execute -n test-changes-client-bootstrap -- /bin/sh -c exit
 	go test ./... -timeout=120s -race
 
 
