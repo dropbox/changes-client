@@ -91,6 +91,8 @@ func TestCompleteFlow(t *testing.T) {
 	}))
 	defer ts.Close()
 
+	host, _ := os.Hostname()
+
 	artifactPath := os.Args[0]
 	args := strings.Split(artifactPath, "/")
 	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
@@ -135,6 +137,7 @@ func TestCompleteFlow(t *testing.T) {
 		path: "/jobsteps/job_1/",
 		params: map[string]string{
 			"status": STATUS_IN_PROGRESS,
+			"node": host,
 		},
 	})
 
@@ -214,6 +217,7 @@ func TestCompleteFlow(t *testing.T) {
 		params: map[string]string{
 			"status": STATUS_FINISHED,
 			"result": "failed",
+			"node": host,
 		},
 	})
 

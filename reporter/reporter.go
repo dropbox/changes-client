@@ -154,6 +154,11 @@ func (r *Reporter) PushJobStatus(status string, result string) {
 	if len(result) > 0 {
 		form["result"] = result
 	}
+
+	hostname, err := os.Hostname()
+	if err == nil {
+		form["node"] = hostname
+	}
 	r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/", form, ""}
 }
 
