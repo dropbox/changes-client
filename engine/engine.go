@@ -23,6 +23,9 @@ const (
 
 	RESULT_PASSED = "passed"
 	RESULT_FAILED = "failed"
+
+	SNAPSHOT_ACTIVE = "active"
+	SNAPSHOT_FAILED = "failed'"
 )
 
 var (
@@ -134,13 +137,15 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 
 	wg.Wait()
 
-	if outputSnapshot != "" {
+	if result == RESULT_PASSED && outputSnapshot != "" {
 		log.Printf("[adapter] Capturing snapshot %s", outputSnapshot)
 		err = currentAdapter.CaptureSnapshot(outputSnapshot, clientLog)
 		if err != nil {
 			log.Printf("[adapter] Failed to capture snapshot: %s", err.Error())
+			reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
 			return RESULT_FAILED
 		}
+		reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
 	}
 
 	return result

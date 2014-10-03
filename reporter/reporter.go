@@ -171,6 +171,13 @@ func (r *Reporter) PushStatus(cId string, status string, retCode int) {
 	r.publishChannel <- ReportPayload{"/commands/" + cId + "/", form, ""}
 }
 
+func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
+	form := make(map[string]string)
+	form["status"] = status
+	r.publishChannel <- ReportPayload{"/snapshotimages/" + iID + "/", form, ""}
+
+}
+
 func (r *Reporter) PushLogChunk(source string, payload []byte) {
 	form := make(map[string]string)
 	form["source"] = source
