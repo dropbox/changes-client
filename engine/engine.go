@@ -173,19 +173,19 @@ func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
 
 func publishArtifacts(r *reporter.Reporter, clientLog *client.Log, workspace string, artifacts []string) {
 	if len(artifacts) == 0 {
-		clientLog.Writeln(">> Skipping artifact collection")
+		clientLog.Writeln("==> Skipping artifact collection")
 		return
 	}
 
-	clientLog.Writeln(fmt.Sprintf(">> Collecting artifacts in %s matching %s", workspace, artifacts))
+	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts in %s matching %s", workspace, artifacts))
 
 	matches, err := common.GlobTree(workspace, artifacts)
 	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("Invalid artifact pattern: " + err.Error()))
+		clientLog.Writeln(fmt.Sprintf("==> ERROR: Invalid artifact pattern: " + err.Error()))
 		return
 	}
 
-	clientLog.Writeln(fmt.Sprintf("Found %d matching artifacts", len(matches)))
+	clientLog.Writeln(fmt.Sprintf("==> Found %d matching artifacts", len(matches)))
 
 	r.PushArtifacts(matches)
 }
