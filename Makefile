@@ -33,6 +33,7 @@ install:
 
 
 deps:
+	go get -v -u gopkg.in/lxc/go-lxc.v2
 	go get -v -t ./...
 
 
