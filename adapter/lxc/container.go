@@ -86,7 +86,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		}
 		defer lxc.Release(base)
 
-		clientLog.Writeln("==> Creating container: %s", c.Name)
+		clientLog.Writeln(fmt.Sprintf("==> Creating container: %s", c.Name))
 		if os.Geteuid() != 0 {
 			err = base.CreateAsUser(c.Dist, c.Release, c.Arch)
 		} else {
