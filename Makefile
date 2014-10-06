@@ -17,7 +17,7 @@ all:
 
 
 test:
-	go test ./... -timeout=120s -race
+	sudo GOPATH=${GOPATH} `which go` test ./... -timeout=120s -race
 
 
 dev:
