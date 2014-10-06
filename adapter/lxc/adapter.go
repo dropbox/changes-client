@@ -15,6 +15,7 @@ var (
 	release    string
 	arch       string
 	dist       string
+	keepContainer bool
 )
 
 type Adapter struct {
@@ -59,7 +60,11 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
-	return a.container.Destroy()
+	if keepContainer {
+		return a.container.Stop()
+	} else {
+		return a.container.Destroy()
+	}
 }
 
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
@@ -86,6 +91,7 @@ func init() {
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
 	flag.StringVar(&release, "release", "precise", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
+	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
 
 	adapter.Register("lxc", &Adapter{})
 }
