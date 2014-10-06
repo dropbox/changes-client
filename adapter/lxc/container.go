@@ -116,6 +116,8 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
 
+	c.lxc.SetConfigItem("lxc.autodev", "1")
+
 	clientLog.Writeln("==> Waiting for container to be ready")
 
 	log.Print("[lxc] Starting the container")
