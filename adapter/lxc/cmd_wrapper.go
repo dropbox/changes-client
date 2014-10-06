@@ -91,11 +91,13 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
 	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
-		Stdinfd:  inwriter.Fd(),
-		Stdoutfd: cmdwriterFd,
-		Stderrfd: cmdwriterFd,
+		StdinFd:  inwriter.Fd(),
+		StdoutFd: cmdwriterFd,
+		StderrFd: cmdwriterFd,
 		Env:      env,
 		Cwd:      cwd,
+		Arch:     lxc.X86_64,
+		Namespaces: -1,
 	})
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))

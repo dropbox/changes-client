@@ -33,7 +33,7 @@ func (s *AdapterSuite) reportLogChunks(clientLog *client.Log) {
 func (s *AdapterSuite) ensureContainerRemoved(c *C) {
 	container, err := lxc.NewContainer(containerName, lxc.DefaultConfigPath())
 	c.Assert(err, IsNil)
-	defer lxc.PutContainer(container)
+	defer lxc.Release(container)
 
 	if container.Running() {
 		err = container.Stop()

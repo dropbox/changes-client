@@ -29,6 +29,7 @@ type Container struct {
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
+	log.Printf("uploading: %s", path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
 	return os.Link(srcFile, path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
 }
 
@@ -52,7 +53,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			if err != nil {
 				return err
 			}
-			defer lxc.PutContainer(base)
+			defer lxc.Release(base)
 
 			log.Print("[lxc] Creating base container")
 			err = base.Create("download", "--arch", c.Arch, "--release", c.Release,
@@ -66,7 +67,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			if err != nil {
 				return err
 			}
-			defer lxc.PutContainer(base)
+			defer lxc.Release(base)
 		}
 
 		clientLog.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.Snapshot))
@@ -82,7 +83,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		if err != nil {
 			return err
 		}
-		defer lxc.PutContainer(base)
+		defer lxc.Release(base)
 
 		clientLog.Writeln("==> Creating container")
 		if os.Geteuid() != 0 {
@@ -122,22 +123,11 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		return err
 	}
 
-	// TODO(dcramer): there is no timeout in go-lxc, we might need a spin loop
 	log.Print("[lxc] Waiting for container to startup networking")
-
-	// TODO(dcramer): add timeout
-	sem := make(chan bool)
-	go func() {
-		for {
-			_, err = c.lxc.IPv4Addresses()
-			if err == nil {
-				break
-			}
-			time.Sleep(100 * time.Millisecond)
-		}
-		sem <- true
-	}()
-	<-sem
+	_, err = c.lxc.WaitIPAddresses(30 * time.Second)
+	if err != nil {
+		return err
+	}
 
 	log.Print("[lxc] Installing ca-certificates")
 	cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
@@ -190,7 +180,7 @@ func (c *Container) Destroy() error {
 		return nil
 	}
 
-	defer lxc.PutContainer(c.lxc)
+	defer lxc.Release(c.lxc)
 
 	c.Stop()
 
