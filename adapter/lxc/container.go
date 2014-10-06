@@ -116,7 +116,10 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
 
+	// Enable autodev: https://wiki.archlinux.org/index.php/Lxc-systemd
 	c.lxc.SetConfigItem("lxc.autodev", "1")
+	c.lxc.SetConfigItem("lxc.pts", "1024")
+	c.lxc.SetConfigItem("lxc.kmsg", "0")
 
 	clientLog.Writeln("==> Waiting for container to be ready")
 
