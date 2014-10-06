@@ -49,6 +49,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		if c.snapshotIsCached(c.Snapshot) == false {
 			c.ensureImageCached(c.Snapshot, clientLog)
 
+			clientLog.Writeln(fmt.Sprintf("==> Creating base container: %s", c.Snapshot))
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
@@ -70,7 +71,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			defer lxc.Release(base)
 		}
 
-		clientLog.Writeln(fmt.Sprintf("==> Overlaying container: %s", c.Snapshot))
+		clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
 		flags := lxc.CloneKeepName | lxc.CloneSnapshot
 		err = base.CloneUsing(c.Name, lxc.Overlayfs, flags)
 		if err != nil {
@@ -85,7 +86,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		}
 		defer lxc.Release(base)
 
-		clientLog.Writeln("==> Creating container")
+		clientLog.Writeln("==> Creating container: %s", c.Name)
 		if os.Geteuid() != 0 {
 			err = base.CreateAsUser(c.Dist, c.Release, c.Arch)
 		} else {
