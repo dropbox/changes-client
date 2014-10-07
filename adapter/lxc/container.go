@@ -57,8 +57,14 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			defer lxc.Release(base)
 
 			log.Print("[lxc] Creating base container")
-			err = base.Create("download", "--arch", c.Arch, "--release", c.Release,
-				"--dist", c.Dist, "--variant", c.Snapshot)
+			err = base.Create(lxc.TemplateOptions{
+				Template: "download",
+				Arch: c.Arch,
+				Distro: c.Dist,
+				Release: c.Release,
+				Variant: c.Snapshot,
+				ForceCache: true,
+			})
 			if err != nil {
 				return err
 			}
@@ -87,11 +93,11 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		defer lxc.Release(base)
 
 		clientLog.Writeln(fmt.Sprintf("==> Creating container: %s", c.Name))
-		if os.Geteuid() != 0 {
-			err = base.CreateAsUser(c.Dist, c.Release, c.Arch)
-		} else {
-			err = base.Create(c.Dist, "--release", c.Release, "--arch", c.Arch)
-		}
+		err = base.Create(lxc.TemplateOptions{
+			Template: c.Dist,
+			Arch: c.Arch,
+			Release: c.Release,
+		})
 		if err != nil {
 			return err
 		}

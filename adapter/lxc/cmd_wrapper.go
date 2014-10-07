@@ -90,7 +90,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	}()
 
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
-	ok, err := container.RunCommand(cmdAsUser, &lxc.AttachOptions{
+	ok, err := container.RunCommand(cmdAsUser, lxc.AttachOptions{
 		StdinFd:  inwriter.Fd(),
 		StdoutFd: cmdwriterFd,
 		StderrFd: cmdwriterFd,
