@@ -88,7 +88,7 @@ func init() {
 	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launch script")
 	flag.StringVar(&s3Bucket, "s3-bucket", "", "S3 bucket name")
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
-	flag.StringVar(&release, "release", "precise", "Distribution release")
+	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
 

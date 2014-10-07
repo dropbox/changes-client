@@ -17,7 +17,12 @@ all:
 
 
 test:
+	@echo "==> Caching base LXC image for tests"
+	sudo lxc-create -n bootstrap -t ubuntu || true
+	@echo "==> Running tests"
 	sudo GOPATH=${GOPATH} `which go` test ./... -timeout=120s -race
+	@echo "==> Cleaning up cached image"
+	sudo lxc-destroy -n bootstrap -f
 
 
 dev:
