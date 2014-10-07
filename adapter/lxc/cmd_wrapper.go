@@ -98,6 +98,9 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		Cwd:      cwd,
 		Arch:     lxc.X86_64,
 		Namespaces: -1,
+		UID:        -1,
+		GID:        -1,
+		ClearEnv:   true,
 	})
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
