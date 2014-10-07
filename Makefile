@@ -37,7 +37,9 @@ deps:
 	go get -v -u gopkg.in/lxc/go-lxc.v2
 	go get -v -t ./...
 	@echo "==> Caching base LXC image for tests"
-	sudo lxc-create -n bootstrap -t ubuntu && sudo lxc-destroy -n bootstrap -f
+	sudo lxc-create -n bootstrap -t ubuntu || true
+	sudo lxc-destroy -n bootstrap -f
+
 
 fmt:
 	go fmt ./...
