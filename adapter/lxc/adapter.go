@@ -61,10 +61,9 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
 	if keepContainer {
-		return a.container.Stop()
-	} else {
-		return a.container.Destroy()
+		return nil
 	}
+	return a.container.Destroy()
 }
 
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
