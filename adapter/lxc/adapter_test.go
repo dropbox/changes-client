@@ -96,7 +96,8 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(string(result.Output), Equals, "/home/ubuntu\n")
 	c.Assert(result.Success, Equals, true)
 
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 1")
+	// test with a command that expects stdin
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\nread foo\nexit 1")
 	c.Assert(err, IsNil)
 
 	result, err = adapter.Run(cmd, clientLog)
