@@ -3,14 +3,34 @@ package basic
 import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/common"
+	"os"
+	"path/filepath"
 )
 
 type Adapter struct {
 	config *client.Config
+	workspace string
 }
 
 func (a *Adapter) Init(config *client.Config) error {
+	var err error
+	var workspace string = config.Workspace
+
+	if workspace == "" {
+		workspace, err = os.Getwd()
+		if err != nil {
+			return err
+		}
+	}
+
+	workspace, err = filepath.Abs(workspace)
+	if err != nil {
+		return err
+	}
+
 	a.config = config
+	a.workspace = workspace
 
 	return nil
 }
@@ -35,6 +55,10 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 // If applicable, capture a snapshot of the workspace for later re-use
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
 	return nil
+}
+
+func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
+	return common.GlobTree(a.workspace, artifacts)
 }
 
 func init() {

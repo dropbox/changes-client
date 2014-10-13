@@ -6,8 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
-	"path/filepath"
 	"strings"
 )
 
@@ -94,19 +92,6 @@ func GetConfig() (*Config, error) {
 	conf, err := fetchConfig(url)
 	if err != nil {
 		return nil, err
-	}
-
-	if workspace == "" {
-		cwd, err := os.Getwd()
-		if err != nil {
-			panic("Unable to find working directory")
-		}
-		workspace, err = filepath.Abs(cwd)
-	} else {
-		workspace, err = filepath.Abs(workspace)
-	}
-	if err != nil {
-		panic("Unable to find working directory")
 	}
 
 	conf.Server = server

@@ -6,6 +6,11 @@ import (
 	"flag"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/common"
+	"log"
+	"path"
+	"path/filepath"
+	"strings"
 )
 
 var (
@@ -21,6 +26,7 @@ var (
 type Adapter struct {
 	config    *client.Config
 	container *Container
+	workspace string
 }
 
 func (a *Adapter) Init(config *client.Config) error {
@@ -50,7 +56,22 @@ func (a *Adapter) Init(config *client.Config) error {
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
 func (a *Adapter) Prepare(clientLog *client.Log) error {
-	return a.container.Launch(clientLog)
+	err := a.container.Launch(clientLog)
+	if err != nil {
+		return err
+	}
+
+	workspace := "/home/ubuntu"
+	if a.config.Workspace != "" {
+		workspace = path.Join(workspace, a.config.Workspace)
+	}
+	workspace, err = filepath.Abs(path.Join(a.container.RootFs(), strings.TrimLeft(workspace, "/")))
+	if err != nil {
+		return err
+	}
+	a.workspace = workspace
+
+	return nil
 }
 
 // Runs a given command. This may be called multiple times depending
@@ -81,6 +102,12 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 		}
 	}
 	return nil
+}
+
+
+func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
+	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)
+	return common.GlobTree(a.workspace, artifacts)
 }
 
 func init() {

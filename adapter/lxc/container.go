@@ -29,7 +29,7 @@ type Container struct {
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	log.Printf("uploading: %s", path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
+	log.Printf("[lxc] Uploading: %s", path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
 	return os.Link(srcFile, path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
 }
 

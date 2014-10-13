@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common"
 	"github.com/dropbox/changes-client/reporter"
 	"log"
 	"os"
@@ -126,7 +125,7 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, clientLog, config.Workspace, artifacts)
+			publishArtifacts(reporter, currentAdapter, clientLog, artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
 
@@ -180,17 +179,18 @@ func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
 	}
 }
 
-func publishArtifacts(r *reporter.Reporter, clientLog *client.Log, workspace string, artifacts []string) {
+func publishArtifacts(r *reporter.Reporter, currentAdapter adapter.Adapter, clientLog *client.Log, artifacts []string) {
 	if len(artifacts) == 0 {
 		clientLog.Writeln("==> Skipping artifact collection")
 		return
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts in %s matching %s", workspace, artifacts))
+	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", artifacts))
 
-	matches, err := common.GlobTree(workspace, artifacts)
+
+	matches, err := currentAdapter.CollectArtifacts(artifacts, clientLog)
 	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("==> ERROR: Invalid artifact pattern: " + err.Error()))
+		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
 		return
 	}
 

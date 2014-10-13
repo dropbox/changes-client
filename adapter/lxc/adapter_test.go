@@ -79,7 +79,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello\nexit 0")
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
 	c.Assert(err, IsNil)
 
 	result, err = adapter.Run(cmd, clientLog)
@@ -104,6 +104,11 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	c.Assert(string(result.Output), Equals, "")
 	c.Assert(result.Success, Equals, false)
+
+	artifacts, err := adapter.CollectArtifacts([]string{"foo.txt"}, clientLog)
+	c.Assert(err, IsNil)
+	c.Assert(len(artifacts), Equals, 1)
+	c.Assert(artifacts[0], Matches, ".*/home/ubuntu/foo.txt")
 
 	clientLog.Close()
 
