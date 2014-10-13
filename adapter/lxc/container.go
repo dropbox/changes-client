@@ -78,8 +78,11 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		}
 
 		clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
-		flags := lxc.CloneKeepName | lxc.CloneSnapshot
-		err = base.CloneUsing(c.Name, lxc.Overlayfs, flags)
+		err = base.Clone(c.Name, lxc.CloneOptions{
+			KeepName: true,
+			Snapshot: true,
+			Backend: lxc.Overlayfs,
+		})
 		if err != nil {
 			return err
 		}
