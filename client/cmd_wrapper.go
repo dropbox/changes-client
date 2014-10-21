@@ -6,6 +6,7 @@ import (
 	"io"
 	"os/exec"
 	"sync"
+	"time"
 )
 
 type CmdWrapper struct {
@@ -73,7 +74,23 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 	}()
 
 	err = cw.cmd.Wait()
-	cmdwriter.Close()
+
+	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
+	// as a child process might be causing things to stick around.
+	// XXX: this logic is duplicated in lxcadapter.CmdWrapper
+	timeLimit := time.After(10 * time.Second)
+	sem := make(chan struct{}) // lol struct{} is cheaper than bool
+	go func() {
+		cmdwriter.Close()
+		sem <- struct{}{}
+	}()
+
+	select {
+	case <-timeLimit:
+		break
+	case <-sem:
+		break
+	}
 
 	wg.Wait()
 

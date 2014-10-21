@@ -187,7 +187,6 @@ func publishArtifacts(r *reporter.Reporter, currentAdapter adapter.Adapter, clie
 
 	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", artifacts))
 
-
 	matches, err := currentAdapter.CollectArtifacts(artifacts, clientLog)
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))

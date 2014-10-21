@@ -14,12 +14,12 @@ import (
 )
 
 var (
-	preLaunch  string
-	postLaunch string
-	s3Bucket   string
-	release    string
-	arch       string
-	dist       string
+	preLaunch     string
+	postLaunch    string
+	s3Bucket      string
+	release       string
+	arch          string
+	dist          string
 	keepContainer bool
 )
 
@@ -103,7 +103,6 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 	}
 	return nil
 }
-
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
 	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)

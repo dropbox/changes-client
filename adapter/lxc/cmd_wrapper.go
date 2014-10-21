@@ -13,6 +13,7 @@ import (
 	"path"
 	"strings"
 	"sync"
+	"time"
 )
 
 type LxcCommand struct {
@@ -91,12 +92,12 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
 	ok, err := container.RunCommand(cmdAsUser, lxc.AttachOptions{
-		StdinFd:  inwriter.Fd(),
-		StdoutFd: cmdwriterFd,
-		StderrFd: cmdwriterFd,
-		Env:      env,
-		Cwd:      cwd,
-		Arch:     lxc.X86_64,
+		StdinFd:    inwriter.Fd(),
+		StdoutFd:   cmdwriterFd,
+		StderrFd:   cmdwriterFd,
+		Env:        env,
+		Cwd:        cwd,
+		Arch:       lxc.X86_64,
 		Namespaces: -1,
 		UID:        -1,
 		GID:        -1,
@@ -108,7 +109,22 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		return nil, err
 	}
 
-	cmdwriter.Close()
+	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
+	// as a child process might be causing things to stick around.
+	// XXX: this logic is duplicated in client.CmdWrapper
+	timeLimit := time.After(10 * time.Second)
+	sem := make(chan struct{}) // lol struct{} is cheaper than bool
+	go func() {
+		cmdwriter.Close()
+		sem <- struct{}{}
+	}()
+
+	select {
+	case <-timeLimit:
+		break
+	case <-sem:
+		break
+	}
 
 	wg.Wait()
 

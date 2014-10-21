@@ -9,7 +9,7 @@ import (
 )
 
 type Adapter struct {
-	config *client.Config
+	config    *client.Config
 	workspace string
 }
 
