@@ -87,6 +87,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 
 	select {
 	case <-timeLimit:
+		clientLog.Writeln(fmt.Sprintf("Failed to close all file descriptors! Ignoring and moving on.."))
 		break
 	case <-sem:
 		break

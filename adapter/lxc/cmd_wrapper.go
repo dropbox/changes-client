@@ -121,6 +121,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	select {
 	case <-timeLimit:
+		clientLog.Writeln(fmt.Sprintf("Failed to close all file descriptors! Ignoring and moving on.."))
 		break
 	case <-sem:
 		break
