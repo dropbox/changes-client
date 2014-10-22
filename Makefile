@@ -38,7 +38,6 @@ deps:
 	go get -v -t ./...
 	@echo "==> Caching base LXC image for tests"
 	sudo lxc-create -n bootstrap -t ubuntu || true
-	sudo lxc-destroy -n bootstrap -f
 
 
 fmt:
