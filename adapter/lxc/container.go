@@ -50,6 +50,9 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			c.ensureImageCached(c.Snapshot, clientLog)
 
 			clientLog.Writeln(fmt.Sprintf("==> Creating base container: %s", c.Snapshot))
+			clientLog.Writeln(fmt.Sprintf("      Arch:    %s", c.Arch))
+			clientLog.Writeln(fmt.Sprintf("      Distro:  %s", c.Dist))
+			clientLog.Writeln(fmt.Sprintf("      Release: %s", c.Release))
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
