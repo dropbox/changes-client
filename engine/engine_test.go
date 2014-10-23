@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/reporter"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,46 @@ import (
 	"strings"
 	"testing"
 )
+
+var jobStepResponse = `
+{
+	"id": "549db9a70d4d4d258e0a6d475ccd8a15",
+	"commands": [
+		{
+			"id": "cmd_1",
+			"script": "#!/bin/bash\necho -n $VAR",
+			"env": {"VAR": "hello world"},
+			"cwd": "/tmp",
+			"artifacts": ["junit.xml"]
+		},
+		{
+			"id": "cmd_2",
+			"script": "#!/bin/bash\necho test",
+			"cwd": "/tmp"
+		}
+	],
+	"result": {
+		"id": "unknown"
+	},
+	"status": {
+		"id": "unknown"
+	},
+	"repository": {
+		"url": "git@github.com:dropbox/changes.git",
+		"backend": {
+			"id": "git"
+		}
+	},
+	"source": {
+		"patch": {
+			"id": "patch_1"
+		},
+		"revision": {
+			"sha": "aaaaaa"
+		}
+	}
+}
+`
 
 type FormData struct {
 	params map[string]string
@@ -36,8 +77,15 @@ func TestCompleteFlow(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("OK"))
 
-		if r.Method != "POST" {
-			err = fmt.Errorf("Non-POST request received: %s", r.Method)
+		if r.Method == "GET" {
+			if r.URL.Path != "/jobsteps/job_1/" {
+				err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
+				return
+			}
+			io.WriteString(w, jobStepResponse)
+			return
+		} else if r.Method != "POST" {
+			err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
 			return
 		}
 

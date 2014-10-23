@@ -22,6 +22,7 @@ const (
 
 	RESULT_PASSED = "passed"
 	RESULT_FAILED = "failed"
+	RESULT_ABORTED = "aborted"
 
 	SNAPSHOT_ACTIVE = "active"
 	SNAPSHOT_FAILED = "failed'"
@@ -32,66 +33,78 @@ var (
 	outputSnapshot  string
 )
 
-func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog *client.Log) string {
-	var err error
+type Engine struct {
+	config    *client.Config
+	clientLog *client.Log
+	adapter   adapter.Adapter
+	reporter  *reporter.Reporter
+}
 
-	result := RESULT_PASSED
+func RunBuildPlan(r *reporter.Reporter, config *client.Config) error {
+	var err error
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
 	if err != nil {
-		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
-		// so that we can report it upstream without giant logic blocks
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		return RESULT_FAILED
+		// TODO(dcramer): handle this error
+		return err
 	}
 
-	err = currentAdapter.Init(config)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		// TODO(dcramer): handle this error. We need to refactor how the log/wg works
-		// so that we can report it upstream without giant logic blocks
-		return RESULT_FAILED
+	engine := &Engine{
+		reporter:  r,
+		config:    config,
+		clientLog: client.NewLog(),
+		adapter:   currentAdapter,
 	}
+
+	return engine.Run()
+}
+
+func (e *Engine) Run() error {
+	var err error
 
 	wg := sync.WaitGroup{}
 
-	// capture ctrl+c and enforce a clean shutdown
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	wg.Add(1)
 	go func() {
-		shuttingDown := false
-		for _ = range c {
-			if shuttingDown {
-				log.Printf("Second interrupt received. Terminating!")
-				os.Exit(1)
-			}
-
-			shuttingDown = true
-
-			go func() {
-				log.Printf("Interrupted! Cleaning up..")
-				currentAdapter.Shutdown(clientLog)
-				os.Exit(1)
-			}()
-		}
+		reportLogChunks("console", e.clientLog, e.reporter)
+		wg.Done()
 	}()
 
-	err = currentAdapter.Prepare(clientLog)
-	defer currentAdapter.Shutdown(clientLog)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		// TODO(dcramer): we need to ensure that logging gets generated for prepare
-		return RESULT_FAILED
+	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+
+	result := e.runBuildPlan()
+
+	if result == RESULT_PASSED && outputSnapshot != "" {
+		err = e.captureSnapshot()
+		if err != nil {
+			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
+		} else {
+			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+		}
 	}
 
-	for _, cmdConfig := range config.Cmds {
+	e.reporter.PushJobstepStatus(STATUS_FINISHED, result)
+
+	e.clientLog.Close()
+
+	wg.Wait()
+
+	return err
+}
+
+func (e *Engine) executeCommands() string {
+	var result string = RESULT_PASSED
+
+	wg := sync.WaitGroup{}
+
+	for _, cmdConfig := range e.config.Cmds {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
-		reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
+		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
@@ -105,27 +118,27 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 			cmd.Cwd = cmdConfig.Cwd
 		}
 
-		cmdResult, err := currentAdapter.Run(cmd, clientLog)
+		cmdResult, err := e.adapter.Run(cmd, e.clientLog)
 
 		if err != nil {
-			reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
 				if cmd.CaptureOutput {
-					reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
+					e.reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
+					e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
+				e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			publishArtifacts(reporter, currentAdapter, clientLog, artifacts)
+			e.publishArtifacts(artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
 
@@ -136,66 +149,114 @@ func runBuildPlan(reporter *reporter.Reporter, config *client.Config, clientLog 
 
 	wg.Wait()
 
-	if result == RESULT_PASSED && outputSnapshot != "" {
-		log.Printf("[adapter] Capturing snapshot %s", outputSnapshot)
-		err = currentAdapter.CaptureSnapshot(outputSnapshot, clientLog)
-		if err != nil {
-			log.Printf("[adapter] Failed to capture snapshot: %s", err.Error())
-			reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
-			return RESULT_FAILED
-		}
-		reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
-	}
-
 	return result
 }
 
-func RunBuildPlan(r *reporter.Reporter, config *client.Config) {
+func (e *Engine) captureSnapshot() error {
+	log.Printf("[adapter] Capturing snapshot %s", outputSnapshot)
+	err := e.adapter.CaptureSnapshot(outputSnapshot, e.clientLog)
+	if err != nil {
+		log.Printf("[adapter] Failed to capture snapshot: %s", err.Error())
+		return err
+	}
+	return nil
+}
+
+func (e *Engine) runBuildPlan() string {
+	var err error
 	var result string
-	clientLog := client.NewLog()
 
-	wg := sync.WaitGroup{}
+	err = e.adapter.Init(e.config)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		// TODO(dcramer): handle this error
+		return RESULT_FAILED
+	}
 
-	wg.Add(1)
+	err = e.adapter.Prepare(e.clientLog)
+	defer e.adapter.Shutdown(e.clientLog)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		return RESULT_FAILED
+	}
+
+	// cancellation signal
+	cancel := make(chan struct{})
+
+	// capture ctrl+c and enforce a clean shutdown
+	sigchan := make(chan os.Signal, 1)
+	signal.Notify(sigchan, os.Interrupt)
 	go func() {
-		reportLogChunks("console", clientLog, r)
-		wg.Done()
+		shuttingDown := false
+		for _ = range sigchan {
+			if shuttingDown {
+				log.Printf("Second interrupt received. Terminating!")
+				os.Exit(1)
+			}
+
+			shuttingDown = true
+
+			go func() {
+				log.Printf("Interrupted! Cancelling execution and cleaning up..")
+				cancel <- struct{}{}
+			}()
+		}
 	}()
 
-	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+	// We need to ensure that we're able to abort the build if upstream suggests
+	// that it's been cancelled.
+	if !e.config.Debug {
+		go func() {
+			um := &UpstreamMonitor{
+				Config: e.config,
+			}
+			err := um.WaitUntilAbort()
+			if err != nil {
+				cancel <- struct{}{}
+			}
+		}()
+	}
 
-	result = runBuildPlan(r, config, clientLog)
+	// actually begin executing our the build plan
+	rc := make(chan string)
+	go func() {
+		rc <- e.executeCommands()
+	}()
 
-	r.PushJobstepStatus(STATUS_FINISHED, result)
+	select {
+	case result = <- rc:
+	case <-cancel:
+		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
+		result = RESULT_ABORTED
+	}
 
-	clientLog.Close()
+	return result
 
-	wg.Wait()
+}
+
+func (e *Engine) publishArtifacts(artifacts []string) {
+	if len(artifacts) == 0 {
+		e.clientLog.Writeln("==> Skipping artifact collection")
+		return
+	}
+
+	e.clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", artifacts))
+
+	matches, err := e.adapter.CollectArtifacts(artifacts, e.clientLog)
+	if err != nil {
+		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
+		return
+	}
+
+	e.clientLog.Writeln(fmt.Sprintf("==> Found %d matching artifacts", len(matches)))
+
+	e.reporter.PushArtifacts(matches)
 }
 
 func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
 	for chunk := range clientLog.Chan {
 		r.PushLogChunk(name, chunk)
 	}
-}
-
-func publishArtifacts(r *reporter.Reporter, currentAdapter adapter.Adapter, clientLog *client.Log, artifacts []string) {
-	if len(artifacts) == 0 {
-		clientLog.Writeln("==> Skipping artifact collection")
-		return
-	}
-
-	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", artifacts))
-
-	matches, err := currentAdapter.CollectArtifacts(artifacts, clientLog)
-	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
-		return
-	}
-
-	clientLog.Writeln(fmt.Sprintf("==> Found %d matching artifacts", len(matches)))
-
-	r.PushArtifacts(matches)
 }
 
 func init() {
