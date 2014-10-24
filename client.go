@@ -5,9 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/engine"
+	"github.com/dropbox/changes-client/reporter"
 	"github.com/getsentry/raven-go"
 )
 
@@ -66,7 +68,10 @@ func run() {
 		panic(err)
 	}
 
-	engine.RunBuildPlan(config)
+	r := reporter.NewReporter(http.DefaultTransport, config.Server, config.JobstepID, config.Debug)
+	defer r.Shutdown()
+
+	engine.RunBuildPlan(r, config)
 }
 
 func init() {

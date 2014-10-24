@@ -3,15 +3,16 @@ package engine
 import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"io"
+	"github.com/dropbox/changes-client/reporter"
+	"github.com/jarcoal/httpmock"
 	"io/ioutil"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"testing"
+
+	. "gopkg.in/check.v1"
 )
 
 var jobStepResponse = `
@@ -60,94 +61,118 @@ type FormData struct {
 	path   string
 }
 
-func testHttpCall(t *testing.T, allData []FormData, lookIdx int, expectedData FormData) {
+func formDataFromRequest(req *http.Request) (FormData, error) {
+	var err error
+
+	f := FormData{
+		params: make(map[string]string),
+		path: req.URL.Path,
+	}
+
+	req.ParseMultipartForm(1 << 20)
+	for k, v := range req.MultipartForm.Value {
+		if k == "date" {
+			continue
+		}
+		if len(v) != 1 {
+			err = fmt.Errorf("Multiple values for form field: %s", k)
+			return f, err
+		}
+
+		f.params[k] = v[0]
+	}
+
+	if len(req.MultipartForm.File) > 0 {
+		f.files = make(map[string]string)
+
+		files := req.MultipartForm.File
+		if len(files) != 1 {
+			err = fmt.Errorf("Invalid number of artifacts found")
+			return f, err
+		}
+
+		for filename, fileHeaders := range files {
+			if len(fileHeaders) != 1 {
+				err = fmt.Errorf("Multiple file headers found")
+				return f, err
+			}
+			file, err := fileHeaders[0].Open()
+			if err != nil {
+				return f, err
+			}
+
+			fileContents, err := ioutil.ReadAll(file)
+			if err != nil {
+				return f, err
+			}
+
+			f.files[filename] = string(fileContents)
+		}
+	}
+	return f, nil
+}
+
+func testHttpCall(c *C, allData []FormData, lookIdx int, expectedData FormData) {
 	if len(allData) < lookIdx+1 {
-		t.Errorf("Expected data for call #%d, found none", lookIdx)
-		t.Fail()
-	} else if !reflect.DeepEqual(expectedData, allData[lookIdx]) {
-		t.Errorf("A", lookIdx, allData[lookIdx].params, expectedData.params)
-		t.Fail()
+		c.Errorf("Expected data for call #%d, found none", lookIdx)
+		c.Fail()
+	} else {
+		c.Assert(allData[lookIdx].params, DeepEquals, expectedData.params)
 	}
 }
 
-func TestCompleteFlow(t *testing.T) {
+func TestEngine(t *testing.T) { TestingT(t) }
+
+type EngineSuite struct{}
+
+var _ = Suite(&EngineSuite{})
+
+func (s *EngineSuite) TearDownSuite(c *C) {
+	httpmock.Reset()
+}
+
+func (s *EngineSuite) TestCompleteFlow(c *C) {
 	var err error
 	var formData []FormData
-	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			if r.URL.Path != "/jobsteps/job_1/" {
-				err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
-				return
+	captureFormDataResponder := func(successResponse *http.Response) httpmock.Responder {
+		return func(req *http.Request) (*http.Response, error) {
+			f, err := formDataFromRequest(req)
+			if err != nil {
+				return httpmock.NewStringResponse(500, ""), err
 			}
-			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, jobStepResponse)
-			return
-		} else if r.Method != "POST" {
-			err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
-			return
+
+			formData = append(formData, f)
+
+			return successResponse, nil
 		}
+	}
 
-		w.Write([]byte("OK"))
+	httpmock.RegisterResponder("GET", "https://changes.example.com/api/0/jobsteps/job_1/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, jobStepResponse)))
 
-		r.ParseMultipartForm(1 << 20)
-		f := FormData{params: make(map[string]string), path: r.URL.Path}
+	httpmock.RegisterResponder("POST", "https://changes.example.com/api/0/jobsteps/job_1/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, jobStepResponse)))
 
-		for k, v := range r.MultipartForm.Value {
-			if k == "date" {
-				continue
-			}
-			if len(v) != 1 {
-				err = fmt.Errorf("Multiple values for form field: %s", k)
-				return
-			}
+	httpmock.RegisterResponder("POST", "https://changes.example.com/api/0/jobsteps/job_1/logappend/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, "")))
 
-			f.params[k] = v[0]
-		}
+	httpmock.RegisterResponder("POST", "https://changes.example.com/api/0/jobsteps/job_1/artifacts/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, "")))
 
-		if len(r.MultipartForm.File) > 0 {
-			f.files = make(map[string]string)
+	httpmock.RegisterResponder("POST", "https://changes.example.com/api/0/commands/cmd_1/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, "")))
 
-			files := r.MultipartForm.File
-			if len(files) != 1 {
-				err = fmt.Errorf("Invalid number of artifacts found")
-				return
-			}
-
-			for filename, fileHeaders := range files {
-				if len(fileHeaders) != 1 {
-					err = fmt.Errorf("Multiple file headers found")
-					return
-				}
-
-				file, err := fileHeaders[0].Open()
-				if err != nil {
-					return
-				}
-				fileContents, err := ioutil.ReadAll(file)
-				if err != nil {
-					return
-				}
-
-				f.files[filename] = string(fileContents)
-			}
-		}
-
-		formData = append(formData, f)
-		return
-
-		err = fmt.Errorf("Unexpected path: %s", r.URL.Path)
-	}))
-	defer ts.Close()
-
-	host, _ := os.Hostname()
+	httpmock.RegisterResponder("POST", "https://changes.example.com/api/0/commands/cmd_2/",
+		captureFormDataResponder(httpmock.NewStringResponse(200, "")))
 
 	artifactPath := os.Args[0]
 	args := strings.Split(artifactPath, "/")
 	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
 	artifactName := args[len(args)-1]
+	host, _ := os.Hostname()
 
 	config := &client.Config{}
-	config.Server = ts.URL
+	config.Server = "https://changes.example.com/api/0"
 	config.JobstepID = "job_1"
 	config.Workspace = workspaceRoot
 	config.Repository.Backend.ID = "git"
@@ -171,15 +196,15 @@ func TestCompleteFlow(t *testing.T) {
 		Cwd:    "/tmp",
 	})
 
-	RunBuildPlan(config)
+	r := reporter.NewReporter(httpmock.DefaultTransport, config.Server, config.JobstepID, false)
+	err = RunBuildPlan(r, config)
+	r.Shutdown()
 
-	if err != nil {
-		t.Errorf(err.Error())
-	}
+	c.Assert(err, IsNil)
 
 	expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
 
-	testHttpCall(t, formData, 0, FormData{
+	testHttpCall(c, formData, 0, FormData{
 		path: "/jobsteps/job_1/",
 		params: map[string]string{
 			"status": STATUS_IN_PROGRESS,
@@ -187,22 +212,22 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 1, FormData{
+	testHttpCall(c, formData, 1, FormData{
 		path: "/commands/cmd_1/",
 		params: map[string]string{
 			"status": STATUS_IN_PROGRESS,
 		},
 	})
 
-	// testHttpCall(t, formData, 2, FormData{
-	// 	path: "/jobsteps/job_1/logappend/",
-	// 	params: map[string]string{
-	// 		"text":   ">> cmd_1\n",
-	// 		"source": "console",
-	// 	},
+	// testHttpCall(c, formData, 2, FormData{
+	//      path: "/jobsteps/job_1/logappend/",
+	//      params: map[string]string{
+	//              "text":   ">> cmd_1\n",
+	//              "source": "console",
+	//      },
 	// })
 
-	testHttpCall(t, formData, 3, FormData{
+	testHttpCall(c, formData, 3, FormData{
 		path: "/jobsteps/job_1/logappend/",
 		params: map[string]string{
 			"text":   "hello world",
@@ -210,7 +235,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 4, FormData{
+	testHttpCall(c, formData, 4, FormData{
 		path: "/commands/cmd_1/",
 		params: map[string]string{
 			"status":      STATUS_FINISHED,
@@ -218,7 +243,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 5, FormData{
+	testHttpCall(c, formData, 5, FormData{
 		path: "/jobsteps/job_1/artifacts/",
 		params: map[string]string{
 			"name": filepath.Base(artifactPath),
@@ -228,19 +253,18 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-
-	testHttpCall(t, formData, 6, FormData{
+	testHttpCall(c, formData, 6, FormData{
 		path: "/commands/cmd_2/",
 		params: map[string]string{
-			"status": STATUS_IN_PROGRESS,
+				"status": STATUS_IN_PROGRESS,
 		},
 	})
 
 	// call #7 is the "running command" log
-	// call #8 is the "collecting artifacts" log
+	// call #8 is the "running command" log
 	// call #9 is the "found N artifacts" log
 
-	testHttpCall(t, formData, 10, FormData{
+	testHttpCall(c, formData, 10, FormData{
 		path: "/commands/cmd_2/",
 		params: map[string]string{
 			"status":      STATUS_FINISHED,
@@ -248,7 +272,7 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	testHttpCall(t, formData, 11, FormData{
+	testHttpCall(c, formData, 11, FormData{
 		path: "/jobsteps/job_1/logappend/",
 		params: map[string]string{
 			"text":   "exit status 1\n",
@@ -258,7 +282,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	// call #12 is the "skipping artifact collection" log
 
-	testHttpCall(t, formData, 13, FormData{
+	testHttpCall(c, formData, 13, FormData{
 		path: "/jobsteps/job_1/",
 		params: map[string]string{
 			"status": STATUS_FINISHED,
@@ -267,7 +291,5 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
-	if len(formData) != 14 {
-		t.Errorf("Expected 14 HTTP calls, found %d", len(formData))
-	}
+	c.Assert(len(formData), Equals, 14)
 }

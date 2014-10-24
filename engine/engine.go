@@ -39,7 +39,7 @@ type Engine struct {
 	adapter   adapter.Adapter
 }
 
-func RunBuildPlan(config *client.Config) error {
+func RunBuildPlan(r *reporter.Reporter, config *client.Config) error {
 	var err error
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
@@ -54,14 +54,11 @@ func RunBuildPlan(config *client.Config) error {
 		adapter:   currentAdapter,
 	}
 
-	return engine.Run()
+	return engine.Run(r)
 }
 
-func (e *Engine) Run() error {
+func (e *Engine) Run(r *reporter.Reporter) error {
 	var err error
-
-	r := reporter.NewReporter(e.config.Server, e.config.JobstepID, e.config.Debug)
-	defer r.Shutdown()
 
 	wg := sync.WaitGroup{}
 

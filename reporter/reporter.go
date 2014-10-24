@@ -31,9 +31,10 @@ type Reporter struct {
 	publishChannel  chan ReportPayload
 	shutdownChannel chan struct{}
 	debug           bool
+	transport       http.RoundTripper
 }
 
-func httpPost(uri string, params map[string]string, file string) (resp *http.Response, err error) {
+func httpPost(transport http.RoundTripper, uri string, params map[string]string, file string) (resp *http.Response, err error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
 
@@ -69,7 +70,10 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 
 	_ = writer.Close()
 
-	resp, err = http.Post(uri, writer.FormDataContentType(), body)
+	client := http.Client{
+		Transport: transport,
+	}
+	resp, err = client.Post(uri, writer.FormDataContentType(), body)
 
 	if err != nil {
 		return nil, err
@@ -98,7 +102,7 @@ func sendPayload(r *Reporter, rp ReportPayload) {
 	rp.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
 	for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
 		log.Printf("[reporter] POST %s try: %d", path, tryCnt)
-		resp, err = httpPost(path, rp.data, rp.filename)
+		resp, err = httpPost(r.transport, path, rp.data, rp.filename)
 
 		if resp != nil {
 			status = resp.Status
@@ -141,7 +145,7 @@ func transportSend(r *Reporter) {
 	r.shutdownChannel <- struct{}{}
 }
 
-func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
+func NewReporter(transport http.RoundTripper, publishUri string, jobstepID string, debug bool) *Reporter {
 	log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
 	r := &Reporter{}
 	r.jobstepID = jobstepID
@@ -149,6 +153,7 @@ func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
 	r.publishChannel = make(chan ReportPayload, maxPendingReports)
 	r.shutdownChannel = make(chan struct{})
 	r.debug = debug
+	r.transport = transport
 
 	go transportSend(r)
 	return r
