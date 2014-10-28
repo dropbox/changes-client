@@ -10,7 +10,7 @@ sudo add-apt-repository -y ppa:awstools-dev/awstools
 sudo apt-get update -y
 
 # Install basic requirements
-sudo apt-get install -y git pkg-config wget
+sudo apt-get install -y git mercurial pkg-config wget
 
 # Install aws cli tools
 sudo apt-get install -y awscli
