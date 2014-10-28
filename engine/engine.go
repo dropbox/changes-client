@@ -20,8 +20,8 @@ const (
 	STATUS_IN_PROGRESS = "in_progress"
 	STATUS_FINISHED    = "finished"
 
-	RESULT_PASSED = "passed"
-	RESULT_FAILED = "failed"
+	RESULT_PASSED  = "passed"
+	RESULT_FAILED  = "failed"
 	RESULT_ABORTED = "aborted"
 
 	SNAPSHOT_ACTIVE = "active"
@@ -37,10 +37,9 @@ type Engine struct {
 	config    *client.Config
 	clientLog *client.Log
 	adapter   adapter.Adapter
-	reporter  *reporter.Reporter
 }
 
-func RunBuildPlan(r *reporter.Reporter, config *client.Config) error {
+func RunBuildPlan(config *client.Config) error {
 	var err error
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
@@ -50,7 +49,6 @@ func RunBuildPlan(r *reporter.Reporter, config *client.Config) error {
 	}
 
 	engine := &Engine{
-		reporter:  r,
 		config:    config,
 		clientLog: client.NewLog(),
 		adapter:   currentAdapter,
@@ -62,28 +60,50 @@ func RunBuildPlan(r *reporter.Reporter, config *client.Config) error {
 func (e *Engine) Run() error {
 	var err error
 
+	r := reporter.NewReporter(e.config.Server, e.config.JobstepID, e.config.Debug)
+	defer r.Shutdown()
+
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
-		reportLogChunks("console", e.clientLog, e.reporter)
+		reportLogChunks("console", e.clientLog, r)
 		wg.Done()
 	}()
 
-	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
-	result := e.runBuildPlan()
+	err = e.adapter.Init(e.config)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		r.PushJobstepStatus(STATUS_FINISHED, RESULT_FAILED)
+		e.clientLog.Close()
+		return err
+	}
+
+	err = e.adapter.Prepare(e.clientLog)
+	// its important that shutdown happens in the same context as reportLogChunks
+	// that is, we need all data from reporter to be sent before calling Shutdown
+	defer e.adapter.Shutdown(e.clientLog)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		r.PushJobstepStatus(STATUS_FINISHED, RESULT_FAILED)
+		e.clientLog.Close()
+		return err
+	}
+
+	result := e.runBuildPlan(r)
 
 	if result == RESULT_PASSED && outputSnapshot != "" {
 		err = e.captureSnapshot()
 		if err != nil {
-			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
+			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
 		} else {
-			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
 		}
 	}
 
-	e.reporter.PushJobstepStatus(STATUS_FINISHED, result)
+	r.PushJobstepStatus(STATUS_FINISHED, result)
 
 	e.clientLog.Close()
 
@@ -92,7 +112,7 @@ func (e *Engine) Run() error {
 	return err
 }
 
-func (e *Engine) executeCommands() string {
+func (e *Engine) executeCommands(r *reporter.Reporter) string {
 	var result string = RESULT_PASSED
 
 	wg := sync.WaitGroup{}
@@ -100,11 +120,11 @@ func (e *Engine) executeCommands() string {
 	for _, cmdConfig := range e.config.Cmds {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
-		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
+		r.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
@@ -121,24 +141,24 @@ func (e *Engine) executeCommands() string {
 		cmdResult, err := e.adapter.Run(cmd, e.clientLog)
 
 		if err != nil {
-			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
 				if cmd.CaptureOutput {
-					e.reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
+					r.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
+					r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
+				r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
 
 		wg.Add(1)
 		go func(artifacts []string) {
-			e.publishArtifacts(artifacts)
+			e.publishArtifacts(r, artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
 
@@ -162,23 +182,8 @@ func (e *Engine) captureSnapshot() error {
 	return nil
 }
 
-func (e *Engine) runBuildPlan() string {
-	var err error
+func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	var result string
-
-	err = e.adapter.Init(e.config)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		// TODO(dcramer): handle this error
-		return RESULT_FAILED
-	}
-
-	err = e.adapter.Prepare(e.clientLog)
-	defer e.adapter.Shutdown(e.clientLog)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		return RESULT_FAILED
-	}
 
 	// cancellation signal
 	cancel := make(chan struct{})
@@ -220,11 +225,11 @@ func (e *Engine) runBuildPlan() string {
 	// actually begin executing our the build plan
 	rc := make(chan string)
 	go func() {
-		rc <- e.executeCommands()
+		rc <- e.executeCommands(r)
 	}()
 
 	select {
-	case result = <- rc:
+	case result = <-rc:
 	case <-cancel:
 		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
 		result = RESULT_ABORTED
@@ -234,7 +239,7 @@ func (e *Engine) runBuildPlan() string {
 
 }
 
-func (e *Engine) publishArtifacts(artifacts []string) {
+func (e *Engine) publishArtifacts(r *reporter.Reporter, artifacts []string) {
 	if len(artifacts) == 0 {
 		e.clientLog.Writeln("==> Skipping artifact collection")
 		return
@@ -250,7 +255,7 @@ func (e *Engine) publishArtifacts(artifacts []string) {
 
 	e.clientLog.Writeln(fmt.Sprintf("==> Found %d matching artifacts", len(matches)))
 
-	e.reporter.PushArtifacts(matches)
+	r.PushArtifacts(matches)
 }
 
 func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {

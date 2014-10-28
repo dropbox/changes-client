@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/reporter"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -172,9 +171,7 @@ func TestCompleteFlow(t *testing.T) {
 		Cwd:    "/tmp",
 	})
 
-	reporter := reporter.NewReporter(config.Server, config.JobstepID, false)
-	RunBuildPlan(reporter, config)
-	reporter.Shutdown()
+	RunBuildPlan(config)
 
 	if err != nil {
 		t.Errorf(err.Error())

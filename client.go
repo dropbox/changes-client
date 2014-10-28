@@ -6,7 +6,6 @@ import (
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/engine"
-	"github.com/dropbox/changes-client/reporter"
 )
 
 const (
@@ -27,7 +26,5 @@ func main() {
 		panic(err)
 	}
 
-	reporter := reporter.NewReporter(config.Server, config.JobstepID, config.Debug)
-	engine.RunBuildPlan(reporter, config)
-	reporter.Shutdown()
+	engine.RunBuildPlan(config)
 }

@@ -20,13 +20,13 @@ type JobStep struct {
 }
 
 type UpstreamMonitor struct {
-	Config    *client.Config
+	Config *client.Config
 }
 
 func (um *UpstreamMonitor) WaitUntilAbort() error {
 	var (
 		err error
-		js *JobStep
+		js  *JobStep
 	)
 
 	for {
