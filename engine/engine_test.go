@@ -75,19 +75,20 @@ func TestCompleteFlow(t *testing.T) {
 	var err error
 	var formData []FormData
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("OK"))
-
 		if r.Method == "GET" {
 			if r.URL.Path != "/jobsteps/job_1/" {
 				err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
 				return
 			}
+			w.Header().Set("Content-Type", "application/json")
 			io.WriteString(w, jobStepResponse)
 			return
 		} else if r.Method != "POST" {
 			err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
 			return
 		}
+
+		w.Write([]byte("OK"))
 
 		r.ParseMultipartForm(1 << 20)
 		f := FormData{params: make(map[string]string), path: r.URL.Path}
