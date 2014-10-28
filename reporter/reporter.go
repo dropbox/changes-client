@@ -29,7 +29,7 @@ type Reporter struct {
 	jobstepID       string
 	publishUri      string
 	publishChannel  chan ReportPayload
-	shutdownChannel chan bool
+	shutdownChannel chan struct{}
 	debug           bool
 }
 
@@ -132,7 +132,7 @@ func transportSend(r *Reporter) {
 			time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
 		}
 	}
-	r.shutdownChannel <- true
+	r.shutdownChannel <- struct{}{}
 }
 
 func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
@@ -141,7 +141,7 @@ func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
 	r.jobstepID = jobstepID
 	r.publishUri = publishUri
 	r.publishChannel = make(chan ReportPayload, maxPendingReports)
-	r.shutdownChannel = make(chan bool)
+	r.shutdownChannel = make(chan struct{})
 	r.debug = debug
 
 	go transportSend(r)
