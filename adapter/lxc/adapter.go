@@ -34,7 +34,12 @@ type Adapter struct {
 func (a *Adapter) Init(config *client.Config) error {
 	var snapshot string = config.Snapshot.ID
 	if snapshot != "" {
-		snapshot = adapter.FormatUUID(snapshot)
+		if s3Bucket == "" {
+			log.Print("[lxc] WARNING: s3bucket is not defined, snapshot ignored")
+			snapshot = ""
+		} else {
+			snapshot = adapter.FormatUUID(snapshot)
+		}
 	}
 
 	container := &Container{

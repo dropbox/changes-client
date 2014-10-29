@@ -14,6 +14,7 @@ var (
 	jobstepID string
 	workspace string
 	debug     bool
+	ignoreSnapshots bool
 )
 
 type ConfigCmd struct {
@@ -107,6 +108,10 @@ func GetConfig() (*Config, error) {
 	conf.Workspace = workspace
 	conf.Debug = debug
 
+	if (ignoreSnapshots) {
+		conf.Snapshot.ID = ""
+	}
+
 	return conf, err
 }
 
@@ -115,4 +120,5 @@ func init() {
 	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&workspace, "workspace", "", "Workspace to checkout source into")
 	flag.BoolVar(&debug, "debug", false, "Indicates that the client is running in debug mode and should not report results upstream")
+	flag.BoolVar(&ignoreSnapshots, "no-snapshots", false, "Ignore any existing snapshots, and build a fresh environment")
 }
