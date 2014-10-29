@@ -38,7 +38,8 @@ func main() {
 
 		defer func() {
 			var packet *raven.Packet
-			switch rval := recover().(type) {
+			p := recover()
+			switch rval := p.(type) {
 			case nil:
 				return
 			case error:
@@ -50,6 +51,7 @@ func main() {
 
 			_, ch := sentryClient.Capture(packet, map[string]string{})
 			<-ch
+			panic(p)
 		}()
 
 		run()
