@@ -73,23 +73,6 @@ func (e *Engine) Run() error {
 
 	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
-	err = e.adapter.Init(e.config)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		r.PushJobstepStatus(STATUS_FINISHED, RESULT_FAILED)
-		e.clientLog.Close()
-		return err
-	}
-
-	err = e.adapter.Prepare(e.clientLog)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
-		r.PushJobstepStatus(STATUS_FINISHED, RESULT_FAILED)
-		e.adapter.Shutdown(e.clientLog)
-		e.clientLog.Close()
-		return err
-	}
-
 	result := e.runBuildPlan(r)
 
 	if result == RESULT_PASSED && outputSnapshot != "" {
@@ -103,8 +86,6 @@ func (e *Engine) Run() error {
 
 	r.PushJobstepStatus(STATUS_FINISHED, result)
 
-	// its important that shutdown happens in the same context as reportLogChunks
-	// that is, we need all data from reporter to be sent before calling Shutdown
 	e.adapter.Shutdown(e.clientLog)
 
 	e.clientLog.Close()
@@ -160,6 +141,8 @@ func (e *Engine) executeCommands(r *reporter.Reporter) string {
 
 		wg.Add(1)
 		go func(artifacts []string) {
+			// publishArtifacts is a synchronous operation and doesnt follow the normal queue flow of
+			// other operations
 			e.publishArtifacts(r, artifacts)
 			wg.Done()
 		}(cmdConfig.Artifacts)
@@ -185,7 +168,10 @@ func (e *Engine) captureSnapshot() error {
 }
 
 func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
-	var result string
+	var (
+		result string
+		err error
+	)
 
 	// cancellation signal
 	cancel := make(chan struct{})
@@ -220,6 +206,19 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 				cancel <- struct{}{}
 			}
 		}()
+	}
+
+	err = e.adapter.Init(e.config)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		return RESULT_FAILED
+	}
+
+	err = e.adapter.Prepare(e.clientLog)
+	defer e.adapter.Shutdown(e.clientLog)
+	if err != nil {
+		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		return RESULT_FAILED
 	}
 
 	// actually begin executing the build plan

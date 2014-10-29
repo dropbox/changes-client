@@ -83,54 +83,60 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 	return resp, nil
 }
 
-func transportSend(r *Reporter) {
-	var resp *http.Response
-	var err error
-	var status string
+func sendPayload(r *Reporter, rp ReportPayload) {
+	var (
+		resp *http.Response
+		err error
+		status string
+	)
 
-	for req := range r.publishChannel {
+	path := r.publishUri + rp.path
+	if rp.data == nil {
+		rp.data = make(map[string]string)
+	}
+
+	rp.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
+	for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
+		log.Printf("[reporter] POST %s try: %d", path, tryCnt)
+		resp, err = httpPost(path, rp.data, rp.filename)
+
+		if resp != nil {
+			status = resp.Status
+		} else {
+			status = "-1"
+		}
+
+		if resp != nil && resp.StatusCode/100 == 2 {
+			break
+		}
+
+		if resp != nil && resp.StatusCode == http.StatusGone {
+			// TODO(dcramer): this shouldn't really be a panic, but
+			// we want to exit at this point
+			panic("Unknown error occurred with publish endpoint")
+		}
+
+		log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
+			path, tryCnt, status, err)
+
+		/* We are unable to publish to the endpoint.
+		 * Fail fast and let the above layers handle the outage */
+		if tryCnt == numPublishRetries {
+			panic("Couldn't to connect to publish endpoint")
+		}
+		log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
+		time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
+	}
+}
+
+func transportSend(r *Reporter) {
+	for rp := range r.publishChannel {
 		// dont send reports when running in debug mode
 		if r.debug == true {
 			continue
 		}
 
-		path := r.publishUri + req.path
-		if req.data == nil {
-			req.data = make(map[string]string)
-		}
-
-		req.data["date"] = time.Now().UTC().Format("2006-01-02T15:04:05.0Z")
-		for tryCnt := 1; tryCnt <= numPublishRetries; tryCnt++ {
-			log.Printf("[reporter] POST %s try: %d", path, tryCnt)
-			resp, err = httpPost(path, req.data, req.filename)
-
-			if resp != nil {
-				status = resp.Status
-			} else {
-				status = "-1"
-			}
-
-			if resp != nil && resp.StatusCode/100 == 2 {
-				break
-			}
-
-			if resp != nil && resp.StatusCode == http.StatusGone {
-				// TODO(dcramer): this shouldn't really be a panic, but
-				// we want to exit at this point
-				panic("Unknown error occurred with publish endpoint")
-			}
-
-			log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
-				path, tryCnt, status, err)
-
-			/* We are unable to publish to the endpoint.
-			 * Fail fast and let the above layers handle the outage */
-			if tryCnt == numPublishRetries {
-				panic("Couldn't to connect to publish endpoint")
-			}
-			log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
-			time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
-		}
+		sendPayload(r, rp)
 	}
 	r.shutdownChannel <- struct{}{}
 }
@@ -199,8 +205,10 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 }
 
 func (r *Reporter) PushArtifacts(artifacts []string) {
+	// TODO: PushArtifacts is synchronous due to races with Adapter.Shutdown(), but
+	// really what we'd want to do is just say "wait until channel empty, ok continue"
 	for _, artifact := range artifacts {
-		r.publishChannel <- ReportPayload{"/jobsteps/" + r.jobstepID + "/artifacts/", nil, artifact}
+		sendPayload(r, ReportPayload{"/jobsteps/" + r.jobstepID + "/artifacts/", nil, artifact})
 	}
 }
 

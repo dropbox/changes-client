@@ -219,16 +219,6 @@ func TestCompleteFlow(t *testing.T) {
 	})
 
 	testHttpCall(t, formData, 5, FormData{
-		path: "/commands/cmd_2/",
-		params: map[string]string{
-			"status": STATUS_IN_PROGRESS,
-		},
-	})
-
-	// call #6 is the "running command" log
-	// call #7 is the "collecting artifacts" log
-
-	testHttpCall(t, formData, 8, FormData{
 		path: "/jobsteps/job_1/artifacts/",
 		params: map[string]string{
 			"name": filepath.Base(artifactPath),
@@ -238,6 +228,16 @@ func TestCompleteFlow(t *testing.T) {
 		},
 	})
 
+
+	testHttpCall(t, formData, 6, FormData{
+		path: "/commands/cmd_2/",
+		params: map[string]string{
+			"status": STATUS_IN_PROGRESS,
+		},
+	})
+
+	// call #7 is the "running command" log
+	// call #8 is the "collecting artifacts" log
 	// call #9 is the "found N artifacts" log
 
 	testHttpCall(t, formData, 10, FormData{
