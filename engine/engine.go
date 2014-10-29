@@ -82,12 +82,10 @@ func (e *Engine) Run() error {
 	}
 
 	err = e.adapter.Prepare(e.clientLog)
-	// its important that shutdown happens in the same context as reportLogChunks
-	// that is, we need all data from reporter to be sent before calling Shutdown
-	defer e.adapter.Shutdown(e.clientLog)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		r.PushJobstepStatus(STATUS_FINISHED, RESULT_FAILED)
+		e.adapter.Shutdown(e.clientLog)
 		e.clientLog.Close()
 		return err
 	}
@@ -104,6 +102,10 @@ func (e *Engine) Run() error {
 	}
 
 	r.PushJobstepStatus(STATUS_FINISHED, result)
+
+	// its important that shutdown happens in the same context as reportLogChunks
+	// that is, we need all data from reporter to be sent before calling Shutdown
+	e.adapter.Shutdown(e.clientLog)
 
 	e.clientLog.Close()
 
