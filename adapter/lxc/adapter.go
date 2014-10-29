@@ -21,6 +21,8 @@ var (
 	arch          string
 	dist          string
 	keepContainer bool
+	memory int
+	cpus int
 )
 
 type Adapter struct {
@@ -45,6 +47,8 @@ func (a *Adapter) Init(config *client.Config) error {
 		Snapshot:   snapshot,
 		// TODO(dcramer):  Move S3 logic into core engine
 		S3Bucket: s3Bucket,
+		MemoryLimit: memory,
+		CpuLimit: cpus,
 	}
 
 	a.config = config
@@ -116,6 +120,8 @@ func init() {
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
+	flag.IntVar(&memory, "memory", 0, "Memory limit")
+	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
 
 	adapter.Register("lxc", &Adapter{})

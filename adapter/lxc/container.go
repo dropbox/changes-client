@@ -25,6 +25,8 @@ type Container struct {
 	PreLaunch      string
 	PostLaunch     string
 	OutputSnapshot string
+	MemoryLimit    int
+	CpuLimit       int
 	lxc            *lxc.Container
 }
 
@@ -127,6 +129,19 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	// TODO(dcramer): lxc package doesnt support append, however SetConfigItem seems to append
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
+
+	// the default value for cpu_shares is 1024, so we make a soft assumption
+	// that we can just magnifiy the value based on the number of cpus we're requesting
+	// but it doesnt actually mean we'll get that many cpus
+	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
+	if c.CpuLimit != 0 {
+		c.lxc.SetCgroupItem("cpu.shares", string(c.CpuLimit * 1024))
+	}
+
+	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
+	if c.MemoryLimit != 0 {
+		c.lxc.SetCgroupItem("memory.limit_in_bytes", string(c.MemoryLimit))
+	}
 
 	// Enable autodev: https://wiki.archlinux.org/index.php/Lxc-systemd
 	c.lxc.SetConfigItem("lxc.autodev", "1")
