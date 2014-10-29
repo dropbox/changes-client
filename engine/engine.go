@@ -220,7 +220,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 		}()
 	}
 
-	// actually begin executing our the build plan
+	// actually begin executing the build plan
 	finished := make(chan struct{})
 	go func() {
 		result = e.executeCommands(r)
