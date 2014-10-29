@@ -86,6 +86,14 @@ func LoadConfig(content []byte) (*Config, error) {
 func GetConfig() (*Config, error) {
 	var err error
 
+	if server == "" {
+		return nil, fmt.Errorf("Missing required configuration: server")
+	}
+
+	if jobstepID == "" {
+		return nil, fmt.Errorf("Missing required configuration: jobstep_id")
+	}
+
 	server = strings.TrimRight(server, "/")
 
 	url := server + "/jobsteps/" + jobstepID + "/"
