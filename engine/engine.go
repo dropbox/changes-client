@@ -201,10 +201,8 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 
 			shuttingDown = true
 
-			go func() {
-				log.Printf("Interrupted! Cancelling execution and cleaning up..")
-				cancel <- struct{}{}
-			}()
+			log.Printf("Interrupted! Cancelling execution and cleaning up..")
+			cancel <- struct{}{}
 		}
 	}()
 
@@ -223,13 +221,14 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	}
 
 	// actually begin executing our the build plan
-	rc := make(chan string)
+	finished := make(chan struct{})
 	go func() {
-		rc <- e.executeCommands(r)
+		result = e.executeCommands(r)
+		finished <- struct{}{}
 	}()
 
 	select {
-	case result = <-rc:
+	case <-finished:
 	case <-cancel:
 		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
 		result = RESULT_ABORTED
