@@ -86,8 +86,6 @@ func (e *Engine) Run() error {
 
 	r.PushJobstepStatus(STATUS_FINISHED, result)
 
-	e.adapter.Shutdown(e.clientLog)
-
 	e.clientLog.Close()
 
 	wg.Wait()
