@@ -30,6 +30,8 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 	)
 
 	for {
+		log.Printf("[upstream] polling for build status")
+
 		js, err = um.fetchJobStep()
 		if err != nil {
 			log.Printf("[upstream] %s", err)
