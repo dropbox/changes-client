@@ -49,6 +49,7 @@ func main() {
 				packet = raven.NewPacket(rvalStr, raven.NewException(errors.New(rvalStr), raven.NewStacktrace(2, 3, nil)))
 			}
 
+			log.Printf("[client] Sending panic to Sentry")
 			_, ch := sentryClient.Capture(packet, map[string]string{})
 			<-ch
 			panic(p)
