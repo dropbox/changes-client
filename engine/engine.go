@@ -25,7 +25,7 @@ const (
 	RESULT_ABORTED = "aborted"
 
 	SNAPSHOT_ACTIVE = "active"
-	SNAPSHOT_FAILED = "failed'"
+	SNAPSHOT_FAILED = "failed"
 )
 
 var (
