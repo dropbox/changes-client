@@ -75,15 +75,6 @@ func (e *Engine) Run() error {
 
 	result := e.runBuildPlan(r)
 
-	if result == RESULT_PASSED && outputSnapshot != "" {
-		err = e.captureSnapshot()
-		if err != nil {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
-		} else {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
-		}
-	}
-
 	r.PushJobstepStatus(STATUS_FINISHED, result)
 
 	e.clientLog.Close()
@@ -231,6 +222,15 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	case <-cancel:
 		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
 		result = RESULT_ABORTED
+	}
+
+	if result == RESULT_PASSED && outputSnapshot != "" {
+		err = e.captureSnapshot()
+		if err != nil {
+			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
+		} else {
+			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+		}
 	}
 
 	return result
