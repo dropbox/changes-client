@@ -130,6 +130,8 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
 
+	c.lxc.SetConfigItem("lxc.utsname", fmt.Sprintf("%s-build", c.Name))
+
 	// the default value for cpu_shares is 1024, so we make a soft assumption
 	// that we can just magnifiy the value based on the number of cpus we're requesting
 	// but it doesnt actually mean we'll get that many cpus
