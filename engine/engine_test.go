@@ -85,7 +85,6 @@ func TestCompleteFlow(t *testing.T) {
 			return
 		}
 
-
 		w.Write([]byte("OK"))
 
 		r.ParseMultipartForm(1 << 20)
@@ -228,7 +227,6 @@ func TestCompleteFlow(t *testing.T) {
 			"file": string(expectedFileContents),
 		},
 	})
-
 
 	testHttpCall(t, formData, 6, FormData{
 		path: "/commands/cmd_2/",

@@ -85,8 +85,8 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 
 func sendPayload(r *Reporter, rp ReportPayload) {
 	var (
-		resp *http.Response
-		err error
+		resp   *http.Response
+		err    error
 		status string
 	)
 

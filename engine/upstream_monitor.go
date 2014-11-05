@@ -25,7 +25,7 @@ type UpstreamMonitor struct {
 
 type HeartbeatResponse struct {
 	Finished bool
-	Aborted bool
+	Aborted  bool
 }
 
 func (um *UpstreamMonitor) WaitUntilAbort() error {
@@ -75,7 +75,7 @@ func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatRespons
 	if resp.StatusCode == 410 {
 		return &HeartbeatResponse{
 			Finished: true,
-			Aborted: true,
+			Aborted:  true,
 		}, nil
 	}
 
@@ -97,7 +97,7 @@ func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatRespons
 
 	hr := &HeartbeatResponse{
 		Finished: r.Status.ID == STATUS_FINISHED,
-		Aborted: r.Result.ID == RESULT_ABORTED,
+		Aborted:  r.Result.ID == RESULT_ABORTED,
 	}
 
 	return hr, nil

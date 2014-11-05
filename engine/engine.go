@@ -159,7 +159,7 @@ func (e *Engine) captureSnapshot() error {
 func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	var (
 		result string
-		err error
+		err    error
 	)
 
 	// cancellation signal

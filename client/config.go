@@ -10,10 +10,10 @@ import (
 )
 
 var (
-	server    string
-	jobstepID string
-	workspace string
-	debug     bool
+	server          string
+	jobstepID       string
+	workspace       string
+	debug           bool
 	ignoreSnapshots bool
 )
 
@@ -108,7 +108,7 @@ func GetConfig() (*Config, error) {
 	conf.Workspace = workspace
 	conf.Debug = debug
 
-	if (ignoreSnapshots) {
+	if ignoreSnapshots {
 		conf.Snapshot.ID = ""
 	}
 

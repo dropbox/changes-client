@@ -137,7 +137,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	// but it doesnt actually mean we'll get that many cpus
 	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
 	if c.CpuLimit != 0 {
-		c.lxc.SetCgroupItem("cpu.shares", string(c.CpuLimit * 1024))
+		c.lxc.SetCgroupItem("cpu.shares", string(c.CpuLimit*1024))
 	}
 
 	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt

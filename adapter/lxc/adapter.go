@@ -21,8 +21,8 @@ var (
 	arch          string
 	dist          string
 	keepContainer bool
-	memory int
-	cpus int
+	memory        int
+	cpus          int
 )
 
 type Adapter struct {
@@ -51,9 +51,9 @@ func (a *Adapter) Init(config *client.Config) error {
 		PostLaunch: postLaunch,
 		Snapshot:   snapshot,
 		// TODO(dcramer):  Move S3 logic into core engine
-		S3Bucket: s3Bucket,
+		S3Bucket:    s3Bucket,
 		MemoryLimit: memory,
-		CpuLimit: cpus,
+		CpuLimit:    cpus,
 	}
 
 	a.config = config
