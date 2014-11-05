@@ -23,20 +23,27 @@ type UpstreamMonitor struct {
 	Config *client.Config
 }
 
+type HeartbeatResponse struct {
+	Finished bool
+	Aborted bool
+}
+
 func (um *UpstreamMonitor) WaitUntilAbort() error {
 	var (
 		err error
-		js  *JobStep
+		hr  *HeartbeatResponse
 	)
 
-	for {
-		log.Printf("[upstream] polling for build status")
+	client := &http.Client{}
 
-		js, err = um.fetchJobStep()
+	for {
+		log.Printf("[upstream] sending heartbeat")
+
+		hr, err = um.postHeartbeat(client)
 		if err != nil {
 			log.Printf("[upstream] %s", err)
-		} else if js.Status.ID == STATUS_FINISHED {
-			if js.Result.ID == RESULT_ABORTED {
+		} else if hr.Finished {
+			if hr.Aborted {
 				return nil
 			} else {
 				return fmt.Errorf("JobStep marked as finished, but not aborted.")
@@ -49,16 +56,28 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 	return fmt.Errorf("How did we get here?")
 }
 
-func (um *UpstreamMonitor) fetchJobStep() (*JobStep, error) {
+func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatResponse, error) {
 	var err error
 
-	url := um.Config.Server + "/jobsteps/" + um.Config.JobstepID + "/"
+	url := um.Config.Server + "/jobsteps/" + um.Config.JobstepID + "/heartbeat/"
 
-	resp, err := http.Get(url)
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	if resp.StatusCode == 410 {
+		return &HeartbeatResponse{
+			Finished: true,
+			Aborted: true,
+		}, nil
+	}
 
 	if resp.StatusCode != 200 {
 		err = fmt.Errorf("Request to fetch JobStep failed with status code: %d", resp.StatusCode)
@@ -76,5 +95,10 @@ func (um *UpstreamMonitor) fetchJobStep() (*JobStep, error) {
 		return nil, err
 	}
 
-	return r, nil
+	hr := &HeartbeatResponse{
+		Finished: r.Status.ID == STATUS_FINISHED,
+		Aborted: r.Result.ID == RESULT_ABORTED,
+	}
+
+	return hr, nil
 }

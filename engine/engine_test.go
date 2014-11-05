@@ -74,61 +74,62 @@ func TestCompleteFlow(t *testing.T) {
 	var err error
 	var formData []FormData
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
-			if r.URL.Path != "/jobsteps/job_1/" {
-				err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
-				return
-			}
-			w.Header().Set("Content-Type", "application/json")
-			io.WriteString(w, jobStepResponse)
-			return
-		} else if r.Method != "POST" {
+		if r.Method != "POST" {
 			err = fmt.Errorf("Unexpected %s request received: %s", r.Method, r.URL.Path)
 			return
 		}
+
+		if r.URL.Path == "/jobsteps/job_1/heartbeat/" {
+			w.Header().Set("Content-Type", "application/json")
+			io.WriteString(w, jobStepResponse)
+			return
+		}
+
 
 		w.Write([]byte("OK"))
 
 		r.ParseMultipartForm(1 << 20)
 		f := FormData{params: make(map[string]string), path: r.URL.Path}
 
-		for k, v := range r.MultipartForm.Value {
-			if k == "date" {
-				continue
-			}
-			if len(v) != 1 {
-				err = fmt.Errorf("Multiple values for form field: %s", k)
-				return
-			}
-
-			f.params[k] = v[0]
-		}
-
-		if len(r.MultipartForm.File) > 0 {
-			f.files = make(map[string]string)
-
-			files := r.MultipartForm.File
-			if len(files) != 1 {
-				err = fmt.Errorf("Invalid number of artifacts found")
-				return
-			}
-
-			for filename, fileHeaders := range files {
-				if len(fileHeaders) != 1 {
-					err = fmt.Errorf("Multiple file headers found")
+		if r.MultipartForm != nil {
+			for k, v := range r.MultipartForm.Value {
+				if k == "date" {
+					continue
+				}
+				if len(v) != 1 {
+					err = fmt.Errorf("Multiple values for form field: %s", k)
 					return
 				}
 
-				file, err := fileHeaders[0].Open()
-				if err != nil {
-					return
-				}
-				fileContents, err := ioutil.ReadAll(file)
-				if err != nil {
+				f.params[k] = v[0]
+			}
+
+			if len(r.MultipartForm.File) > 0 {
+				f.files = make(map[string]string)
+
+				files := r.MultipartForm.File
+				if len(files) != 1 {
+					err = fmt.Errorf("Invalid number of artifacts found")
 					return
 				}
 
-				f.files[filename] = string(fileContents)
+				for filename, fileHeaders := range files {
+					if len(fileHeaders) != 1 {
+						err = fmt.Errorf("Multiple file headers found")
+						return
+					}
+
+					file, err := fileHeaders[0].Open()
+					if err != nil {
+						return
+					}
+					fileContents, err := ioutil.ReadAll(file)
+					if err != nil {
+						return
+					}
+
+					f.files[filename] = string(fileContents)
+				}
 			}
 		}
 
