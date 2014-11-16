@@ -36,12 +36,14 @@ func (s *AdapterSuite) ensureContainerRemoved(c *C) {
 	defer lxc.Release(container)
 
 	if container.Running() {
+		log.Println("Existing test container running. Executing Stop()")
 		err = container.Stop()
 		c.Assert(err, IsNil)
 	}
 	c.Assert(container.Running(), Equals, false)
 
 	if container.Defined() {
+		log.Println("Existing test container present. Executing Destroy()")
 		err = container.Destroy()
 		c.Assert(err, IsNil)
 	}
