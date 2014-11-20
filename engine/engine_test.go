@@ -275,5 +275,5 @@ func (s *EngineSuite) ensureContainerRemoved(c *C) {
 		},
 	})
 
-	c.Assert(len(formData), Equals, 14)
+	c.Assert(len(formData), Equals, 15)
 }

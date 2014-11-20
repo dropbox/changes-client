@@ -75,6 +75,8 @@ func (e *Engine) Run() error {
 
 	result := e.runBuildPlan(r)
 
+	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
+
 	r.PushJobstepStatus(STATUS_FINISHED, result)
 
 	e.clientLog.Close()
@@ -251,7 +253,9 @@ func (e *Engine) publishArtifacts(r *reporter.Reporter, artifacts []string) {
 		return
 	}
 
-	e.clientLog.Writeln(fmt.Sprintf("==> Found %d matching artifacts", len(matches)))
+	for _, artifact := range matches {
+		e.clientLog.Writeln(fmt.Sprintf("==> Found: %s", artifact))
+	}
 
 	r.PushArtifacts(matches)
 }
