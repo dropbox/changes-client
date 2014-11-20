@@ -51,10 +51,12 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		if c.snapshotIsCached(c.Snapshot) == false {
 			c.ensureImageCached(c.Snapshot, clientLog)
 
-			clientLog.Writeln(fmt.Sprintf("==> Creating base container: %s", c.Snapshot))
+			clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
 			clientLog.Writeln(fmt.Sprintf("      Arch:    %s", c.Arch))
 			clientLog.Writeln(fmt.Sprintf("      Distro:  %s", c.Dist))
 			clientLog.Writeln(fmt.Sprintf("      Release: %s", c.Release))
+
+			start := time.Now().Unix()
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			if err != nil {
 				return err
@@ -70,16 +72,23 @@ func (c *Container) Launch(clientLog *client.Log) error {
 				Variant:    c.Snapshot,
 				ForceCache: true,
 			})
+			stop := time.Now().Unix()
 			if err != nil {
 				return err
 			}
+			clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
 		} else {
+			clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
 			log.Print("[lxc] Creating base container")
+
+			start := time.Now().Unix()
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
+			stop := time.Now().Unix()
 			if err != nil {
 				return err
 			}
 			defer lxc.Release(base)
+			clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
 		}
 
 		clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
