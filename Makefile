@@ -18,7 +18,7 @@ all:
 
 test:
 	@echo "==> Running tests"
-	sudo GOPATH=${GOPATH} `which go` test ./... -timeout=30s -race
+	sudo GOPATH=${GOPATH} `which go` test ./... -timeout=60s -race
 
 
 dev:
