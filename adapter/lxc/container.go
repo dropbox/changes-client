@@ -55,6 +55,7 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			clientLog.Writeln(fmt.Sprintf("      Arch:    %s", c.Arch))
 			clientLog.Writeln(fmt.Sprintf("      Distro:  %s", c.Dist))
 			clientLog.Writeln(fmt.Sprintf("      Release: %s", c.Release))
+			clientLog.Writeln("    (grab a coffee, this could take a while)")
 
 			start := time.Now().Unix()
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
