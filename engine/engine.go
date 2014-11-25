@@ -202,6 +202,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	err = e.adapter.Init(e.config)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: Failed to initialize %s adapter", selectedAdapter))
 		return RESULT_FAILED
 	}
 
@@ -209,6 +210,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	defer e.adapter.Shutdown(e.clientLog)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
 		return RESULT_FAILED
 	}
 
