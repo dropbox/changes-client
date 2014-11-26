@@ -192,10 +192,8 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 			um := &UpstreamMonitor{
 				Config: e.config,
 			}
-			err := um.WaitUntilAbort()
-			if err != nil {
-				cancel <- struct{}{}
-			}
+			um.WaitUntilAbort()
+			cancel <- struct{}{}
 		}()
 	}
 
