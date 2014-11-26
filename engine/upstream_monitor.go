@@ -44,8 +44,10 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 			log.Printf("[upstream] %s", err)
 		} else if hr.Finished {
 			if hr.Aborted {
+				log.Print("[upstream] JobStep was aborted")
 				return nil
 			} else {
+				log.Print("[upstream] WARNING: JobStep marked as finished, but not aborted")
 				return fmt.Errorf("JobStep marked as finished, but not aborted.")
 			}
 		}
