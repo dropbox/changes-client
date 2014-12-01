@@ -50,7 +50,7 @@ func (c *Container) RootFs() string {
 func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	var currentTime int64
 
-	lock, err := lockfile.New(fmt.Sprintf("/tmp/lxc-{}.lock", name))
+	lock, err := lockfile.New(fmt.Sprintf("/tmp/lxc-%s.lock", name))
 	if err != nil {
 		fmt.Println("Cannot initialize lock: %s", err)
 		return nil, err
