@@ -6,7 +6,7 @@ import (
 	"flag"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common"
+	"github.com/dropbox/changes-client/common/glob"
 	"log"
 	"path"
 	"path/filepath"
@@ -115,7 +115,7 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
 	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)
-	return common.GlobTree(a.workspace, artifacts)
+	return glob.GlobTree(a.workspace, artifacts)
 }
 
 func init() {

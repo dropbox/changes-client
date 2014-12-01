@@ -3,7 +3,7 @@ package basic
 import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common"
+	"github.com/dropbox/changes-client/common/glob"
 	"os"
 	"path/filepath"
 )
@@ -58,7 +58,7 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 }
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
-	return common.GlobTree(a.workspace, artifacts)
+	return glob.GlobTree(a.workspace, artifacts)
 }
 
 func init() {

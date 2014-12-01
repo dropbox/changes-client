@@ -7,12 +7,17 @@ import (
 	"errors"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/common/lockfile"
 	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"os"
 	"path"
 	"strings"
 	"time"
+)
+
+var (
+	lockTimeout = int64((1 * time.Hour).Seconds())
 )
 
 type Container struct {
@@ -42,12 +47,61 @@ func (c *Container) RootFs() string {
 	return bits[len(bits)-1]
 }
 
-func (c *Container) Launch(clientLog *client.Log) error {
+func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
+	var currentTime int64
+
+	lock, err := lockfile.New(fmt.Sprintf("/tmp/lxc-{}.lock", name))
+	if err != nil {
+		fmt.Println("Cannot initialize lock: %s", err)
+		return nil, err
+	}
+
+	startTime := time.Now().Unix()
+	for {
+		err = lock.TryLock()
+		if err != nil {
+			currentTime = time.Now().Unix()
+			if currentTime - startTime > lockTimeout {
+				return nil, err
+			}
+
+			if err == lockfile.ErrBusy {
+				fmt.Println(fmt.Sprintf("Lock \"%v\" is busy - retrying in 3 seconds", lock))
+				time.Sleep(3 * time.Second)
+				continue
+			}
+		} else {
+			return lock, nil
+		}
+	}
+}
+
+func (c *Container) launchContainer(clientLog *client.Log) error {
 	var err error
 	var base *lxc.Container
+	var lockName string
+
+	if c.Snapshot != "" {
+		lockName = c.Snapshot
+	} else {
+		lockName = c.Name
+	}
+
+	// It's possible for multiple clients to compete w/ downloading and then
+	// defining the container so on the first failure we simply try again
+	clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", lockName))
+	lock, err := c.acquireLock(lockName)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", lockName))
+		lock.Unlock()
+	}()
 
 	if c.Snapshot != "" {
 		log.Print("[lxc] Checking for cached snapshot")
+
 		if c.snapshotIsCached(c.Snapshot) == false {
 			c.ensureImageCached(c.Snapshot, clientLog)
 
@@ -58,10 +112,8 @@ func (c *Container) Launch(clientLog *client.Log) error {
 			clientLog.Writeln("    (grab a coffee, this could take a while)")
 
 			start := time.Now().Unix()
+
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
-			if err != nil {
-				return err
-			}
 			defer lxc.Release(base)
 
 			log.Print("[lxc] Creating base container")
@@ -170,6 +222,17 @@ func (c *Container) Launch(clientLog *client.Log) error {
 
 	log.Print("[lxc] Waiting for container to startup networking")
 	_, err = c.lxc.WaitIPAddresses(30 * time.Second)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Container) Launch(clientLog *client.Log) error {
+	var err error
+
+	err = c.launchContainer(clientLog)
 	if err != nil {
 		return err
 	}
