@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/engine"
+	"github.com/dropbox/changes-client/shared/engine"
+	"github.com/dropbox/changes-client/shared/reporter"
+	"github.com/dropbox/changes-client/shared/runner"
 	"github.com/getsentry/raven-go"
 )
 
@@ -16,18 +17,11 @@ const (
 )
 
 var (
+	jobstepID = ""
 	sentryDsn = ""
 )
 
-func main() {
-	showVersion := flag.Bool("version", false, "Prints changes-client version")
-	flag.Parse()
-
-	if *showVersion {
-		fmt.Println(Version)
-		return
-	}
-
+func runWithErrorHandler(f func()) {
 	if sentryDsn != "" {
 		sentryClient, err := raven.NewClient(sentryDsn, map[string]string{
 			"version": Version,
@@ -54,22 +48,45 @@ func main() {
 			<-ch
 			panic(p)
 		}()
-
-		run()
-	} else {
-		run()
 	}
+	f()
 }
 
-func run() {
-	config, err := client.GetConfig()
+func main() {
+	showVersion := flag.Bool("version", false, "Prints changes-client version")
+
+	flag.Parse()
+
+	if jobstepID == "" {
+		panic(fmt.Errorf("Missing required configuration: jobstep_id"))
+	}
+
+	if *showVersion {
+		fmt.Println(Version)
+		return
+	}
+	runWithErrorHandler(func() { run(jobstepID) })
+}
+
+func run(jobstepID string) {
+	var err error
+
+	config, err := runner.GetJobStepConfig(jobstepID)
 	if err != nil {
 		panic(err)
 	}
 
-	engine.RunBuildPlan(config)
+	r := reporter.NewJobStepReporter(config.Server, jobstepID, config.Debug)
+	defer r.Shutdown()
+
+	engine, err := engine.NewEngine(config)
+	if err != nil {
+		panic(err)
+	}
+	engine.Run(r, "")
 }
 
 func init() {
+	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&sentryDsn, "sentry-dsn", "", "Sentry DSN for reporting errors")
 }

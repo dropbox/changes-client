@@ -1,4 +1,4 @@
-package client
+package runner
 
 import (
 	"io"
@@ -43,7 +43,7 @@ var jobStepResponse = `
 }
 `
 
-func TestGetConfig(t *testing.T) {
+func TestGetJobStepConfig(t *testing.T) {
 	var err error
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -60,9 +60,9 @@ func TestGetConfig(t *testing.T) {
 	defer ts.Close()
 
 	server = ts.URL
-	jobstepID = "549db9a70d4d4d258e0a6d475ccd8a15"
+	jobstepID := "549db9a70d4d4d258e0a6d475ccd8a15"
 
-	config, err := GetConfig()
+	config, err := GetJobStepConfig(jobstepID)
 	if err != nil {
 		t.Errorf(err.Error())
 	}
@@ -71,7 +71,7 @@ func TestGetConfig(t *testing.T) {
 		t.Fail()
 	}
 
-	if config.JobstepID != jobstepID {
+	if config.ID != jobstepID {
 		t.Fail()
 	}
 

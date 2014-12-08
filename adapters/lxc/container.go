@@ -6,8 +6,8 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/common/lockfile"
+	"github.com/dropbox/changes-client/shared/lockfile"
+	"github.com/dropbox/changes-client/shared/runner"
 	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"os"
@@ -61,7 +61,7 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 		err = lock.TryLock()
 		if err != nil {
 			currentTime = time.Now().Unix()
-			if currentTime - startTime > lockTimeout {
+			if currentTime-startTime > lockTimeout {
 				return nil, err
 			}
 
@@ -76,7 +76,7 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	}
 }
 
-func (c *Container) launchContainer(clientLog *client.Log) error {
+func (c *Container) launchContainer(clientLog *runner.Log) error {
 	var err error
 	var base *lxc.Container
 	var lockName string
@@ -229,7 +229,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	return nil
 }
 
-func (c *Container) Launch(clientLog *client.Log) error {
+func (c *Container) Launch(clientLog *runner.Log) error {
 	var err error
 
 	err = c.launchContainer(clientLog)
@@ -336,7 +336,7 @@ func randString(n int) string {
 	return string(bytes)
 }
 
-func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client.Log, user string) (*client.CommandResult, error) {
+func (c *Container) RunCommandInContainer(cmd *runner.Command, clientLog *runner.Log, user string) (*runner.CommandResult, error) {
 	dstFile := fmt.Sprintf("/tmp/script-%s", randString(10))
 
 	log.Printf("[lxc] Writing local script %s to %s", cmd.Path, dstFile)
@@ -380,7 +380,7 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 // that when we attempt to run the image, the download will look for our
 // existing cache (that we've correctly populated) and just reference the
 // image from there.
-func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) error {
+func (c *Container) ensureImageCached(snapshot string, clientLog *runner.Log) error {
 	var err error
 
 	relPath := c.getImagePath(snapshot)
@@ -413,7 +413,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 
 	clientLog.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", remotePath, localPath}, "", []string{
+	cw := runner.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", remotePath, localPath}, "", []string{
 		"HOME=/root",
 	})
 
@@ -433,7 +433,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	return nil
 }
 
-func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
+func (c *Container) CreateImage(snapshot string, clientLog *runner.Log) error {
 	var err error
 
 	err = c.Stop()
@@ -468,7 +468,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 	return nil
 }
 
-func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.Log) error {
+func (c *Container) createImageMetadata(snapshotPath string, clientLog *runner.Log) error {
 	metadataPath := path.Join(snapshotPath, "config")
 	f, err := os.Create(metadataPath)
 	if err != nil {
@@ -486,12 +486,12 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 	return nil
 }
 
-func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log) error {
+func (c *Container) createImageRootFs(snapshotPath string, clientLog *runner.Log) error {
 	rootFsTxz := path.Join(snapshotPath, "rootfs.tar.xz")
 
 	clientLog.Writeln("==> Creating rootfs.tar.xz")
 
-	cw := client.NewCmdWrapper([]string{"tar", "-Jcf", rootFsTxz, "-C", c.RootFs(), "."}, "", []string{})
+	cw := runner.NewCmdWrapper([]string{"tar", "-Jcf", rootFsTxz, "-C", c.RootFs(), "."}, "", []string{})
 	result, err := cw.Run(false, clientLog)
 
 	if err != nil {
@@ -504,7 +504,7 @@ func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log
 	return nil
 }
 
-func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client.Log) error {
+func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *runner.Log) error {
 	metadataPath := path.Join(snapshotPath, "snapshot_id")
 	f, err := os.Create(metadataPath)
 	if err != nil {
@@ -521,14 +521,14 @@ func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client
 	return nil
 }
 
-func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
+func (c *Container) UploadImage(snapshot string, clientLog *runner.Log) error {
 	relPath := c.getImagePath(snapshot)
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", localPath, remotePath}, "", []string{})
+	cw := runner.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", localPath, remotePath}, "", []string{})
 
 	start := time.Now().Unix()
 	result, err := cw.Run(false, clientLog)
@@ -545,9 +545,9 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	return nil
 }
 
-func (c *Container) runPreLaunch(clientLog *client.Log) error {
+func (c *Container) runPreLaunch(clientLog *runner.Log) error {
 	preEnv := []string{fmt.Sprintf("LXC_ROOTFS=%s", c.RootFs()), fmt.Sprintf("LXC_NAME=%s", c.Name)}
-	cw := client.NewCmdWrapper([]string{c.PreLaunch}, "", preEnv)
+	cw := runner.NewCmdWrapper([]string{c.PreLaunch}, "", preEnv)
 	result, err := cw.Run(false, clientLog)
 	if err != nil {
 		return err
@@ -560,7 +560,7 @@ func (c *Container) runPreLaunch(clientLog *client.Log) error {
 	return nil
 }
 
-func (c *Container) runPostLaunch(clientLog *client.Log) error {
+func (c *Container) runPostLaunch(clientLog *runner.Log) error {
 	cw := &LxcCommand{
 		Args: []string{c.PostLaunch},
 		User: "root",

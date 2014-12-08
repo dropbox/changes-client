@@ -5,7 +5,7 @@ package lxcadapter
 import (
 	"bytes"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/shared/runner"
 	"gopkg.in/lxc/go-lxc.v2"
 	"io"
 	"log"
@@ -30,7 +30,7 @@ func NewLxcCommand(args []string, user string) *LxcCommand {
 	}
 }
 
-func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *lxc.Container) (*client.CommandResult, error) {
+func (cw *LxcCommand) Run(captureOutput bool, clientLog *runner.Log, container *lxc.Container) (*runner.CommandResult, error) {
 	var err error
 
 	// TODO(dcramer):
@@ -111,7 +111,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
 	// as a child process might be causing things to stick around.
-	// XXX: this logic is duplicated in client.CmdWrapper
+	// XXX: this logic is duplicated in runner.CmdWrapper
 	timeLimit := time.After(10 * time.Second)
 	sem := make(chan struct{}) // lol struct{} is cheaper than bool
 	go func() {
@@ -129,7 +129,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	wg.Wait()
 
-	result := &client.CommandResult{
+	result := &runner.CommandResult{
 		Success: ok,
 	}
 

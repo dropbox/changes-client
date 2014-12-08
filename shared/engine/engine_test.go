@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"github.com/dropbox/changes-client/client"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,9 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/dropbox/changes-client/shared/reporter"
+	"github.com/dropbox/changes-client/shared/runner"
 
 	. "gopkg.in/check.v1"
 )
@@ -157,14 +159,13 @@ func (s *EngineSuite) ensureContainerRemoved(c *C) {
 	workspaceRoot := strings.Join(args[0:len(args)-2], "/")
 	artifactName := args[len(args)-1]
 
-	config := &client.Config{}
+	config := &runner.Config{}
 	config.Server = ts.URL
-	config.JobstepID = "job_1"
 	config.Workspace = workspaceRoot
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "https://github.com/dropbox/changes.git"
 	config.Source.Revision.Sha = "master"
-	config.Cmds = append(config.Cmds, client.ConfigCmd{
+	config.Cmds = append(config.Cmds, runner.ConfigCmd{
 		ID:     "cmd_1",
 		Script: "#!/bin/bash\necho -n $VAR",
 		Env: map[string]string{
@@ -172,17 +173,24 @@ func (s *EngineSuite) ensureContainerRemoved(c *C) {
 		},
 		Cwd:       "/tmp",
 		Artifacts: []string{artifactName},
-	}, client.ConfigCmd{
+	}, runner.ConfigCmd{
 		ID:     "cmd_2",
 		Script: "#!/bin/bash\nexit 1",
 		Cwd:    "/tmp",
-	}, client.ConfigCmd{
+	}, runner.ConfigCmd{
 		ID:     "cmd_3",
 		Script: "#!/bin/bash\necho test",
 		Cwd:    "/tmp",
 	})
 
-	RunBuildPlan(config)
+	r := reporter.NewJobStepReporter(config.Server, "job_1", config.Debug)
+	defer r.Shutdown()
+
+	engine, err := NewEngine(config)
+
+	c.Assert(err, IsNil)
+
+	engine.Run(r, "")
 
 	c.Assert(err, IsNil)
 

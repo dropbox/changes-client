@@ -1,4 +1,4 @@
-package client
+package runner
 
 import (
 	"encoding/json"
@@ -11,7 +11,6 @@ import (
 
 var (
 	server          string
-	jobstepID       string
 	workspace       string
 	debug           bool
 	ignoreSnapshots bool
@@ -30,8 +29,9 @@ type ConfigCmd struct {
 }
 
 type Config struct {
+	// TODO(dcramer): the ID is overloaded and represents either a SnapshotID or a JobStepID
+	ID string
 	Server    string
-	JobstepID string
 	Workspace string
 	Debug     bool
 	Snapshot  struct {
@@ -75,24 +75,28 @@ func fetchConfig(url string) (*Config, error) {
 }
 
 func LoadConfig(content []byte) (*Config, error) {
-	r := &Config{}
-	err := json.Unmarshal(content, r)
+	conf := &Config{}
+	err := json.Unmarshal(content, conf)
 	if err != nil {
 		return nil, err
 	}
 
-	return r, nil
+	conf.Server = server
+	conf.Workspace = workspace
+	conf.Debug = debug
+
+	if ignoreSnapshots {
+		conf.Snapshot.ID = ""
+	}
+
+	return conf, nil
 }
 
-func GetConfig() (*Config, error) {
+func GetJobStepConfig(jobstepID string) (*Config, error) {
 	var err error
 
 	if server == "" {
 		return nil, fmt.Errorf("Missing required configuration: server")
-	}
-
-	if jobstepID == "" {
-		return nil, fmt.Errorf("Missing required configuration: jobstep_id")
 	}
 
 	server = strings.TrimRight(server, "/")
@@ -103,13 +107,22 @@ func GetConfig() (*Config, error) {
 		return nil, err
 	}
 
-	conf.Server = server
-	conf.JobstepID = jobstepID
-	conf.Workspace = workspace
-	conf.Debug = debug
+	return conf, err
+}
 
-	if ignoreSnapshots {
-		conf.Snapshot.ID = ""
+func GetSnapshotConfig(snapshotID string) (*Config, error) {
+	var err error
+
+	if server == "" {
+		return nil, fmt.Errorf("Missing required configuration: server")
+	}
+
+	server = strings.TrimRight(server, "/")
+
+	url := server + "/snapshotimages/" + snapshotID + "/"
+	conf, err := fetchConfig(url)
+	if err != nil {
+		return nil, err
 	}
 
 	return conf, err
@@ -117,7 +130,6 @@ func GetConfig() (*Config, error) {
 
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
-	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&workspace, "workspace", "", "Workspace to checkout source into")
 	flag.BoolVar(&debug, "debug", false, "Indicates that the client is running in debug mode and should not report results upstream")
 	flag.BoolVar(&ignoreSnapshots, "no-snapshots", false, "Ignore any existing snapshots, and build a fresh environment")
