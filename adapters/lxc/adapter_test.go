@@ -3,8 +3,8 @@
 package lxcadapter
 
 import (
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/shared/adapter"
+	"github.com/dropbox/changes-client/shared/runner"
 	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"sync"
@@ -24,7 +24,7 @@ type AdapterSuite struct{}
 var _ = Suite(&AdapterSuite{})
 
 // we want to output the log from running the container
-func (s *AdapterSuite) reportLogChunks(clientLog *client.Log) {
+func (s *AdapterSuite) reportLogChunks(clientLog *runner.Log) {
 	for chunk := range clientLog.Chan {
 		log.Print(string(chunk))
 	}
@@ -55,11 +55,11 @@ func (s *AdapterSuite) SetUpSuite(c *C) {
 }
 
 func (s *AdapterSuite) TestCompleteFlow(c *C) {
-	var cmd *client.Command
+	var cmd *runner.Command
 	var err error
-	var result *client.CommandResult
+	var result *runner.CommandResult
 
-	clientLog := client.NewLog()
+	clientLog := runner.NewLog()
 	adapter, err := adapter.Get("lxc")
 	c.Assert(err, IsNil)
 
@@ -71,8 +71,8 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 		s.reportLogChunks(clientLog)
 	}()
 
-	config := &client.Config{}
-	config.JobstepID = containerName
+	config := &runner.Config{}
+	config.ID = containerName
 
 	err = adapter.Init(config)
 	c.Assert(err, IsNil)
@@ -81,7 +81,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
+	cmd, err = runner.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
 	c.Assert(err, IsNil)
 
 	result, err = adapter.Run(cmd, clientLog)
@@ -89,7 +89,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(string(result.Output), Equals, "")
 	c.Assert(result.Success, Equals, true)
 
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho $HOME\nexit 0")
+	cmd, err = runner.NewCommand("test", "#!/bin/bash -e\necho $HOME\nexit 0")
 	cmd.CaptureOutput = true
 	c.Assert(err, IsNil)
 
@@ -99,7 +99,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(result.Success, Equals, true)
 
 	// test with a command that expects stdin
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\nread foo\nexit 1")
+	cmd, err = runner.NewCommand("test", "#!/bin/bash -e\nread foo\nexit 1")
 	c.Assert(err, IsNil)
 
 	result, err = adapter.Run(cmd, clientLog)

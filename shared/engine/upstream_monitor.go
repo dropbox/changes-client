@@ -3,7 +3,7 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/shared/runner"
 	"io/ioutil"
 	"log"
 	"net/http"
@@ -20,7 +20,7 @@ type JobStep struct {
 }
 
 type UpstreamMonitor struct {
-	Config *client.Config
+	Config *runner.Config
 }
 
 type HeartbeatResponse struct {
@@ -61,7 +61,7 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatResponse, error) {
 	var err error
 
-	url := um.Config.Server + "/jobsteps/" + um.Config.JobstepID + "/heartbeat/"
+	url := um.Config.Server + "/jobsteps/" + um.Config.ID + "/heartbeat/"
 
 	req, err := http.NewRequest("POST", url, nil)
 	if err != nil {

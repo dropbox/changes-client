@@ -1,5 +1,5 @@
 
-BIN=${GOPATH}/bin/changes-client
+BIN=${GOPATH}/bin
 
 REV=`git rev-list HEAD --count`
 
@@ -10,10 +10,11 @@ all:
 	@echo "Setting up temp build folder"
 	rm -rf /tmp/changes-client-build
 	mkdir -p /tmp/changes-client-build/usr/bin
-	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
+	cp $(BIN)/client /tmp/changes-client-build/usr/bin/changes-client
+	cp $(BIN)/snapshotter /tmp/changes-client-build/usr/bin/changes-snapshotter
 
 	@echo "Creating .deb file"
-	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`-$(REV)" -C /tmp/changes-client-build .
+	fpm -s dir -t deb -n "changes-client" -v "`$(BIN)/changes-client --version`-$(REV)" -C /tmp/changes-client-build .
 
 
 test:

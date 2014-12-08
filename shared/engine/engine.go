@@ -3,16 +3,16 @@ package engine
 import (
 	"flag"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/reporter"
+	"github.com/dropbox/changes-client/shared/adapter"
+	"github.com/dropbox/changes-client/shared/reporter"
+	"github.com/dropbox/changes-client/shared/runner"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 
-	_ "github.com/dropbox/changes-client/adapter/basic"
-	_ "github.com/dropbox/changes-client/adapter/lxc"
+	_ "github.com/dropbox/changes-client/adapters/basic"
+	_ "github.com/dropbox/changes-client/adapters/lxc"
 )
 
 const (
@@ -34,34 +34,28 @@ var (
 )
 
 type Engine struct {
-	config    *client.Config
-	clientLog *client.Log
+	config    *runner.Config
+	clientLog *runner.Log
 	adapter   adapter.Adapter
 }
 
-func RunBuildPlan(config *client.Config) error {
-	var err error
-
+func NewEngine(config *runner.Config) (*Engine, error) {
 	currentAdapter, err := adapter.Get(selectedAdapter)
 	if err != nil {
-		// TODO(dcramer): handle this error
-		return err
+		return nil, err
 	}
 
 	engine := &Engine{
 		config:    config,
-		clientLog: client.NewLog(),
+		clientLog: runner.NewLog(),
 		adapter:   currentAdapter,
 	}
 
-	return engine.Run()
+	return engine, nil
 }
 
-func (e *Engine) Run() error {
+func (e *Engine) Run(r reporter.Reporter, outputSnapshot string) error {
 	var err error
-
-	r := reporter.NewReporter(e.config.Server, e.config.JobstepID, e.config.Debug)
-	defer r.Shutdown()
 
 	wg := sync.WaitGroup{}
 
@@ -71,13 +65,13 @@ func (e *Engine) Run() error {
 		wg.Done()
 	}()
 
-	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+	r.PushBuildStatus(STATUS_IN_PROGRESS, "")
 
-	result := e.runBuildPlan(r)
+	result := e.runBuildPlan(r, outputSnapshot)
 
 	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
 
-	r.PushJobstepStatus(STATUS_FINISHED, result)
+	r.PushBuildStatus(STATUS_FINISHED, result)
 
 	e.clientLog.Close()
 
@@ -86,19 +80,19 @@ func (e *Engine) Run() error {
 	return err
 }
 
-func (e *Engine) executeCommands(r *reporter.Reporter) string {
+func (e *Engine) executeCommands(r reporter.Reporter) string {
 	var result string = RESULT_PASSED
 
 	wg := sync.WaitGroup{}
 
 	for _, cmdConfig := range e.config.Cmds {
-		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
+		cmd, err := runner.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			r.PushCommandStatus(cmdConfig.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
-		r.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
+		r.PushCommandStatus(cmdConfig.ID, STATUS_IN_PROGRESS, -1)
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
@@ -115,17 +109,17 @@ func (e *Engine) executeCommands(r *reporter.Reporter) string {
 		cmdResult, err := e.adapter.Run(cmd, e.clientLog)
 
 		if err != nil {
-			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			r.PushCommandStatus(cmdConfig.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
-				if cmd.CaptureOutput {
-					r.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
+				if cmdConfig.CaptureOutput {
+					r.PushCommandOutput(cmdConfig.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
+					r.PushCommandStatus(cmdConfig.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
+				r.PushCommandStatus(cmdConfig.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
@@ -158,7 +152,7 @@ func (e *Engine) captureSnapshot() error {
 	return nil
 }
 
-func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
+func (e *Engine) runBuildPlan(r reporter.Reporter, outputSnapshot string) string {
 	var (
 		result string
 		err    error
@@ -229,9 +223,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	if result == RESULT_PASSED && outputSnapshot != "" {
 		err = e.captureSnapshot()
 		if err != nil {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
-		} else {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+			result = RESULT_FAILED
 		}
 	}
 
@@ -239,7 +231,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 
 }
 
-func (e *Engine) publishArtifacts(r *reporter.Reporter, artifacts []string) {
+func (e *Engine) publishArtifacts(r reporter.Reporter, artifacts []string) {
 	if len(artifacts) == 0 {
 		e.clientLog.Writeln("==> Skipping artifact collection")
 		return
@@ -260,7 +252,7 @@ func (e *Engine) publishArtifacts(r *reporter.Reporter, artifacts []string) {
 	r.PushArtifacts(matches)
 }
 
-func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
+func reportLogChunks(name string, clientLog *runner.Log, r reporter.Reporter) {
 	for chunk := range clientLog.Chan {
 		r.PushLogChunk(name, chunk)
 	}
@@ -268,5 +260,4 @@ func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
 
 func init() {
 	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
-	flag.StringVar(&outputSnapshot, "save-snapshot", "", "Save the resulting container snapshot")
 }

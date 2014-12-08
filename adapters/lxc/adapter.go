@@ -4,9 +4,9 @@ package lxcadapter
 
 import (
 	"flag"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common/glob"
+	"github.com/dropbox/changes-client/shared/adapter"
+	"github.com/dropbox/changes-client/shared/glob"
+	"github.com/dropbox/changes-client/shared/runner"
 	"log"
 	"path"
 	"path/filepath"
@@ -26,12 +26,12 @@ var (
 )
 
 type Adapter struct {
-	config    *client.Config
+	config    *runner.Config
 	container *Container
 	workspace string
 }
 
-func (a *Adapter) Init(config *client.Config) error {
+func (a *Adapter) Init(config *runner.Config) error {
 	var snapshot string = config.Snapshot.ID
 	if snapshot != "" {
 		if s3Bucket == "" {
@@ -43,7 +43,7 @@ func (a *Adapter) Init(config *client.Config) error {
 	}
 
 	container := &Container{
-		Name:       config.JobstepID,
+		Name:       config.ID,
 		Arch:       arch,
 		Dist:       dist,
 		Release:    release,
@@ -64,7 +64,7 @@ func (a *Adapter) Init(config *client.Config) error {
 
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
-func (a *Adapter) Prepare(clientLog *client.Log) error {
+func (a *Adapter) Prepare(clientLog *runner.Log) error {
 	err := a.container.Launch(clientLog)
 	if err != nil {
 		return err
@@ -84,19 +84,19 @@ func (a *Adapter) Prepare(clientLog *client.Log) error {
 }
 
 // Runs a given command. This may be called multiple times depending
-func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.CommandResult, error) {
+func (a *Adapter) Run(cmd *runner.Command, clientLog *runner.Log) (*runner.CommandResult, error) {
 	return a.container.RunCommandInContainer(cmd, clientLog, "ubuntu")
 }
 
 // Perform any cleanup actions within the environment.
-func (a *Adapter) Shutdown(clientLog *client.Log) error {
+func (a *Adapter) Shutdown(clientLog *runner.Log) error {
 	if keepContainer {
 		return nil
 	}
 	return a.container.Destroy()
 }
 
-func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
+func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *runner.Log) error {
 	outputSnapshot = adapter.FormatUUID(outputSnapshot)
 
 	err := a.container.CreateImage(outputSnapshot, clientLog)
@@ -113,7 +113,7 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 	return nil
 }
 
-func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
+func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *runner.Log) ([]string, error) {
 	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)
 	return glob.GlobTree(a.workspace, artifacts)
 }
