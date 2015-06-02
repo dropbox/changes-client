@@ -113,6 +113,10 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 	return nil
 }
 
+func (a *Adapter) GetRootFs() string {
+	return a.container.RootFs()
+}
+
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
 	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)
 	return glob.GlobTree(a.workspace, artifacts)
