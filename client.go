@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/engine"
@@ -16,7 +17,8 @@ const (
 )
 
 var (
-	sentryDsn = ""
+	sentryDsn  = ""
+	exitResult = false
 )
 
 func main() {
@@ -67,9 +69,16 @@ func run() {
 		panic(err)
 	}
 
-	engine.RunBuildPlan(config)
+	result, err := engine.RunBuildPlan(config)
+	log.Printf("[client] Finished: %s", result)
+	if (err != nil || result != engine.RESULT_PASSED) && exitResult {
+		log.Printf("[client] exit: 1")
+		os.Exit(1)
+	}
+	log.Printf("[client] exit: 0")
 }
 
 func init() {
 	flag.StringVar(&sentryDsn, "sentry-dsn", "", "Sentry DSN for reporting errors")
+	flag.BoolVar(&exitResult, "exit-result", false, "Determine exit code from result")
 }
