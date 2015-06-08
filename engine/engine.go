@@ -43,19 +43,19 @@ type Engine struct {
 	reporter  reporter.Reporter
 }
 
-func RunBuildPlan(config *client.Config) (string, error) {
+func RunBuildPlan(config *client.Config) error {
 	var err error
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
 	if err != nil {
 		// TODO(dcramer): handle this error
-		return RESULT_FAILED, err
+		return err
 	}
 
 	currentReporter, err := reporter.Get(selectedReporter)
 	if err != nil {
 		log.Printf("[engine] failed to initialize reporter: %s", selectedReporter)
-		return RESULT_FAILED, err
+		return err
 	}
 	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporter, selectedAdapter)
 
@@ -66,10 +66,12 @@ func RunBuildPlan(config *client.Config) (string, error) {
 		reporter:  currentReporter,
 	}
 
-	return engine.Run(), nil
+	return engine.Run()
 }
 
-func (e *Engine) Run() string {
+func (e *Engine) Run() error {
+	var err error
+
 	defer e.reporter.Shutdown()
 
 	wg := sync.WaitGroup{}
@@ -94,7 +96,7 @@ func (e *Engine) Run() string {
 
 	wg.Wait()
 
-	return result
+	return err
 }
 
 func (e *Engine) executeCommands() string {
@@ -103,8 +105,6 @@ func (e *Engine) executeCommands() string {
 	wg := sync.WaitGroup{}
 
 	for _, cmdConfig := range e.config.Cmds {
-		e.clientLog.Writeln(fmt.Sprintf("==> Running command %s", cmdConfig.ID))
-		e.clientLog.Writeln(fmt.Sprintf("==>     with script %s", cmdConfig.Script))
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)

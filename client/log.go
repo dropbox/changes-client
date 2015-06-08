@@ -5,7 +5,6 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log"
 	"time"
 )
 
@@ -40,7 +39,6 @@ func (l *Log) Write(payload []byte) error {
 
 func (l *Log) Writeln(payload string) error {
 	l.Chan <- []byte(fmt.Sprintf("%s\n", payload))
-	log.Println(payload)
 
 	return nil
 }
@@ -83,7 +81,6 @@ func (l *Log) WriteStream(pipe io.Reader) {
 
 		if len(payload) > 0 {
 			l.Chan <- payload
-			log.Println(string(payload))
 		}
 	}
 }
