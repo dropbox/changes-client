@@ -1,12 +1,8 @@
-package mesosreporter
+package reporter
 
 import (
 	"bytes"
 	"flag"
-	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/client/reporter"
 	"io"
 	"log"
 	"mime/multipart"
@@ -139,19 +135,20 @@ func transportSend(r *Reporter) {
 	r.shutdownChannel <- struct{}{}
 }
 
-func (r *Reporter) Init(c *client.Config) {
-	log.Printf("[reporter] Construct reporter with publish uri: %s", c.Server)
-	r.jobstepID = c.JobstepID
-	r.publishUri = c.Server
+func NewReporter(publishUri string, jobstepID string, debug bool) *Reporter {
+	log.Printf("[reporter] Construct reporter with publish uri: %s", publishUri)
+	r := &Reporter{}
+	r.jobstepID = jobstepID
+	r.publishUri = publishUri
 	r.publishChannel = make(chan ReportPayload, maxPendingReports)
 	r.shutdownChannel = make(chan struct{})
-	r.debug = c.Debug
+	r.debug = debug
 
 	go transportSend(r)
+	return r
 }
 
 func (r *Reporter) PushJobstepStatus(status string, result string) {
-	log.Printf("[reporter] Pushing status %s", status)
 	form := make(map[string]string)
 	form["status"] = status
 	if len(result) > 0 {
@@ -178,6 +175,7 @@ func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
 	form := make(map[string]string)
 	form["status"] = status
 	r.publishChannel <- ReportPayload{"/snapshotimages/" + iID + "/", form, ""}
+
 }
 
 func (r *Reporter) PushLogChunk(source string, payload []byte) {
@@ -200,28 +198,7 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 	r.publishChannel <- ReportPayload{"/commands/" + cID + "/", form, ""}
 }
 
-func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
-	if len(cmd.Artifacts) == 0 {
-		clientLog.Writeln("==> Skipping artifact collection")
-		return
-	}
-
-	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", cmd.Artifacts))
-
-	matches, err := a.CollectArtifacts(cmd.Artifacts, clientLog)
-	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
-		return
-	}
-
-	for _, artifact := range matches {
-		clientLog.Writeln(fmt.Sprintf("==> Found: %s", artifact))
-	}
-
-	r.pushArtifacts(matches)
-}
-
-func (r *Reporter) pushArtifacts(artifacts []string) {
+func (r *Reporter) PushArtifacts(artifacts []string) {
 	// TODO: PushArtifacts is synchronous due to races with Adapter.Shutdown(), but
 	// really what we'd want to do is just say "wait until channel empty, ok continue"
 	for _, artifact := range artifacts {
@@ -242,6 +219,4 @@ func init() {
 		"Number of times to retry")
 	flag.IntVar(&maxPendingReports, "backoff_time_ms", 1000,
 		"Time to wait between two consecutive retries")
-
-	reporter.Register("mesos", &Reporter{})
 }

@@ -11,7 +11,6 @@ type Adapter interface {
 	Run(*client.Command, *client.Log) (*client.CommandResult, error)
 	Shutdown(*client.Log) error
 	CaptureSnapshot(string, *client.Log) error
-	GetRootFs() string
 	CollectArtifacts([]string, *client.Log) ([]string, error)
 }
 

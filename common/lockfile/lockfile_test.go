@@ -21,8 +21,8 @@
 package lockfile_test
 
 import (
-	"fmt"
 	"github.com/dropbox/changes-client/common/lockfile"
+	"fmt"
 )
 
 func ExampleLockfile() {

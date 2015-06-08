@@ -61,7 +61,7 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 		err = lock.TryLock()
 		if err != nil {
 			currentTime = time.Now().Unix()
-			if currentTime-startTime > lockTimeout {
+			if currentTime - startTime > lockTimeout {
 				return nil, err
 			}
 

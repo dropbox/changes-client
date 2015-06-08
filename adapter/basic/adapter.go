@@ -57,10 +57,6 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 	return nil
 }
 
-func (a *Adapter) GetRootFs() string {
-	return "/"
-}
-
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
 	return glob.GlobTree(a.workspace, artifacts)
 }
