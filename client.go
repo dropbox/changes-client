@@ -71,6 +71,9 @@ func run() {
 
 	result, err := engine.RunBuildPlan(config)
 	log.Printf("[client] Finished: %s", result)
+	if err != nil {
+		log.Printf("[client] error: %s", err.Error())
+	}
 	if (err != nil || result != engine.RESULT_PASSED) && exitResult {
 		log.Printf("[client] exit: 1")
 		os.Exit(1)
