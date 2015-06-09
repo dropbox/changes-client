@@ -39,6 +39,9 @@ type Container struct {
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
 	rootedDstFile := path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
 	log.Printf("[lxc] Uploading: %s", rootedDstFile)
+
+	// link isn't flexible enough if /var is not on the same
+	// device as root, but our files are small shell scripts.
 	return exec.Command("cp", "-r", srcFile, rootedDstFile).Run()
 }
 
