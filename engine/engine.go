@@ -109,6 +109,7 @@ func (e *Engine) executeCommands() string {
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
+			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
 			break
 		}
 		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
@@ -129,6 +130,7 @@ func (e *Engine) executeCommands() string {
 
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
