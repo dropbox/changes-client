@@ -5,6 +5,7 @@ package lxcadapter
 import (
 	"crypto/rand"
 	"errors"
+	"os/exec"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common/lockfile"
@@ -36,8 +37,9 @@ type Container struct {
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	log.Printf("[lxc] Uploading: %s", path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
-	return os.Link(srcFile, path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/")))
+	rootedDstFile := path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
+	log.Printf("[lxc] Uploading: %s", rootedDstFile)
+	return exec.Command("cp", "-r", srcFile, rootedDstFile).Run()
 }
 
 func (c *Container) RootFs() string {
