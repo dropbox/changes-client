@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/reporter"
+	"github.com/dropbox/changes-client/client/reporter"
 	"log"
 	"os"
 	"os/signal"
@@ -13,6 +13,8 @@ import (
 
 	_ "github.com/dropbox/changes-client/adapter/basic"
 	_ "github.com/dropbox/changes-client/adapter/lxc"
+	_ "github.com/dropbox/changes-client/reporter/jenkins"
+	_ "github.com/dropbox/changes-client/reporter/mesos"
 )
 
 const (
@@ -29,14 +31,16 @@ const (
 )
 
 var (
-	selectedAdapter string
-	outputSnapshot  string
+	selectedAdapter  string
+	selectedReporter string
+	outputSnapshot   string
 )
 
 type Engine struct {
 	config    *client.Config
 	clientLog *client.Log
 	adapter   adapter.Adapter
+	reporter  reporter.Reporter
 }
 
 func RunBuildPlan(config *client.Config) error {
@@ -48,10 +52,18 @@ func RunBuildPlan(config *client.Config) error {
 		return err
 	}
 
+	currentReporter, err := reporter.Get(selectedReporter)
+	if err != nil {
+		log.Printf("[engine] failed to initialize reporter: %s", selectedReporter)
+		return err
+	}
+	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporter, selectedAdapter)
+
 	engine := &Engine{
 		config:    config,
 		clientLog: client.NewLog(),
 		adapter:   currentAdapter,
+		reporter:  currentReporter,
 	}
 
 	return engine.Run()
@@ -60,24 +72,25 @@ func RunBuildPlan(config *client.Config) error {
 func (e *Engine) Run() error {
 	var err error
 
-	r := reporter.NewReporter(e.config.Server, e.config.JobstepID, e.config.Debug)
-	defer r.Shutdown()
+	defer e.reporter.Shutdown()
 
 	wg := sync.WaitGroup{}
 
 	wg.Add(1)
 	go func() {
-		reportLogChunks("console", e.clientLog, r)
+		reportLogChunks("console", e.clientLog, e.reporter)
 		wg.Done()
 	}()
 
-	r.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+	e.reporter.Init(e.config)
 
-	result := e.runBuildPlan(r)
+	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
+
+	result := e.runBuildPlan()
 
 	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
 
-	r.PushJobstepStatus(STATUS_FINISHED, result)
+	e.reporter.PushJobstepStatus(STATUS_FINISHED, result)
 
 	e.clientLog.Close()
 
@@ -86,7 +99,7 @@ func (e *Engine) Run() error {
 	return err
 }
 
-func (e *Engine) executeCommands(r *reporter.Reporter) string {
+func (e *Engine) executeCommands() string {
 	var result string = RESULT_PASSED
 
 	wg := sync.WaitGroup{}
@@ -94,11 +107,11 @@ func (e *Engine) executeCommands(r *reporter.Reporter) string {
 	for _, cmdConfig := range e.config.Cmds {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
-			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 			break
 		}
-		r.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
+		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
@@ -115,28 +128,28 @@ func (e *Engine) executeCommands(r *reporter.Reporter) string {
 		cmdResult, err := e.adapter.Run(cmd, e.clientLog)
 
 		if err != nil {
-			r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
+			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			result = RESULT_FAILED
 		} else {
 			if cmdResult.Success {
 				if cmd.CaptureOutput {
-					r.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
+					e.reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 				} else {
-					r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
+					e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
 				}
 			} else {
-				r.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
+				e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 				result = RESULT_FAILED
 			}
 		}
 
 		wg.Add(1)
-		go func(artifacts []string) {
+		go func() {
 			// publishArtifacts is a synchronous operation and doesnt follow the normal queue flow of
 			// other operations
-			e.publishArtifacts(r, artifacts)
+			e.reporter.PublishArtifacts(cmdConfig, e.adapter, e.clientLog)
 			wg.Done()
-		}(cmdConfig.Artifacts)
+		}()
 
 		if result == RESULT_FAILED {
 			break
@@ -158,7 +171,7 @@ func (e *Engine) captureSnapshot() error {
 	return nil
 }
 
-func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
+func (e *Engine) runBuildPlan() string {
 	var (
 		result string
 		err    error
@@ -215,7 +228,7 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	// actually begin executing the build plan
 	finished := make(chan struct{})
 	go func() {
-		result = e.executeCommands(r)
+		result = e.executeCommands()
 		finished <- struct{}{}
 	}()
 
@@ -229,38 +242,16 @@ func (e *Engine) runBuildPlan(r *reporter.Reporter) string {
 	if result == RESULT_PASSED && outputSnapshot != "" {
 		err = e.captureSnapshot()
 		if err != nil {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
+			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
 		} else {
-			r.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
 		}
 	}
 
 	return result
-
 }
 
-func (e *Engine) publishArtifacts(r *reporter.Reporter, artifacts []string) {
-	if len(artifacts) == 0 {
-		e.clientLog.Writeln("==> Skipping artifact collection")
-		return
-	}
-
-	e.clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", artifacts))
-
-	matches, err := e.adapter.CollectArtifacts(artifacts, e.clientLog)
-	if err != nil {
-		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
-		return
-	}
-
-	for _, artifact := range matches {
-		e.clientLog.Writeln(fmt.Sprintf("==> Found: %s", artifact))
-	}
-
-	r.PushArtifacts(matches)
-}
-
-func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
+func reportLogChunks(name string, clientLog *client.Log, r reporter.Reporter) {
 	for chunk := range clientLog.Chan {
 		r.PushLogChunk(name, chunk)
 	}
@@ -268,5 +259,6 @@ func reportLogChunks(name string, clientLog *client.Log, r *reporter.Reporter) {
 
 func init() {
 	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
+	flag.StringVar(&selectedReporter, "reporter", "mesos", "Reporter to send results to")
 	flag.StringVar(&outputSnapshot, "save-snapshot", "", "Save the resulting container snapshot")
 }
