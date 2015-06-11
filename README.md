@@ -1,8 +1,8 @@
 Changes Client
 ==============
 
-Can be used to run arbitrary commands. You will need standard
-Go code setup to compile this.
+Can be used to run arbitrary commands and report to changes
+or jenkins. You will need standard Go code setup to compile this.
 
 Setup
 -----
