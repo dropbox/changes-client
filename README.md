@@ -66,3 +66,4 @@ $ make deb
 
 Thats it. A `.deb` file should be available as changes-client\_$VERSION\_amd64.deb
 
+Note that the LXC you build against needs to match prod.
