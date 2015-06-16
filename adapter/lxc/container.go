@@ -33,9 +33,33 @@ type Container struct {
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
+        BackendStr     string
 	lxc            *lxc.Container
 }
 
+// copied from go-lxc because they don't export it
+var backendStoreMap = map[string]lxc.BackendStore {
+	"dir":       lxc.Directory,
+	"zfs":       lxc.ZFS,
+	"btrfs":     lxc.Btrfs,
+	"lvm":       lxc.LVM,
+	"aufs":      lxc.Aufs,
+	"overlayfs": lxc.Overlayfs,
+	"loopback":  lxc.Loopback,
+	"best":      lxc.Best,
+}
+
+func getBackend (backendstr string) lxc.BackendStore {
+	b, ok := backendStoreMap[backendstr]
+	if ! ok {
+		log.Printf("[lxc] Invalid Backend: %s", backendstr)
+
+		// XXX what actually happens here for mesos?
+		os.Exit(1)
+	}
+
+	return b
+}
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
 	rootedDstFile := path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
 	log.Printf("[lxc] Uploading: %s", rootedDstFile)
@@ -128,6 +152,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 				Distro:     c.Dist,
 				Release:    c.Release,
 				Variant:    c.Snapshot,
+				Backend:    getBackend(c.BackendStr),
 				ForceCache: true,
 			})
 			stop := time.Now().Unix()
@@ -153,7 +178,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		err = base.Clone(c.Name, lxc.CloneOptions{
 			KeepName: true,
 			Snapshot: true,
-			Backend:  lxc.Overlayfs,
+			Backend:  getBackend(c.BackendStr),
 		})
 		if err != nil {
 			return err

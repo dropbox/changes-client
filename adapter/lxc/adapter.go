@@ -23,6 +23,7 @@ var (
 	keepContainer bool
 	memory        int
 	cpus          int
+	backendstr    string
 )
 
 type Adapter struct {
@@ -54,6 +55,7 @@ func (a *Adapter) Init(config *client.Config) error {
 		S3Bucket:    s3Bucket,
 		MemoryLimit: memory,
 		CpuLimit:    cpus,
+                BackendStr:  backendstr,
 	}
 
 	a.config = config
@@ -132,6 +134,7 @@ func init() {
 	flag.IntVar(&memory, "memory", 0, "Memory limit")
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
+        flag.StringVar(&backendstr, "backend", "lvm", "Backend to use for LXC (dir/lvm/etc)")
 
 	adapter.Register("lxc", &Adapter{})
 }
