@@ -134,7 +134,7 @@ func init() {
 	flag.IntVar(&memory, "memory", 0, "Memory limit")
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
-        flag.StringVar(&backendstr, "backend", "lvm", "Backend to use for LXC (dir/lvm/etc)")
+        flag.StringVar(&backendstr, "backend", "overlayfs", "Backend to use for LXC (dir/lvm/etc)")
 
 	adapter.Register("lxc", &Adapter{})
 }
