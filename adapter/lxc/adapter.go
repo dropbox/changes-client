@@ -109,6 +109,8 @@ func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) 
 		if err != nil {
 			return err
 		}
+	} else {
+		log.Printf("[lxc] warning: cannot upload snapshot, no s3 bucket specified")
 	}
 	return nil
 }
