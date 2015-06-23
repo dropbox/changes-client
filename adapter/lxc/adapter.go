@@ -23,6 +23,7 @@ var (
 	keepContainer bool
 	memory        int
 	cpus          int
+	compression   string
 )
 
 type Adapter struct {
@@ -42,6 +43,14 @@ func (a *Adapter) Init(config *client.Config) error {
 		}
 	}
 
+	// In reality our goal is to make a switch completely to lz4, but we need to retain
+	// compatibility with mesos builds for now, so we default to "xz" and also try
+	// to not uncleanly die if its set to a weird value, also setting it to "xz."
+	if compression != "xz" && compression != "lz4" {
+		compression = "xz"
+		log.Printf("[lxc] Warning: invalid compression %s, defaulting to lzma", compression)
+	}
+
 	container := &Container{
 		Name:       config.JobstepID,
 		Arch:       arch,
@@ -54,6 +63,7 @@ func (a *Adapter) Init(config *client.Config) error {
 		S3Bucket:    s3Bucket,
 		MemoryLimit: memory,
 		CpuLimit:    cpus,
+		Compression: compression,
 	}
 
 	a.config = config
@@ -131,6 +141,7 @@ func init() {
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
+	flag.StringVar(&compression, "compression", "xz", "compression algorithm (xz,lz4)")
 	flag.IntVar(&memory, "memory", 0, "Memory limit")
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")

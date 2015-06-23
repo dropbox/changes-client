@@ -33,6 +33,9 @@ type Container struct {
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
+    // Valid values: xz, lz4. These are also used as the file extensions
+    // for the rootfs tarballs
+	Compression    string
 	lxc            *lxc.Container
 }
 
@@ -110,25 +113,34 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		if c.snapshotIsCached(c.Snapshot) == false {
 			c.ensureImageCached(c.Snapshot, clientLog)
 
+			template := "download"
+			if c.Compression != "xz" {
+				template = fmt.Sprintf("download-%s", c.Compression)
+			}
+
 			clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
-			clientLog.Writeln(fmt.Sprintf("      Arch:    %s", c.Arch))
-			clientLog.Writeln(fmt.Sprintf("      Distro:  %s", c.Dist))
-			clientLog.Writeln(fmt.Sprintf("      Release: %s", c.Release))
+			clientLog.Writeln(fmt.Sprintf("      Template: %s", template))
+			clientLog.Writeln(fmt.Sprintf("      Arch:     %s", c.Arch))
+			clientLog.Writeln(fmt.Sprintf("      Distro:   %s", c.Dist))
+			clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
 			clientLog.Writeln("    (grab a coffee, this could take a while)")
 
 			start := time.Now().Unix()
 
 			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 			defer lxc.Release(base)
-
 			log.Print("[lxc] Creating base container")
+			// We can't use Arch/Dist/Release/Variant for anything except
+			// for the "download" template, so we specify them manually
 			err = base.Create(lxc.TemplateOptions{
-				Template:   "download",
-				Arch:       c.Arch,
-				Distro:     c.Dist,
-				Release:    c.Release,
-				Variant:    c.Snapshot,
-				ForceCache: true,
+				Template: template,
+				ExtraArgs: []string{
+					"--arch", c.Arch,
+					"--dist", c.Dist,
+					"--release", c.Release,
+					"--variant", c.Snapshot,
+					"--force-cache",
+				},
 			})
 			stop := time.Now().Unix()
 			if err != nil {
@@ -392,7 +404,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
 
 	// list of files required to avoid network hit
-	fileList := []string{"rootfs.tar.xz", "config", "snapshot_id"}
+	fileList := []string{fmt.Sprintf("rootfs.tar.%s", c.Compression), "config", "snapshot_id"}
 
 	var missingFiles bool = false
 	for n := range fileList {
@@ -492,18 +504,23 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 }
 
 func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log) error {
-	rootFsTxz := path.Join(snapshotPath, "rootfs.tar.xz")
+	rootFsTxz := path.Join(snapshotPath, fmt.Sprintf("rootfs.tar.%s", c.Compression))
 
-	clientLog.Writeln("==> Creating rootfs.tar.xz")
+	clientLog.Writeln(fmt.Sprintf("==> Creating rootfs.tar.%s", c.Compression))
 
-	cw := client.NewCmdWrapper([]string{"tar", "-Jcf", rootFsTxz, "-C", c.RootFs(), "."}, "", []string{})
+	var cw *client.CmdWrapper
+	if c.Compression == "xz" {
+		cw = client.NewCmdWrapper([]string{"tar", "-Jcf", rootFsTxz, "-C", c.RootFs(), "."}, "", []string{})
+	} else {
+		cw = client.NewCmdWrapper([]string{"tar", "-cf", rootFsTxz, "-I", "lz4", "-C", c.RootFs(), "."}, "", []string{})
+	}
 	result, err := cw.Run(false, clientLog)
 
 	if err != nil {
 		return err
 	}
 	if !result.Success {
-		return errors.New("Failed creating rootfs.tar.xz")
+		return errors.New(fmt.Sprintf("Failed creating rootfs.tar.%s", c.Compression))
 	}
 
 	return nil
