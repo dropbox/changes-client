@@ -2,11 +2,11 @@ package jenkinsreporter
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"flag"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"io/ioutil"
 	"log"
 	"os/exec"
 	"path"
@@ -21,9 +21,13 @@ type Reporter struct {
 	debug               bool
 }
 
+// This structure is used purely for json marshalling. The fields have to
+// be public otherwise the json marshaller will ignore them, but this
+// results in their automatically generated fields using capital letters
+// so we set them back to lowercase manually.
 type SnapshotResponse struct {
-	Image	string `json:"image"`
-	Status	string `json:"status"`
+	Image  string `json:"image"`
+	Status string `json:"status"`
 }
 
 func (r *Reporter) Init(c *client.Config) {
@@ -38,6 +42,10 @@ func (r *Reporter) PushJobstepStatus(status string, result string) {
 func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 }
 
+// In order to actually update the snapshot image status, we simply produce
+// a json file and rely on Changes to recognize this as a "critical artifact"
+// and change the status for us. Note that this artifact is produced directly
+// in the artifact destination and as such is not affected by publish artifacts.
 func (r *Reporter) PushSnapshotImageStatus(imageID string, status string) {
 	log.Printf("[reporter] image-id = %s, status = %s", imageID, status)
 	response, err := json.Marshal(SnapshotResponse{Image: imageID, Status: status})
@@ -63,6 +71,12 @@ func (r *Reporter) PushLogChunk(source string, payload []byte) {
 func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {
 }
 
+// If we were running in an lxc container, the artifacts are already grouped
+// but they need to be removed from the container and placed in the actual
+// artifact destination. Because we pass through the Jenkins environment
+// variables to the commands inside of the container, we expect that they
+// be in the same location as we expect them to be, except nested within
+// the mounted filesystem.
 func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
 	if a.GetRootFs() == "/" {
 		log.Printf("[reporter] RootFs is /, no need to move artifacts")
@@ -88,6 +102,9 @@ func (r *Reporter) Shutdown() {
 }
 
 func init() {
+	// XXX figure out a reasonable default for this value or default to ""
+	// and sanity-check the reporter during Init. If this value is invalid
+	// we should trigger an infastracture failure.
 	flag.StringVar(&artifactDestination, "artifact-destination", "/dev/null", "Jenkins artifact destination")
 
 	reporter.Register("jenkins", &Reporter{})
