@@ -18,17 +18,53 @@ import (
 )
 
 var (
+	// The size of the payload queue. Once it reaches this size,
+	// all writes (and thus all of the exported functions from this
+	// module) will become blocking.
 	maxPendingReports = 64
+
+	// Maximum number of times we retry a payload until we give up
+	// and panic.
+	//
+	// XXX the panic occurs during the publish goroutine, which might
+	// not be well characterized for properly handling the error.
 	numPublishRetries = 8
-	backoffTimeMs     = 1000
+
+	// How long we wait before retrying a payload. We always wait
+	// this amount of time so the name here is a bit of a misnomer.
+	backoffTimeMs = 1000
 )
 
+// All data that goes to the server is encompassed in a payload.
 type ReportPayload struct {
-	path     string
+	path string
+	// A map of fields to their values. Note that the date field
+	// will be automatically set when the data is sent.
 	data     map[string]string
 	filename string
 }
 
+// A reporter that connects and reports to a specific jobstep id.
+// Each jobstep id has a number of endpoints associated with it that
+// allows the reporter to update the status of logs, snapshots, etc.
+//
+// With each reporter there is a goroutine associated with it that
+// listens to publishChannel and shutdownChannel, publishing all
+// data from publishChannel to the publishUri for the jobstepID
+// associated with the current build. Sending any information
+// to shutdownChannel causes the goroutine to stop.
+//
+// Notably this means that all of the methods in this module
+// are asynchronous and as a result there is a delay between
+// them successfully finishing and Changes actually acknowledging
+// them at the endpoint. More importantly, however, because the
+// requests are sent in a separate goroutine, the methods here may
+// succeed even when the endpoing requests fail.
+//
+// In debug mode, endpoint requests are still queued in the publish
+// channel but never sent by the publishing goroutine, which allows
+// the mesos reporter to run without actually connecting
+// to the changes server.
 type Reporter struct {
 	jobstepID       string
 	publishUri      string
@@ -37,6 +73,12 @@ type Reporter struct {
 	debug           bool
 }
 
+// Utility function for posting a request to a uri. The parameters
+// here, which more or less correspond to ReportPayload.data,
+// are serialized to form the request body. The body is encoded
+// as a MIME multipart (see RFC 2338).
+//
+// The file is also added a as field in the request body.
 func httpPost(uri string, params map[string]string, file string) (resp *http.Response, err error) {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
@@ -87,6 +129,11 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 	return resp, nil
 }
 
+// Utility method for sending a payload. This wraps httpPost in a framework
+// nicer for the Reporter itself, as it turns the ReportPayload into its
+// associated params (which corresponds to its data). We also attempt
+// httpPost multiple times in order to account for flakiness in the
+// network connection. This function is synchronous.
 func sendPayload(r *Reporter, rp ReportPayload) {
 	var (
 		resp   *http.Response
@@ -127,6 +174,8 @@ func sendPayload(r *Reporter, rp ReportPayload) {
 	}
 }
 
+// Continually listens to the publish channel and sends the payloads
+// if we aren't in debug mode.
 func transportSend(r *Reporter) {
 	for rp := range r.publishChannel {
 		// dont send reports when running in debug mode
@@ -147,6 +196,11 @@ func (r *Reporter) Init(c *client.Config) {
 	r.shutdownChannel = make(chan struct{})
 	r.debug = c.Debug
 
+	// Initialize the goroutine that actually sends the requests. We spawn
+	// this even when in debug mode to prevent the payloads from
+	// massively queueing. Since we by default use a queue with a maximum
+	// limit, once it reaches that limit writes will block causing the
+	// main goroutine to halt forever.
 	go transportSend(r)
 }
 
@@ -229,6 +283,8 @@ func (r *Reporter) pushArtifacts(artifacts []string) {
 	}
 }
 
+// Close the publish and shutdown channels, which causes the inner goroutines to
+// terminate, thus cleaning up what is created by Init.
 func (r *Reporter) Shutdown() {
 	close(r.publishChannel)
 	<-r.shutdownChannel
