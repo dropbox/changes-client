@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/client/reporter"
 	"io"
 	"log"
 	"mime/multipart"
@@ -15,6 +12,10 @@ import (
 	"path/filepath"
 	"strconv"
 	"time"
+
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/reporter"
 )
 
 var (

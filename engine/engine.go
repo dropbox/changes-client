@@ -3,18 +3,21 @@ package engine
 import (
 	"flag"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/client/reporter"
 	"log"
 	"os"
 	"os/signal"
 	"sync"
 
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/reporter"
+
 	_ "github.com/dropbox/changes-client/adapter/basic"
 	_ "github.com/dropbox/changes-client/adapter/lxc"
+	_ "github.com/dropbox/changes-client/reporter/artifactstore"
 	_ "github.com/dropbox/changes-client/reporter/jenkins"
 	_ "github.com/dropbox/changes-client/reporter/mesos"
+	_ "github.com/dropbox/changes-client/reporter/multireporter"
 )
 
 const (
@@ -261,6 +264,6 @@ func reportLogChunks(name string, clientLog *client.Log, r reporter.Reporter) {
 
 func init() {
 	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
-	flag.StringVar(&selectedReporter, "reporter", "mesos", "Reporter to send results to")
+	flag.StringVar(&selectedReporter, "reporter", "multireporter", "Reporter to send results to")
 	flag.StringVar(&outputSnapshot, "save-snapshot", "", "Save the resulting container snapshot")
 }

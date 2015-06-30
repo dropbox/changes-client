@@ -8,16 +8,13 @@ import (
 	"os"
 
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/common/sentry"
+	"github.com/dropbox/changes-client/common/version"
 	"github.com/dropbox/changes-client/engine"
 	"github.com/getsentry/raven-go"
 )
 
-const (
-	Version = "0.0.8"
-)
-
 var (
-	sentryDsn  = ""
 	exitResult = false
 )
 
@@ -26,18 +23,11 @@ func main() {
 	flag.Parse()
 
 	if *showVersion {
-		fmt.Println(Version)
+		fmt.Println(version.Version)
 		return
 	}
 
-	if sentryDsn != "" {
-		sentryClient, err := raven.NewClient(sentryDsn, map[string]string{
-			"version": Version,
-		})
-		if err != nil {
-			log.Fatal(err)
-		}
-
+	if sentryClient := sentry.GetClient(); sentryClient != nil {
 		defer func() {
 			var packet *raven.Packet
 			p := recover()
@@ -82,6 +72,5 @@ func run() {
 }
 
 func init() {
-	flag.StringVar(&sentryDsn, "sentry-dsn", "", "Sentry DSN for reporting errors")
 	flag.BoolVar(&exitResult, "exit-result", false, "Determine exit code from result")
 }
