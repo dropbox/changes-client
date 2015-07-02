@@ -190,6 +190,6 @@ func init() {
 	reporter.Register("artifactstore", &Reporter{chunkedArtifacts: make(map[string]*artifacts.ChunkedArtifact)})
 	// TODO(anupc): We're currently hard-coding the address of a deployed artifacts server. Change
 	// this to use a well known DNS address, or have Changes send this value in.
-	flag.StringVar(&artifactServer, "artifactServer", "https://artifacts.build.itc.dropbox.com", "Artifacts server URL. If blank, this reporter is disabled.")
-	flag.StringVar(&artifactBucketId, "artifactBucketId", "", "Artifacts Bucket ID")
+	flag.StringVar(&artifactServer, "artifacts-server", "https://artifacts.build.itc.dropbox.com", "Artifacts server URL. If blank, this reporter is disabled.")
+	flag.StringVar(&artifactBucketId, "artifacts-bucket-id", "", "Artifacts Bucket ID (inside the main bucket; not a real s3 bucket; must not exist)")
 }
