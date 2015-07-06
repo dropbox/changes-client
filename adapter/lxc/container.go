@@ -33,10 +33,11 @@ type Container struct {
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
-    // Valid values: xz, lz4. These are also used as the file extensions
-    // for the rootfs tarballs
+	// Valid values: xz, lz4. These are also used as the file extensions
+	// for the rootfs tarballs
 	Compression    string
 	lxc            *lxc.Container
+	Executor       *Executor
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
@@ -54,6 +55,7 @@ func (c *Container) RootFs() string {
 	bits := strings.Split(c.lxc.ConfigItem("lxc.rootfs")[0], ":")
 	return bits[len(bits)-1]
 }
+
 
 func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	var currentTime int64
@@ -134,6 +136,8 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	} else {
 		lockName = c.Name
 	}
+
+	c.Executor.Clean()
 
 	// It's possible for multiple clients to compete w/ downloading and then
 	// defining the container so on the first failure we simply try again
@@ -232,6 +236,8 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 
 	c.lxc, err = lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
 	c.lxc.SetVerbosity(lxc.Quiet)
+
+	c.Executor.Register(c.Name)
 
 	if c.PreLaunch != "" {
 		log.Print("[lxc] Running pre-launch script")
@@ -346,7 +352,10 @@ func (c *Container) Stop() error {
 
 // Destroys the container. We ensure that this is called as long
 // as we don't have --keep-container as an option or we don't get
-// SIGKILLed.
+// SIGKILLed (which happens when Jenkins aborts builds, so we use
+// the executor mechanism to handle destroying containers instead
+// in that scenario - however, this is delayed until the start of
+// the next build)
 func (c *Container) Destroy() error {
 	// Destroy must operate idempotently
 	var err error
@@ -369,6 +378,7 @@ func (c *Container) Destroy() error {
 	if c.lxc.Defined() {
 		return errors.New("Container was not destroyed")
 	}
+	c.Executor.Deregister()
 	return nil
 }
 

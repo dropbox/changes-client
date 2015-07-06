@@ -24,6 +24,8 @@ var (
 	memory        int
 	cpus          int
 	compression   string
+	executorName  string
+	executorPath  string
 )
 
 type Adapter struct {
@@ -50,20 +52,25 @@ func (a *Adapter) Init(config *client.Config) error {
 		compression = "xz"
 		log.Printf("[lxc] Warning: invalid compression %s, defaulting to lzma", compression)
 	}
+	executor := &Executor{
+		Name:		executorName,
+		Directory:	executorPath,
+	}
 
 	container := &Container{
-		Name:       config.JobstepID,
-		Arch:       arch,
-		Dist:       dist,
-		Release:    release,
-		PreLaunch:  preLaunch,
-		PostLaunch: postLaunch,
-		Snapshot:   snapshot,
+		Name:        config.JobstepID,
+		Arch:        arch,
+		Dist:        dist,
+		Release:     release,
+		PreLaunch:   preLaunch,
+		PostLaunch:  postLaunch,
+		Snapshot:    snapshot,
 		// TODO(dcramer):  Move S3 logic into core engine
 		S3Bucket:    s3Bucket,
 		MemoryLimit: memory,
 		CpuLimit:    cpus,
 		Compression: compression,
+		Executor:    executor,
 	}
 
 	a.config = config
@@ -101,6 +108,7 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
 	if keepContainer {
+		a.container.Executor.Deregister()
 		return nil
 	}
 	return a.container.Destroy()
@@ -142,6 +150,20 @@ func init() {
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
 	flag.StringVar(&compression, "compression", "xz", "compression algorithm (xz,lz4)")
+
+	// the executor should have the following properties:
+	//  - the maximum distinct values passed to executor is equal to the maximum
+	//    number of concurrently running jobs.
+	//  - no two changes-client processes should be called with the same
+	//    executor name
+	//  - if any process is calling changes-client with executor specified, then
+	//    all clients should use a specified executor
+	//
+	// if not all of these features can be met, then executor should not be specified
+	// but parallel builds may not work correctly.
+	//
+	flag.StringVar(&executorName, "executor", "", "Executor (unique runner id)")
+	flag.StringVar(&executorPath, "executor-path", "/var/lib/changes-client/executors", "Path to store executors")
 	flag.IntVar(&memory, "memory", 0, "Memory limit")
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
