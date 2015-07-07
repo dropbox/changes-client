@@ -175,17 +175,32 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 			defer lxc.Release(base)
 			log.Print("[lxc] Creating base container")
 			// We can't use Arch/Dist/Release/Variant for anything except
-			// for the "download" template, so we specify them manually
-			err = base.Create(lxc.TemplateOptions{
-				Template: template,
-				ExtraArgs: []string{
-					"--arch", c.Arch,
-					"--dist", c.Dist,
-					"--release", c.Release,
-					"--variant", c.Snapshot,
-					"--force-cache",
-				},
-			})
+			// for the "download" template, so we specify them manually. However,
+			// we can't use extraargs to specify arch/dist/release because the
+			// lxc go bindings are lame. (Arch/Distro/Release are all required
+			// to be passed, but for consistency we just pass all of them in the
+			// case that we are using the download template)
+			if template == "download" {
+				err = base.Create(lxc.TemplateOptions{
+					Template: "download",
+					Arch: c.Arch,
+					Distro: c.Dist,
+					Release: c.Release,
+					Variant: c.Snapshot,
+					ForceCache: true,
+				})
+			} else {
+				err = base.Create(lxc.TemplateOptions{
+					Template: template,
+					ExtraArgs: []string{
+						"--arch", c.Arch,
+						"--dist", c.Dist,
+						"--release", c.Release,
+						"--variant", c.Snapshot,
+						"--force-cache",
+					},
+				})
+			}
 			stop := time.Now().Unix()
 			if err != nil {
 				return err
