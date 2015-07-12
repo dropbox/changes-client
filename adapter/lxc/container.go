@@ -129,29 +129,22 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 func (c *Container) launchContainer(clientLog *client.Log) error {
 	var err error
 	var base *lxc.Container
-	var lockName string
-
-	if c.Snapshot != "" {
-		lockName = c.Snapshot
-	} else {
-		lockName = c.Name
-	}
 
 	c.Executor.Clean()
 
-	// It's possible for multiple clients to compete w/ downloading and then
-	// defining the container so on the first failure we simply try again
-	clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", lockName))
-	lock, err := c.acquireLock(lockName)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", lockName))
-		lock.Unlock()
-	}()
-
 	if c.Snapshot != "" {
+		// It's possible for multiple clients to compete w/ downloading and then
+		// defining the container so on the first failure we simply try again
+		clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
+		lock, err := c.acquireLock(c.Name)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", c.Snapshot))
+			lock.Unlock()
+		}()
+
 		log.Print("[lxc] Checking for cached snapshot")
 
 		if c.snapshotIsCached(c.Snapshot) == false {
@@ -220,6 +213,9 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 			clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
 		}
 
+		clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
+		c.removeCachedImage()
+
 		clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
 		err = base.Clone(c.Name, lxc.CloneOptions{
 			KeepName: true,
@@ -247,6 +243,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		if err != nil {
 			return err
 		}
+		clientLog.Writeln(fmt.Sprintf("==> Created container: %s", c.Name))
 	}
 
 	c.lxc, err = lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
@@ -473,6 +470,16 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 		}
 	}
 	return false
+}
+
+// Remove the /var/cache/lxc directory for a snapshot in order to
+// save disk space as snapshots can be rather large and once
+// the base container is live we have no need to store the old
+// tarball.
+func (c *Container) removeCachedImage() error {
+	// Note that this won't fail if the cache doesn't exist, which
+	// is the desireed behavior
+	return os.RemoveAll(fmt.Sprintf("/var/cache/lxc/download/%", c.getImagePath(c.Snapshot)))
 }
 
 // To avoid complexity of having a sort-of public host, and to ensure we
