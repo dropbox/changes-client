@@ -479,7 +479,7 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 func (c *Container) removeCachedImage() error {
 	// Note that this won't fail if the cache doesn't exist, which
 	// is the desireed behavior
-	return os.RemoveAll(fmt.Sprintf("/var/cache/lxc/download/%", c.getImagePath(c.Snapshot)))
+	return os.RemoveAll(fmt.Sprintf("/var/cache/lxc/download/%s", c.getImagePath(c.Snapshot)))
 }
 
 // To avoid complexity of having a sort-of public host, and to ensure we
