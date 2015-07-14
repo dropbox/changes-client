@@ -1,14 +1,16 @@
 package jenkinsreporter
 
 import (
-	"io/ioutil"
 	"encoding/json"
-	"testing"
+	"io/ioutil"
 	"os"
+	"testing"
 )
 
 func TestSnapshotImageArtifact(t *testing.T) {
-	os.MkdirAll("./jenkins-reporter-tmp/artifacts", os.ModeDir)
+	if e := os.MkdirAll("./jenkins-reporter-tmp/artifacts", os.ModeDir|0777); e != nil {
+		t.Fatal(e)
+	}
 	defer os.RemoveAll("./jenkins-reporter-tmp")
 	r := Reporter{}
 	r.artifactDestination = "./jenkins-reporter-tmp/artifacts"
@@ -26,7 +28,7 @@ func TestSnapshotImageArtifact(t *testing.T) {
 	}
 	m := j.(map[string]interface{})
 
-	if (m["image"] != "testimage" || m["status"] != "active") {
+	if m["image"] != "testimage" || m["status"] != "active" {
 		t.Fatal("incorrect json created")
 	}
 }

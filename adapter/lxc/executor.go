@@ -1,3 +1,5 @@
+// +build linux lxc
+
 // Executor system, which assigns each container to a specific
 // "executor" which is essentially a single thread that runs jobs
 // on the host. We kill any container which was associated with
