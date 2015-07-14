@@ -6,7 +6,6 @@ GO_VERSION=1.3
 
 sudo apt-get install -y python-software-properties software-properties-common
 sudo add-apt-repository -y ppa:awstools-dev/awstools
-sudo apt-add-repository -y ppa:ubuntu-lxc/stable
 
 sudo apt-get update -y
 
