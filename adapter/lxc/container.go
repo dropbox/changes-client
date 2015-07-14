@@ -136,7 +136,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		// It's possible for multiple clients to compete w/ downloading and then
 		// defining the container so on the first failure we simply try again
 		clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
-		lock, err := c.acquireLock(c.Name)
+		lock, err := c.acquireLock(c.Snapshot)
 		if err != nil {
 			return err
 		}
@@ -266,6 +266,9 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	// TODO(dcramer): lxc package doesnt support append, however SetConfigItem seems to append
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
 	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
+
+	// Allow creating inner cgroups for user-lxc
+	c.lxc.SetConfigItem("lxc.mount.auto", "cgroup-full:mixed proc:mixed sys:mixed")
 
 	c.lxc.SetConfigItem("lxc.utsname", fmt.Sprintf("%s-build", c.Name))
 
