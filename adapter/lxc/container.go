@@ -136,7 +136,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		// It's possible for multiple clients to compete w/ downloading and then
 		// defining the container so on the first failure we simply try again
 		clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
-		lock, err := c.acquireLock(c.Name)
+		lock, err := c.acquireLock(c.Snapshot)
 		if err != nil {
 			return err
 		}
