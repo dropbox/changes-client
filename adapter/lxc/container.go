@@ -670,6 +670,16 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	return nil
 }
 
+// Should we keep the container around?
+//
+// Currently we decide to keep the container only if the file
+// /home/ubuntu/KEEP-CONTAINER exists within the container.
+func (c *Container) ShouldKeep() bool {
+	fullPath := path.Join(c.RootFs(), "/home/ubuntu/KEEP-CONTAINER")
+	_, err := os.Stat(fullPath)
+	return err == nil
+}
+
 // Runs the prelaunch script which is essentially responsible for setting up
 // the environment for the post-launch script. It runs within the host
 // environment with the container mounted at LXC_ROOTFS. Runs as the user

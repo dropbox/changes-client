@@ -107,8 +107,24 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
-	if keepContainer {
+	if keepContainer || a.container.ShouldKeep() {
 		a.container.Executor.Deregister()
+
+		// Create a "named executor" which will never get cleaned
+		// up by changes-client but allows the outside environment
+		// to recognize that this container is still associated
+		// with changes-client.
+		//
+		// This executor has the same name as the container rather
+		// than the executor identifier provided by command-line
+		// flags. The container name is generally unique as it
+		// corresponds to a jobstep, unlike the executor identifier
+		// which is defined to not be unique.
+		executor := Executor{
+			Name: a.container.Name,
+			Directory: a.container.Executor.Directory,
+		}
+		executor.Register(a.container.Name)
 		return nil
 	}
 	return a.container.Destroy()
