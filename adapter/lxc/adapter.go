@@ -26,7 +26,6 @@ var (
 	compression   string
 	executorName  string
 	executorPath  string
-	bindMounts	  string
 )
 
 type Adapter struct {
@@ -58,16 +57,6 @@ func (a *Adapter) Init(config *client.Config) error {
 		Directory:	executorPath,
 	}
 
-	mountStrings := strings.Split(bindMounts, ",")
-	mounts := make([]*BindMount, len(mountStrings))
-	for ind, ms := range mountStrings {
-		var err error
-		mounts[ind], err = ParseBindMount(ms)
-		if err != nil {
-			return err
-		}
-	}
-
 	container := &Container{
 		Name:        config.JobstepID,
 		Arch:        arch,
@@ -82,7 +71,6 @@ func (a *Adapter) Init(config *client.Config) error {
 		CpuLimit:    cpus,
 		Compression: compression,
 		Executor:    executor,
-		BindMounts:  mounts,
 	}
 
 	a.config = config
@@ -178,7 +166,6 @@ func init() {
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
 	flag.StringVar(&compression, "compression", "xz", "compression algorithm (xz,lz4)")
-	flag.StringVar(&bindMounts, "bind-mounts", "", "bind mounts. <source>:<dest>:<options>. comma separated.")
 
 	// the executor should have the following properties:
 	//  - the maximum distinct values passed to executor is equal to the maximum
