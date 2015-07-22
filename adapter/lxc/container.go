@@ -33,11 +33,34 @@ type Container struct {
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
+	BindMounts	   []*BindMount
 	// Valid values: xz, lz4. These are also used as the file extensions
 	// for the rootfs tarballs
 	Compression    string
 	lxc            *lxc.Container
 	Executor       *Executor
+}
+
+type BindMount struct {
+	Source		string  // include trailing slash
+	Dest		string  // no trailing slash
+	Options		string  // comma separated, fstab style
+}
+
+func ParseBindMount(str string) (*BindMount, error) {
+	split := strings.SplitN(str, ":", 3)
+	if len(split) != 3 {
+		return nil, fmt.Errorf("Invalid bind mount: %s", str)
+	}
+	return &BindMount {
+		Source: split[0],
+		Dest: split[1],
+		Options: split[2],
+	}, nil
+}
+
+func (b *BindMount) Format() string {
+	return fmt.Sprintf("%s %s none bind,%s", b.Source, b.Dest, b.Options)
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
@@ -286,6 +309,10 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	c.lxc.SetConfigItem("lxc.autodev", "1")
 	c.lxc.SetConfigItem("lxc.pts", "1024")
 	c.lxc.SetConfigItem("lxc.kmsg", "0")
+
+	for _, mount := range c.BindMounts {
+		c.lxc.SetConfigItem("lxc.mount.entry", mount.Format())
+	}
 
 	clientLog.Writeln("==> Waiting for container to be ready")
 
