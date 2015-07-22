@@ -348,22 +348,27 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		return err
 	}
 
-	log.Print("[lxc] Installing ca-certificates")
-	cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
-	_, err = cw.Run(false, clientLog, c.lxc)
-	if err != nil {
-		return err
-	}
-	cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
-	_, err = cw.Run(false, clientLog, c.lxc)
-	if err != nil {
-		return err
-	}
+	// If we aren't using a snapshot then we need to install these,
+	// but the apt-get update is expensive so we don't do this
+	// if we come from a snapshot.
+	if c.Snapshot == "" {
+		log.Print("[lxc] Installing ca-certificates")
+		cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
+		_, err = cw.Run(false, clientLog, c.lxc)
+		if err != nil {
+			return err
+		}
+		cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
+		_, err = cw.Run(false, clientLog, c.lxc)
+		if err != nil {
+			return err
+		}
 
-	log.Print("[lxc] Setting up sudoers")
-	err = c.setupSudoers()
-	if err != nil {
-		return err
+		log.Print("[lxc] Setting up sudoers")
+		err = c.setupSudoers()
+		if err != nil {
+			return err
+		}
 	}
 
 	if c.PostLaunch != "" {
