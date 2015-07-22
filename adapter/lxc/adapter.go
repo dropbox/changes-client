@@ -58,13 +58,17 @@ func (a *Adapter) Init(config *client.Config) error {
 		Directory:	executorPath,
 	}
 
-	mountStrings := strings.Split(bindMounts, ",")
-	mounts := make([]*BindMount, len(mountStrings))
-	for ind, ms := range mountStrings {
-		var err error
-		mounts[ind], err = ParseBindMount(ms)
-		if err != nil {
-			return err
+	var mounts []*BindMount
+	mounts = nil
+	if bindMounts != "" {
+		mountStrings := strings.Split(bindMounts, ",")
+		mounts = make([]*BindMount, len(mountStrings))
+		for ind, ms := range mountStrings {
+			var err error
+			mounts[ind], err = ParseBindMount(ms)
+			if err != nil {
+				return err
+			}
 		}
 	}
 

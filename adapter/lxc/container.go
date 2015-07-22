@@ -310,8 +310,10 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	c.lxc.SetConfigItem("lxc.pts", "1024")
 	c.lxc.SetConfigItem("lxc.kmsg", "0")
 
-	for _, mount := range c.BindMounts {
-		c.lxc.SetConfigItem("lxc.mount.entry", mount.Format())
+	if c.BindMounts != nil {
+		for _, mount := range c.BindMounts {
+			c.lxc.SetConfigItem("lxc.mount.entry", mount.Format())
+		}
 	}
 
 	clientLog.Writeln("==> Waiting for container to be ready")
