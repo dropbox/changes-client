@@ -109,6 +109,106 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	}
 }
 
+func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
+	var base *lxc.Container
+
+	clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
+	lock, err := c.acquireLock(c.Snapshot)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", c.Snapshot))
+		lock.Unlock()
+	}()
+
+	log.Print("[lxc] Checking for cached snapshot")
+
+	if c.snapshotIsCached(c.Snapshot) == false {
+		c.ensureImageCached(c.Snapshot, clientLog)
+
+		template := "download"
+		if c.Compression != "xz" {
+			template = fmt.Sprintf("download-%s", c.Compression)
+		}
+
+		clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
+		clientLog.Writeln(fmt.Sprintf("      Template: %s", template))
+		clientLog.Writeln(fmt.Sprintf("      Arch:     %s", c.Arch))
+		clientLog.Writeln(fmt.Sprintf("      Distro:   %s", c.Dist))
+		clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
+		clientLog.Writeln("    (grab a coffee, this could take a while)")
+
+		start := time.Now().Unix()
+
+		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
+		defer lxc.Release(base)
+		log.Print("[lxc] Creating base container")
+		// We can't use Arch/Dist/Release/Variant for anything except
+		// for the "download" template, so we specify them manually. However,
+		// we can't use extraargs to specify arch/dist/release because the
+		// lxc go bindings are lame. (Arch/Distro/Release are all required
+		// to be passed, but for consistency we just pass all of them in the
+		// case that we are using the download template)
+		if template == "download" {
+			err = base.Create(lxc.TemplateOptions{
+				Template: "download",
+				Arch: c.Arch,
+				Distro: c.Dist,
+				Release: c.Release,
+				Variant: c.Snapshot,
+				ForceCache: true,
+			})
+		} else {
+			err = base.Create(lxc.TemplateOptions{
+				Template: template,
+				ExtraArgs: []string{
+					"--arch", c.Arch,
+					"--dist", c.Dist,
+					"--release", c.Release,
+					"--variant", c.Snapshot,
+					"--force-cache",
+				},
+			})
+		}
+		stop := time.Now().Unix()
+		if err != nil {
+			return err
+		}
+		clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
+	} else {
+		clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
+		log.Print("[lxc] Creating base container")
+
+		start := time.Now().Unix()
+		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
+		stop := time.Now().Unix()
+		if err != nil {
+			return err
+		}
+		defer lxc.Release(base)
+		clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
+	}
+
+	clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
+	c.removeCachedImage()
+
+	// XXX There must be some odd race condition here as doing `return base.Clone` causes
+	// go-lxc to die with a nil-pointer but assigning it to a variable and then returning
+	// the variable doesn't. If in the future we see the error again adding a sleep
+	// for 0.1 seconds may resolve it (going on the assumption that this part is race-y)
+	clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
+	err = base.Clone(c.Name, lxc.CloneOptions{
+		KeepName: true,
+		Snapshot: true,
+		Backend:  lxc.Overlayfs,
+	})
+	if err == nil {
+		clientLog.Writeln(fmt.Sprintf("==> Created overlay container:% s", c.Name))
+	}
+	return err
+}
+
 // In this phase we actually launch the container that the tests
 // will be run in.
 //
@@ -151,100 +251,11 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 // basic configurations as well as run the pre-launch script.
 func (c *Container) launchContainer(clientLog *client.Log) error {
 	var err error
-	var base *lxc.Container
 
 	c.Executor.Clean()
 
 	if c.Snapshot != "" {
-		// It's possible for multiple clients to compete w/ downloading and then
-		// defining the container so on the first failure we simply try again
-		clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
-		lock, err := c.acquireLock(c.Snapshot)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", c.Snapshot))
-			lock.Unlock()
-		}()
-
-		log.Print("[lxc] Checking for cached snapshot")
-
-		if c.snapshotIsCached(c.Snapshot) == false {
-			c.ensureImageCached(c.Snapshot, clientLog)
-
-			template := "download"
-			if c.Compression != "xz" {
-				template = fmt.Sprintf("download-%s", c.Compression)
-			}
-
-			clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
-			clientLog.Writeln(fmt.Sprintf("      Template: %s", template))
-			clientLog.Writeln(fmt.Sprintf("      Arch:     %s", c.Arch))
-			clientLog.Writeln(fmt.Sprintf("      Distro:   %s", c.Dist))
-			clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
-			clientLog.Writeln("    (grab a coffee, this could take a while)")
-
-			start := time.Now().Unix()
-
-			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
-			defer lxc.Release(base)
-			log.Print("[lxc] Creating base container")
-			// We can't use Arch/Dist/Release/Variant for anything except
-			// for the "download" template, so we specify them manually. However,
-			// we can't use extraargs to specify arch/dist/release because the
-			// lxc go bindings are lame. (Arch/Distro/Release are all required
-			// to be passed, but for consistency we just pass all of them in the
-			// case that we are using the download template)
-			if template == "download" {
-				err = base.Create(lxc.TemplateOptions{
-					Template: "download",
-					Arch: c.Arch,
-					Distro: c.Dist,
-					Release: c.Release,
-					Variant: c.Snapshot,
-					ForceCache: true,
-				})
-			} else {
-				err = base.Create(lxc.TemplateOptions{
-					Template: template,
-					ExtraArgs: []string{
-						"--arch", c.Arch,
-						"--dist", c.Dist,
-						"--release", c.Release,
-						"--variant", c.Snapshot,
-						"--force-cache",
-					},
-				})
-			}
-			stop := time.Now().Unix()
-			if err != nil {
-				return err
-			}
-			clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
-		} else {
-			clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
-			log.Print("[lxc] Creating base container")
-
-			start := time.Now().Unix()
-			base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
-			stop := time.Now().Unix()
-			if err != nil {
-				return err
-			}
-			defer lxc.Release(base)
-			clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
-		}
-
-		clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
-		c.removeCachedImage()
-
-		clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
-		err = base.Clone(c.Name, lxc.CloneOptions{
-			KeepName: true,
-			Snapshot: true,
-			Backend:  lxc.Overlayfs,
-		})
+		err := c.launchOverlayContainer(clientLog)
 		if err != nil {
 			return err
 		}
