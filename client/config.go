@@ -5,8 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"strings"
+	"time"
 )
 
 var (
@@ -54,7 +56,18 @@ type Config struct {
 	Cmds []ConfigCmd `json:"commands"`
 }
 
-func fetchConfig(url string) (*Config, error) {
+// Duration is in nanoseconds and is multiplied by 2 on each retry
+//
+// We need to retry because there is a race condition in interactions
+// with Changes where the jenkins job is created before the jobstep
+// in Changes. This probably only occurs when there is a long running
+// transaction. We don't want to delay too much, so we start with a small
+// delay in case the jenkins job just got started very quickly, but then we delay
+// longer between each retry in case we have to wait for some long transaction
+// to occur.
+//
+// NOTE: Due to the nature of this race condition we only retry on 404s.
+func fetchConfig(url string, retries int, retryDelay time.Duration) (*Config, error) {
 	resp, err := http.Get(url)
 	if err != nil {
 		return nil, err
@@ -62,8 +75,16 @@ func fetchConfig(url string) (*Config, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != 200 {
-		err := fmt.Errorf("Request to fetch config failed with status code: %d", resp.StatusCode)
-		return nil, err
+		// The race condition ends up giving us a 404. If we got anything else, its
+		// a real error and we shouldn't bother retrying.
+		if retries == 0 || resp.StatusCode != 404 {
+			err := fmt.Errorf("Request to fetch config failed with status code: %d", resp.StatusCode)
+			return nil, err
+		} else {
+			log.Printf("Failed to fetch configuration (404). Retries left: %d", retries)
+			time.Sleep(retryDelay)
+			return fetchConfig(url, retries - 1, retryDelay * 2)
+		}
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -98,7 +119,7 @@ func GetConfig() (*Config, error) {
 	server = strings.TrimRight(server, "/")
 
 	url := server + "/jobsteps/" + jobstepID + "/"
-	conf, err := fetchConfig(url)
+	conf, err := fetchConfig(url, 8, 250 * time.Millisecond)
 	if err != nil {
 		return nil, err
 	}
