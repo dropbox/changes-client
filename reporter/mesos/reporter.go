@@ -162,8 +162,19 @@ func sendPayload(r *Reporter, rp ReportPayload) {
 			break
 		}
 
+		var errmsg string
+		if err != nil {
+			errmsg = err.Error()
+		} else {
+			// If there wasn't an IO error, use the response body as the error message.
+			var bodyData bytes.Buffer
+			if _, e := bodyData.ReadFrom(resp.Body); e != nil {
+				log.Printf("[reporter] Error reading POST %s response body: %s", path, e)
+			}
+			errmsg = bodyData.String()
+		}
 		log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
-			path, tryCnt, status, err)
+			path, tryCnt, status, errmsg)
 
 		/* We are unable to publish to the endpoint.
 		 * Fail fast and let the above layers handle the outage */
