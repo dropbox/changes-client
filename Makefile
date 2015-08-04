@@ -1,7 +1,9 @@
 
 BIN=${GOPATH}/bin/changes-client
 
-REV=`git rev-list HEAD --count`
+# Revision shows date of latest commit and abbreviated commit SHA
+# E.g., 1438708515-753e183
+REV=`git show -s --format=%ct-%h HEAD`
 
 all:
 	@echo "Compiling changes-client"
