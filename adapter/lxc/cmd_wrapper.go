@@ -10,7 +10,7 @@ import (
 	"io"
 	"log"
 	"os"
-	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -66,7 +66,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	// we want to ensure that our path is always treated as relative to our
 	// home directory
-	cwd := path.Join(homeDir, cw.Cwd)
+	cwd := filepath.Join(homeDir, cw.Cwd)
 
 	env := []string{
 		fmt.Sprintf("USER=%s", cw.User),
@@ -155,6 +155,6 @@ func getHomeDir(user string) string {
 	if user == "root" {
 		return "/root"
 	} else {
-		return fmt.Sprintf("/home/%s", user)
+		return filepath.Join("/home", user)
 	}
 }

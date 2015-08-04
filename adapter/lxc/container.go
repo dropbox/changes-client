@@ -5,14 +5,14 @@ package lxcadapter
 import (
 	"crypto/rand"
 	"errors"
-	"os/exec"
 	"fmt"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common/lockfile"
 	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"os"
-	"path"
+	"os/exec"
+	"path/filepath"
 	"strings"
 	"time"
 )
@@ -33,18 +33,18 @@ type Container struct {
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
-	BindMounts	   []*BindMount
+	BindMounts     []*BindMount
 	// Valid values: xz, lz4. These are also used as the file extensions
 	// for the rootfs tarballs
-	Compression    string
-	lxc            *lxc.Container
-	Executor       *Executor
+	Compression string
+	lxc         *lxc.Container
+	Executor    *Executor
 }
 
 type BindMount struct {
-	Source		string  // include trailing slash
-	Dest		string  // no trailing slash
-	Options		string  // comma separated, fstab style
+	Source  string // include trailing slash
+	Dest    string // no trailing slash
+	Options string // comma separated, fstab style
 }
 
 func ParseBindMount(str string) (*BindMount, error) {
@@ -52,9 +52,9 @@ func ParseBindMount(str string) (*BindMount, error) {
 	if len(split) != 3 {
 		return nil, fmt.Errorf("Invalid bind mount: %s", str)
 	}
-	return &BindMount {
-		Source: split[0],
-		Dest: split[1],
+	return &BindMount{
+		Source:  split[0],
+		Dest:    split[1],
 		Options: split[2],
 	}, nil
 }
@@ -64,7 +64,7 @@ func (b *BindMount) Format() string {
 }
 
 func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	rootedDstFile := path.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
+	rootedDstFile := filepath.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
 	log.Printf("[lxc] Uploading: %s", rootedDstFile)
 
 	// link isn't flexible enough if /var is not on the same
@@ -78,7 +78,6 @@ func (c *Container) RootFs() string {
 	bits := strings.Split(c.lxc.ConfigItem("lxc.rootfs")[0], ":")
 	return bits[len(bits)-1]
 }
-
 
 func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	var currentTime int64
@@ -152,11 +151,11 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		// case that we are using the download template)
 		if template == "download" {
 			err = base.Create(lxc.TemplateOptions{
-				Template: "download",
-				Arch: c.Arch,
-				Distro: c.Dist,
-				Release: c.Release,
-				Variant: c.Snapshot,
+				Template:   "download",
+				Arch:       c.Arch,
+				Distro:     c.Dist,
+				Release:    c.Release,
+				Variant:    c.Snapshot,
 				ForceCache: true,
 			})
 		} else {
@@ -443,7 +442,7 @@ func (c *Container) Destroy() error {
 // to root. In order to get around this, we just give all users
 // in the container access to root as this is no less dangerous.
 func (c *Container) setupSudoers() error {
-	sudoersPath := path.Join(c.RootFs(), "etc", "sudoers")
+	sudoersPath := filepath.Join(c.RootFs(), "etc", "sudoers")
 	f, err := os.Create(sudoersPath)
 	if err != nil {
 		return err
@@ -503,7 +502,7 @@ func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client
 
 // Gets the image path associated with a specific snapshot.
 func (c *Container) getImagePath(snapshot string) string {
-	return fmt.Sprintf("ubuntu/%s/amd64/%s", c.Release, snapshot)
+	return filepath.Join("ubuntu", c.Release, "amd64", snapshot)
 }
 
 // Checks to see if an existing snapshot is cached. This does not
@@ -524,7 +523,7 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 func (c *Container) removeCachedImage() error {
 	// Note that this won't fail if the cache doesn't exist, which
 	// is the desireed behavior
-	return os.RemoveAll(fmt.Sprintf("/var/cache/lxc/download/%s", c.getImagePath(c.Snapshot)))
+	return os.RemoveAll(filepath.Join("/var/cache/lxc/download", c.getImagePath(c.Snapshot)))
 }
 
 // To avoid complexity of having a sort-of public host, and to ensure we
@@ -537,14 +536,14 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	var err error
 
 	relPath := c.getImagePath(snapshot)
-	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
+	localPath := filepath.Join("/var/cache/lxc/download", relPath)
 
 	// list of files required to avoid network hit
 	fileList := []string{fmt.Sprintf("rootfs.tar.%s", c.Compression), "config", "snapshot_id"}
 
 	var missingFiles bool = false
 	for n := range fileList {
-		if _, err = os.Stat(path.Join(localPath, fileList[n])); os.IsNotExist(err) {
+		if _, err = os.Stat(filepath.Join(localPath, fileList[n])); os.IsNotExist(err) {
 			missingFiles = true
 			break
 		}
@@ -600,7 +599,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 		return err
 	}
 
-	dest := fmt.Sprintf("/var/cache/lxc/download/%s", c.getImagePath(snapshot))
+	dest := filepath.Join("/var/cache/lxc/download", c.getImagePath(snapshot))
 	clientLog.Writeln(fmt.Sprintf("==> Saving snapshot to %s", dest))
 	start := time.Now().Unix()
 
@@ -628,7 +627,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 }
 
 func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.Log) error {
-	metadataPath := path.Join(snapshotPath, "config")
+	metadataPath := filepath.Join(snapshotPath, "config")
 	f, err := os.Create(metadataPath)
 	if err != nil {
 		return err
@@ -648,7 +647,7 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 // Compresses the root of the filesystem into the desired compressed tarball.
 // The compression here can vary based on flags.
 func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log) error {
-	rootFsTxz := path.Join(snapshotPath, fmt.Sprintf("rootfs.tar.%s", c.Compression))
+	rootFsTxz := filepath.Join(snapshotPath, fmt.Sprintf("rootfs.tar.%s", c.Compression))
 
 	clientLog.Writeln(fmt.Sprintf("==> Creating rootfs.tar.%s", c.Compression))
 
@@ -671,7 +670,7 @@ func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log
 }
 
 func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client.Log) error {
-	metadataPath := path.Join(snapshotPath, "snapshot_id")
+	metadataPath := filepath.Join(snapshotPath, "snapshot_id")
 	f, err := os.Create(metadataPath)
 	if err != nil {
 		return err
@@ -693,7 +692,7 @@ func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client
 // either xz for high compression or lz4 for raw speed.
 func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
-	localPath := fmt.Sprintf("/var/cache/lxc/download/%s", relPath)
+	localPath := filepath.Join("/var/cache/lxc/download", relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
@@ -720,7 +719,7 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 // Currently we decide to keep the container only if the file
 // /home/ubuntu/KEEP-CONTAINER exists within the container.
 func (c *Container) ShouldKeep() bool {
-	fullPath := path.Join(c.RootFs(), "/home/ubuntu/KEEP-CONTAINER")
+	fullPath := filepath.Join(c.RootFs(), "/home/ubuntu/KEEP-CONTAINER")
 	_, err := os.Stat(fullPath)
 	return err == nil
 }
