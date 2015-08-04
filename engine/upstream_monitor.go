@@ -99,7 +99,7 @@ func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatRespons
 
 	hr := &HeartbeatResponse{
 		Finished: r.Status.ID == STATUS_FINISHED,
-		Aborted:  r.Result.ID == RESULT_ABORTED,
+		Aborted:  r.Result.ID == RESULT_ABORTED.String(),
 	}
 
 	return hr, nil

@@ -25,13 +25,31 @@ const (
 	STATUS_IN_PROGRESS = "in_progress"
 	STATUS_FINISHED    = "finished"
 
-	RESULT_PASSED  = "passed"
-	RESULT_FAILED  = "failed"
-	RESULT_ABORTED = "aborted"
+	RESULT_PASSED  Result = "passed"
+	RESULT_FAILED  Result = "failed"
+	RESULT_ABORTED Result = "aborted"
+	// Test results unreliable or unavailable due to infrastructure
+	// issues.
+	RESULT_INFRA_FAILED Result = "infra_failed"
 
 	SNAPSHOT_ACTIVE = "active"
 	SNAPSHOT_FAILED = "failed"
 )
+
+type Result string
+
+func (r Result) String() string {
+	return string(r)
+}
+
+// Convenience method to check for all types of failure.
+func (r Result) IsFailure() bool {
+	switch r {
+	case RESULT_FAILED, RESULT_INFRA_FAILED:
+		return true
+	}
+	return false
+}
 
 var (
 	selectedAdapter  string
@@ -46,7 +64,7 @@ type Engine struct {
 	reporter  reporter.Reporter
 }
 
-func RunBuildPlan(config *client.Config) (string, error) {
+func RunBuildPlan(config *client.Config) (Result, error) {
 	var err error
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
@@ -72,7 +90,7 @@ func RunBuildPlan(config *client.Config) (string, error) {
 	return engine.Run(), nil
 }
 
-func (e *Engine) Run() string {
+func (e *Engine) Run() Result {
 	defer e.reporter.Shutdown()
 
 	wg := sync.WaitGroup{}
@@ -91,7 +109,7 @@ func (e *Engine) Run() string {
 
 	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
 
-	e.reporter.PushJobstepStatus(STATUS_FINISHED, result)
+	e.reporter.PushJobstepStatus(STATUS_FINISHED, result.String())
 
 	e.clientLog.Close()
 
@@ -100,8 +118,8 @@ func (e *Engine) Run() string {
 	return result
 }
 
-func (e *Engine) executeCommands() string {
-	var result string = RESULT_PASSED
+func (e *Engine) executeCommands() Result {
+	result := RESULT_PASSED
 
 	wg := sync.WaitGroup{}
 
@@ -156,7 +174,7 @@ func (e *Engine) executeCommands() string {
 			wg.Done()
 		}()
 
-		if result == RESULT_FAILED {
+		if result.IsFailure() {
 			break
 		}
 	}
@@ -176,9 +194,9 @@ func (e *Engine) captureSnapshot() error {
 	return nil
 }
 
-func (e *Engine) runBuildPlan() string {
+func (e *Engine) runBuildPlan() Result {
 	var (
-		result string
+		result Result
 		err    error
 	)
 

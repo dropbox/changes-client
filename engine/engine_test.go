@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	. "gopkg.in/check.v1"
+	"gopkg.in/check.v1"
 )
 
 var jobStepResponse = `
@@ -62,7 +62,7 @@ type FormData struct {
 	path   string
 }
 
-func testHttpCall(c *C, allData []FormData, lookIdx int, expectedData FormData) {
+func testHttpCall(c *check.C, allData []FormData, lookIdx int, expectedData FormData) {
 	if len(allData) < lookIdx+1 {
 		c.Errorf("Expected data for call #%d, found none", lookIdx)
 		c.Fail()
@@ -72,13 +72,13 @@ func testHttpCall(c *C, allData []FormData, lookIdx int, expectedData FormData) 
 	}
 }
 
-func TestEngine(t *testing.T) { TestingT(t) }
+func TestEngine(t *testing.T) { check.TestingT(t) }
 
 type EngineSuite struct{}
 
-var _ = Suite(&EngineSuite{})
+var _ = check.Suite(&EngineSuite{})
 
-func (s *EngineSuite) ensureContainerRemoved(c *C) {
+func (s *EngineSuite) ensureContainerRemoved(c *check.C) {
 	var err error
 	var formData []FormData
 
@@ -184,7 +184,7 @@ func (s *EngineSuite) ensureContainerRemoved(c *C) {
 
 	RunBuildPlan(config)
 
-	c.Assert(err, IsNil)
+	c.Assert(err, check.IsNil)
 
 	expectedFileContents, _ := ioutil.ReadFile(os.Args[0])
 
@@ -275,5 +275,5 @@ func (s *EngineSuite) ensureContainerRemoved(c *C) {
 		},
 	})
 
-	c.Assert(len(formData), Equals, 15)
+	c.Assert(len(formData), check.Equals, 15)
 }
