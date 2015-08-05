@@ -16,6 +16,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/sentry"
 )
 
 var (
@@ -179,7 +180,12 @@ func sendPayload(r *Reporter, rp ReportPayload) {
 		/* We are unable to publish to the endpoint.
 		 * Fail fast and let the above layers handle the outage */
 		if tryCnt == numPublishRetries {
-			panic("Couldn't to connect to publish endpoint")
+			const msg = "Couldn't to connect to publish endpoint"
+			if client := sentry.GetClient(); client != nil {
+				client.CaptureMessageAndWait(msg, nil)
+			}
+			// TODO: Report an infra failure rather than panicing.
+			panic(msg)
 		}
 		log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
 		time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
