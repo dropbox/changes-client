@@ -141,6 +141,9 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		start := time.Now().Unix()
 
 		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
+		if err != nil {
+			return err
+		}
 		defer lxc.Release(base)
 		log.Print("[lxc] Creating base container")
 		// We can't use Arch/Dist/Release/Variant for anything except
@@ -280,6 +283,9 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	}
 
 	c.lxc, err = lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
+	if err != nil {
+		return err
+	}
 	c.lxc.SetVerbosity(lxc.Quiet)
 
 	c.Executor.Register(c.Name)
