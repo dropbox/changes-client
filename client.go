@@ -65,6 +65,7 @@ func run() bool {
 	log.Printf("[client] Finished: %s", result)
 	if err != nil {
 		log.Printf("[client] error: %s", err)
+		sentry.Error(err, nil)
 	}
 	return err == nil && result == engine.RESULT_PASSED
 }

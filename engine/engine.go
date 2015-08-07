@@ -87,10 +87,10 @@ func RunBuildPlan(config *client.Config) (Result, error) {
 		reporter:  currentReporter,
 	}
 
-	return engine.Run(), nil
+	return engine.Run()
 }
 
-func (e *Engine) Run() Result {
+func (e *Engine) Run() (Result, error) {
 	defer e.reporter.Shutdown()
 
 	wg := sync.WaitGroup{}
@@ -105,7 +105,7 @@ func (e *Engine) Run() Result {
 
 	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
-	result := e.runBuildPlan()
+	result, err := e.runBuildPlan()
 
 	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
 
@@ -115,7 +115,7 @@ func (e *Engine) Run() Result {
 
 	wg.Wait()
 
-	return result
+	return result, err
 }
 
 func (e *Engine) executeCommands() Result {
@@ -194,7 +194,7 @@ func (e *Engine) captureSnapshot() error {
 	return nil
 }
 
-func (e *Engine) runBuildPlan() Result {
+func (e *Engine) runBuildPlan() (Result, error) {
 	var (
 		result Result
 		err    error
@@ -237,7 +237,7 @@ func (e *Engine) runBuildPlan() Result {
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: Failed to initialize %s adapter", selectedAdapter))
-		return RESULT_FAILED
+		return RESULT_FAILED, err
 	}
 
 	err = e.adapter.Prepare(e.clientLog)
@@ -245,7 +245,7 @@ func (e *Engine) runBuildPlan() Result {
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
-		return RESULT_FAILED
+		return RESULT_FAILED, err
 	}
 
 	// actually begin executing the build plan
@@ -259,7 +259,7 @@ func (e *Engine) runBuildPlan() Result {
 	case <-finished:
 	case <-cancel:
 		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
-		result = RESULT_ABORTED
+		return RESULT_ABORTED, nil
 	}
 
 	if result == RESULT_PASSED && outputSnapshot != "" {
@@ -271,7 +271,7 @@ func (e *Engine) runBuildPlan() Result {
 		}
 	}
 
-	return result
+	return result, nil
 }
 
 func reportLogChunks(name string, clientLog *client.Log, r reporter.Reporter) {
