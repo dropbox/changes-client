@@ -4,9 +4,10 @@ import (
 	"flag"
 	"log"
 
+	"sync"
+
 	"github.com/dropbox/changes-client/common/version"
 	"github.com/getsentry/raven-go"
-	"sync"
 )
 
 var (
@@ -28,7 +29,7 @@ func GetClient() *raven.Client {
 	}
 
 	sentryClient, err := raven.NewClient(sentryDsn, map[string]string{
-		"version": version.Version,
+		"version": version.GetVersion(),
 	})
 	if err != nil {
 		// TODO: Try to avoid potentially dying fatally in a getter;

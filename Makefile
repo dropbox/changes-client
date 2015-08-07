@@ -15,7 +15,7 @@ all:
 	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
 
 	@echo "Creating .deb file"
-	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`-$(REV)" -C /tmp/changes-client-build .
+	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build .
 
 
 test:
@@ -31,7 +31,7 @@ dev:
 
 
 install:
-	go install -v ./...
+	go install -ldflags "-X github.com/dropbox/changes-client/common/version.gitVersion $(REV)" -v ./...
 
 
 deps:
