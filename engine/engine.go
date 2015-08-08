@@ -69,14 +69,13 @@ func RunBuildPlan(config *client.Config) (Result, error) {
 
 	currentAdapter, err := adapter.Get(selectedAdapter)
 	if err != nil {
-		// TODO(dcramer): handle this error
-		return RESULT_FAILED, err
+		return RESULT_INFRA_FAILED, err
 	}
 
 	currentReporter, err := reporter.Get(selectedReporter)
 	if err != nil {
 		log.Printf("[engine] failed to initialize reporter: %s", selectedReporter)
-		return RESULT_FAILED, err
+		return RESULT_INFRA_FAILED, err
 	}
 	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporter, selectedAdapter)
 
@@ -129,7 +128,7 @@ func (e *Engine) executeCommands() Result {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			result = RESULT_FAILED
+			result = RESULT_INFRA_FAILED
 			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
 			break
 		}
@@ -152,7 +151,7 @@ func (e *Engine) executeCommands() Result {
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
-			result = RESULT_FAILED
+			result = RESULT_INFRA_FAILED
 		} else {
 			if cmdResult.Success {
 				if cmd.CaptureOutput {
@@ -195,10 +194,7 @@ func (e *Engine) captureSnapshot() error {
 }
 
 func (e *Engine) runBuildPlan() (Result, error) {
-	var (
-		result Result
-		err    error
-	)
+	var err error
 
 	// cancellation signal
 	cancel := make(chan struct{})
@@ -237,7 +233,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: Failed to initialize %s adapter", selectedAdapter))
-		return RESULT_FAILED, err
+		return RESULT_INFRA_FAILED, err
 	}
 
 	err = e.adapter.Prepare(e.clientLog)
@@ -245,9 +241,10 @@ func (e *Engine) runBuildPlan() (Result, error) {
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
-		return RESULT_FAILED, err
+		return RESULT_INFRA_FAILED, err
 	}
 
+	var result Result
 	// actually begin executing the build plan
 	finished := make(chan struct{})
 	go func() {
