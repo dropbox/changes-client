@@ -117,10 +117,9 @@ func (e *Engine) Run() (Result, error) {
 	return result, err
 }
 
-func (e *Engine) executeCommands() Result {
-	result := RESULT_PASSED
-
+func (e *Engine) executeCommands() (Result, error) {
 	wg := sync.WaitGroup{}
+	defer wg.Wait()
 
 	for _, cmdConfig := range e.config.Cmds {
 		e.clientLog.Writeln(fmt.Sprintf("==> Running command %s", cmdConfig.ID))
@@ -128,9 +127,8 @@ func (e *Engine) executeCommands() Result {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			result = RESULT_INFRA_FAILED
 			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
-			break
+			return RESULT_INFRA_FAILED, err
 		}
 		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
 
@@ -151,18 +149,18 @@ func (e *Engine) executeCommands() Result {
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
 			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
-			result = RESULT_INFRA_FAILED
-		} else {
-			if cmdResult.Success {
-				if cmd.CaptureOutput {
-					e.reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
-				} else {
-					e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
-				}
+			return RESULT_INFRA_FAILED, err
+		}
+		result := RESULT_FAILED
+		if cmdResult.Success {
+			result = RESULT_PASSED
+			if cmd.CaptureOutput {
+				e.reporter.PushCommandOutput(cmd.ID, STATUS_FINISHED, 0, cmdResult.Output)
 			} else {
-				e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
-				result = RESULT_FAILED
+				e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 0)
 			}
+		} else {
+			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 		}
 
 		wg.Add(1)
@@ -174,13 +172,12 @@ func (e *Engine) executeCommands() Result {
 		}()
 
 		if result.IsFailure() {
-			break
+			return result, nil
 		}
 	}
 
-	wg.Wait()
-
-	return result
+	// Made it through all commands without failure. Success.
+	return RESULT_PASSED, nil
 }
 
 func (e *Engine) captureSnapshot() error {
@@ -194,8 +191,6 @@ func (e *Engine) captureSnapshot() error {
 }
 
 func (e *Engine) runBuildPlan() (Result, error) {
-	var err error
-
 	// cancellation signal
 	cancel := make(chan struct{})
 
@@ -229,9 +224,9 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		}()
 	}
 
-	err = e.adapter.Init(e.config)
+	err := e.adapter.Init(e.config)
 	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		log.Print(fmt.Sprintf("[adapter] %s", err))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: Failed to initialize %s adapter", selectedAdapter))
 		return RESULT_INFRA_FAILED, err
 	}
@@ -239,35 +234,47 @@ func (e *Engine) runBuildPlan() (Result, error) {
 	err = e.adapter.Prepare(e.clientLog)
 	defer e.adapter.Shutdown(e.clientLog)
 	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err.Error()))
+		log.Print(fmt.Sprintf("[adapter] %s", err))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
 		return RESULT_INFRA_FAILED, err
 	}
 
-	var result Result
+	type cmdResult struct {
+		result Result
+		err    error
+	}
 	// actually begin executing the build plan
-	finished := make(chan struct{})
+	finished := make(chan cmdResult)
 	go func() {
-		result = e.executeCommands()
-		finished <- struct{}{}
+		r, cmderr := e.executeCommands()
+		finished <- cmdResult{r, cmderr}
 	}()
 
+	var result Result
 	select {
-	case <-finished:
+	case cmdresult := <-finished:
+		if cmdresult.err != nil {
+			return cmdresult.result, cmdresult.err
+		}
+		result = cmdresult.result
 	case <-cancel:
 		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
 		return RESULT_ABORTED, nil
 	}
 
 	if result == RESULT_PASSED && outputSnapshot != "" {
-		err = e.captureSnapshot()
-		if err != nil {
-			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_FAILED)
+		var snapshotStatus string
+		sserr := e.captureSnapshot()
+		if sserr != nil {
+			snapshotStatus = SNAPSHOT_FAILED
 		} else {
-			e.reporter.PushSnapshotImageStatus(outputSnapshot, SNAPSHOT_ACTIVE)
+			snapshotStatus = SNAPSHOT_ACTIVE
+		}
+		e.reporter.PushSnapshotImageStatus(outputSnapshot, snapshotStatus)
+		if sserr != nil {
+			return RESULT_INFRA_FAILED, sserr
 		}
 	}
-
 	return result, nil
 }
 
