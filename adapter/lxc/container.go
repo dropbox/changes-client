@@ -71,6 +71,9 @@ func (c *Container) UploadFile(srcFile string, dstFile string) error {
 }
 
 func (c *Container) RootFs() string {
+	if c.lxc == nil {
+		panic("Container not available")
+	}
 	// May be real path or overlayfs:base-dir:delta-dir
 	// TODO(dcramer): confirm this is actually split how we expect it
 	bits := strings.Split(c.lxc.ConfigItem("lxc.rootfs")[0], ":")
