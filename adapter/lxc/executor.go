@@ -8,17 +8,17 @@
 package lxcadapter
 
 import (
-	"io/ioutil"
 	"gopkg.in/lxc/go-lxc.v2"
-	"os/exec"
+	"io/ioutil"
 	"log"
-	"path"
 	"os"
+	"os/exec"
+	"path"
 )
 
 type Executor struct {
-	Name		string
-	Directory	string
+	Name      string
+	Directory string
 }
 
 // This file is a unique file owned by us and no other changes-client
@@ -34,7 +34,7 @@ func (e *Executor) File() string {
 // running jobs but lets us clean up the environment from previous runs.
 func (e *Executor) Clean() {
 	if e.Name == "" {
-		return;
+		return
 	}
 
 	// An error here is considered to be fine (in fact, normal)
@@ -88,16 +88,16 @@ func (e *Executor) Clean() {
 		if os.IsNotExist(err) {
 			log.Printf("[lxc] Executor doesn't exist, pre-existing state appears clean.")
 		} else {
-			log.Printf("[lxc] An unexpected io error occurred: %s", err.Error());
+			log.Printf("[lxc] An unexpected io error occurred: %s", err.Error())
 		}
-    }
+	}
 }
 
 // Create an executor file, registering the current container with the current
 // executor.
 func (e *Executor) Register(containerName string) {
 	if e.Name == "" {
-		return;
+		return
 	}
 
 	log.Printf("[lxc] Creating executor for %s with container %s",
@@ -114,7 +114,7 @@ func (e *Executor) Register(containerName string) {
 // from forcibly destroying the container.
 func (e *Executor) Deregister() {
 	if e.Name == "" {
-		return;
+		return
 	}
 
 	log.Printf("[lxc] Removing executor for %s", e.Name)

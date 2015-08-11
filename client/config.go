@@ -83,7 +83,7 @@ func fetchConfig(url string, retries int, retryDelay time.Duration) (*Config, er
 		} else {
 			log.Printf("Failed to fetch configuration (404). Retries left: %d", retries)
 			time.Sleep(retryDelay)
-			return fetchConfig(url, retries - 1, retryDelay * 2)
+			return fetchConfig(url, retries-1, retryDelay*2)
 		}
 	}
 
@@ -119,7 +119,7 @@ func GetConfig() (*Config, error) {
 	server = strings.TrimRight(server, "/")
 
 	url := server + "/jobsteps/" + jobstepID + "/"
-	conf, err := fetchConfig(url, 8, 250 * time.Millisecond)
+	conf, err := fetchConfig(url, 8, 250*time.Millisecond)
 	if err != nil {
 		return nil, err
 	}

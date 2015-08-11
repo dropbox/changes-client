@@ -26,7 +26,7 @@ var (
 	compression   string
 	executorName  string
 	executorPath  string
-	bindMounts	  string
+	bindMounts    string
 )
 
 type Adapter struct {
@@ -54,8 +54,8 @@ func (a *Adapter) Init(config *client.Config) error {
 		log.Printf("[lxc] Warning: invalid compression %s, defaulting to lzma", compression)
 	}
 	executor := &Executor{
-		Name:		executorName,
-		Directory:	executorPath,
+		Name:      executorName,
+		Directory: executorPath,
 	}
 
 	var mounts []*BindMount
@@ -73,13 +73,13 @@ func (a *Adapter) Init(config *client.Config) error {
 	}
 
 	container := &Container{
-		Name:        config.JobstepID,
-		Arch:        arch,
-		Dist:        dist,
-		Release:     release,
-		PreLaunch:   preLaunch,
-		PostLaunch:  postLaunch,
-		Snapshot:    snapshot,
+		Name:       config.JobstepID,
+		Arch:       arch,
+		Dist:       dist,
+		Release:    release,
+		PreLaunch:  preLaunch,
+		PostLaunch: postLaunch,
+		Snapshot:   snapshot,
 		// TODO(dcramer):  Move S3 logic into core engine
 		S3Bucket:    s3Bucket,
 		MemoryLimit: memory,
@@ -137,7 +137,7 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 		// corresponds to a jobstep, unlike the executor identifier
 		// which is defined to not be unique.
 		executor := Executor{
-			Name: a.container.Name,
+			Name:      a.container.Name,
 			Directory: a.container.Executor.Directory,
 		}
 		executor.Register(a.container.Name)
