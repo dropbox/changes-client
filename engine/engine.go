@@ -232,12 +232,12 @@ func (e *Engine) runBuildPlan() (Result, error) {
 	}
 
 	err = e.adapter.Prepare(e.clientLog)
-	defer e.adapter.Shutdown(e.clientLog)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err))
 		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
 		return RESULT_INFRA_FAILED, err
 	}
+	defer e.adapter.Shutdown(e.clientLog)
 
 	type cmdResult struct {
 		result Result
