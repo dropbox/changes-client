@@ -17,9 +17,7 @@ import (
 	"time"
 )
 
-var (
-	lockTimeout = int64((1 * time.Hour).Seconds())
-)
+const lockTimeout = 1 * time.Hour
 
 type Container struct {
 	Release        string
@@ -80,20 +78,17 @@ func (c *Container) RootFs() string {
 }
 
 func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
-	var currentTime int64
-
 	lock, err := lockfile.New(fmt.Sprintf("/tmp/lxc-%s.lock", name))
 	if err != nil {
 		fmt.Println("Cannot initialize lock: %s", err)
 		return nil, err
 	}
 
-	startTime := time.Now().Unix()
+	startTime := time.Now()
 	for {
 		err = lock.TryLock()
 		if err != nil {
-			currentTime = time.Now().Unix()
-			if currentTime-startTime > lockTimeout {
+			if time.Since(startTime) > lockTimeout {
 				return nil, err
 			}
 
@@ -138,7 +133,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
 		clientLog.Writeln("    (grab a coffee, this could take a while)")
 
-		start := time.Now().Unix()
+		start := time.Now()
 
 		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 		if err != nil {
@@ -173,23 +168,21 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 				},
 			})
 		}
-		stop := time.Now().Unix()
 		if err != nil {
 			return err
 		}
-		clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
+		clientLog.Writeln(fmt.Sprintf("==> Base container online in %s", time.Since(start)))
 	} else {
 		clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
 		log.Print("[lxc] Creating base container")
 
-		start := time.Now().Unix()
+		start := time.Now()
 		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
-		stop := time.Now().Unix()
 		if err != nil {
 			return err
 		}
 		defer lxc.Release(base)
-		clientLog.Writeln(fmt.Sprintf("==> Base container online in %ds", stop-start))
+		clientLog.Writeln(fmt.Sprintf("==> Base container online in %s", time.Since(start)))
 	}
 
 	clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
@@ -575,9 +568,9 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		"HOME=/root",
 	})
 
-	start := time.Now().Unix()
+	start := time.Now()
 	result, err := cw.Run(false, clientLog)
-	stop := time.Now().Unix()
+	dur := time.Since(start)
 
 	if err != nil {
 		return err
@@ -586,7 +579,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		return errors.New("Failed downloading image")
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %ds", stop-start))
+	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %s", dur))
 
 	return nil
 }
@@ -607,7 +600,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 
 	dest := filepath.Join("/var/cache/lxc/download", c.getImagePath(snapshot))
 	clientLog.Writeln(fmt.Sprintf("==> Saving snapshot to %s", dest))
-	start := time.Now().Unix()
+	start := time.Now()
 
 	os.MkdirAll(dest, 0755)
 
@@ -626,8 +619,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 		return err
 	}
 
-	stop := time.Now().Unix()
-	clientLog.Writeln(fmt.Sprintf("==> Snapshot created in %ds", stop-start))
+	clientLog.Writeln(fmt.Sprintf("==> Snapshot created in %s", time.Since(start)))
 
 	return nil
 }
@@ -705,9 +697,9 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", localPath, remotePath}, "", []string{})
 
-	start := time.Now().Unix()
+	start := time.Now()
 	result, err := cw.Run(false, clientLog)
-	stop := time.Now().Unix()
+	dur := time.Since(start)
 
 	if err != nil {
 		return err
@@ -715,7 +707,7 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	if !result.Success {
 		return errors.New("Failed uploading image")
 	}
-	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %ds", stop-start))
+	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %s", dur))
 
 	return nil
 }
