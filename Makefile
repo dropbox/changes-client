@@ -31,6 +31,7 @@ dev:
 
 
 install:
+	go clean -i ./...
 	go install -ldflags "-X github.com/dropbox/changes-client/common/version.gitVersion $(REV)" -v ./...
 
 
