@@ -5,6 +5,7 @@ package lxcadapter
 import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/hashicorp/go-version"
 	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"sync"
@@ -52,6 +53,24 @@ func (s *AdapterSuite) ensureContainerRemoved(c *C) {
 
 func (s *AdapterSuite) SetUpSuite(c *C) {
 	s.ensureContainerRemoved(c)
+}
+
+// For compatibility with existing deployments, any build of changes-client that uses
+// the LXC adapter must use LXC at this version or above.
+const minimumVersion = "1.1.2"
+
+func (s *AdapterSuite) TestLxcVersion(c *C) {
+	minVers, e := version.NewVersion(minimumVersion)
+	if e != nil {
+		panic(e)
+	}
+	currentVers, e := version.NewVersion(lxc.Version())
+	if e != nil {
+		c.Fatalf("Couldn't can't parse LXC version %q; %s", lxc.Version(), e)
+	}
+	if currentVers.LessThan(minVers) {
+		c.Fatalf("Version must be >= %s; was %s", minimumVersion, lxc.Version())
+	}
 }
 
 func (s *AdapterSuite) TestCompleteFlow(c *C) {
