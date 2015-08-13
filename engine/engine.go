@@ -164,12 +164,12 @@ func (e *Engine) executeCommands() (Result, error) {
 		}
 
 		wg.Add(1)
-		go func() {
+		go func(cfgcmd client.ConfigCmd) {
 			// publishArtifacts is a synchronous operation and doesnt follow the normal queue flow of
 			// other operations
-			e.reporter.PublishArtifacts(cmdConfig, e.adapter, e.clientLog)
+			e.reporter.PublishArtifacts(cfgcmd, e.adapter, e.clientLog)
 			wg.Done()
-		}()
+		}(cmdConfig)
 
 		if result.IsFailure() {
 			return result, nil
