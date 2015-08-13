@@ -15,7 +15,8 @@ all:
 	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
 
 	@echo "Creating .deb file"
-	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build .
+	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
+            -m dev-tools@dropbox.com --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
 
 
 test:
