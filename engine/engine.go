@@ -11,6 +11,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/version"
 
 	_ "github.com/dropbox/changes-client/adapter/basic"
 	_ "github.com/dropbox/changes-client/adapter/lxc"
@@ -99,6 +100,8 @@ func (e *Engine) Run() (Result, error) {
 		reportLogChunks("console", e.clientLog, e.reporter)
 		wg.Done()
 	}()
+
+	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
 
 	e.reporter.Init(e.config)
 

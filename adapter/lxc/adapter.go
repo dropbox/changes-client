@@ -7,6 +7,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/common/glob"
+	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"path"
 	"path/filepath"
@@ -98,6 +99,7 @@ func (a *Adapter) Init(config *client.Config) error {
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
 func (a *Adapter) Prepare(clientLog *client.Log) error {
+	clientLog.Writeln("LXC version: " + lxc.Version())
 	err := a.container.Launch(clientLog)
 	if err != nil {
 		return err
