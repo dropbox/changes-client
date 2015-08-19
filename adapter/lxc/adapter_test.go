@@ -3,13 +3,14 @@
 package lxcadapter
 
 import (
+	"log"
+	"sync"
+	"testing"
+
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/hashicorp/go-version"
 	"gopkg.in/lxc/go-lxc.v2"
-	"log"
-	"sync"
-	"testing"
 
 	. "gopkg.in/check.v1"
 )
@@ -115,6 +116,14 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	result, err = adapter.Run(cmd, clientLog)
 	c.Assert(err, IsNil)
 	c.Assert(string(result.Output), Equals, "/home/ubuntu\n")
+	c.Assert(result.Success, Equals, true)
+
+	cmd, err = client.NewCommand("test", "#!/bin/bash -e\ndd if=/dev/zero of=test.img bs=1M count=10 && mkfs.ext4 -b 1024 -j -F test.img && sudo mount -v -o loop test.img /mnt")
+	cmd.CaptureOutput = true
+	c.Assert(err, IsNil)
+
+	result, err = adapter.Run(cmd, clientLog)
+	c.Assert(err, IsNil)
 	c.Assert(result.Success, Equals, true)
 
 	// test with a command that expects stdin

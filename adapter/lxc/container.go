@@ -6,15 +6,16 @@ import (
 	"crypto/rand"
 	"errors"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/common/lockfile"
-	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/common/lockfile"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 const lockTimeout = 1 * time.Hour
@@ -296,13 +297,21 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 
 	log.Print("[lxc] Configuring container options")
 	// More or less disable apparmor
-	c.lxc.SetConfigItem("lxc.aa_profile", "unconfined")
-	// Allow loop/squashfs in container
-	// TODO(dcramer): lxc package doesnt support append, however SetConfigItem seems to append
-	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm")
-	c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 6:* rwm")
+	if e := c.lxc.SetConfigItem("lxc.aa_profile", "unconfined"); e != nil {
+		return e
+	}
 
-	c.lxc.SetConfigItem("lxc.utsname", fmt.Sprintf("%s-build", c.Name))
+	// Allow loop/squashfs in container
+	if e := c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 7:* rwm"); e != nil {
+		return e
+	}
+	if e := c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm"); e != nil {
+		return e
+	}
+
+	if e := c.lxc.SetConfigItem("lxc.utsname", fmt.Sprintf("%s-build", c.Name)); e != nil {
+		return e
+	}
 
 	// the default value for cpu_shares is 1024, so we make a soft assumption
 	// that we can just magnifiy the value based on the number of cpus we're requesting
