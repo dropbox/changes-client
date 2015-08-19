@@ -1,7 +1,7 @@
 package version
 
 const (
-	version = "0.0.8"
+	version = "0.0.9"
 )
 
 var gitVersion string
