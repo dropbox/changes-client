@@ -1,6 +1,11 @@
 
 BIN=${GOPATH}/bin/changes-client
 
+# changes-client is dynamically linked with lxc-dev installed on the machine producing the binary.
+# To avoid version incompatibilities, we force the same version of lxc-dev to be installed on the
+# instance running changes-client too.
+LXC_DEV_VERSION=`dpkg-query -W -f='$${Version}\n' lxc-dev`
+
 # Revision shows date of latest commit and abbreviated commit SHA
 # E.g., 1438708515-753e183
 REV=`git show -s --format=%ct-%h HEAD`
@@ -16,7 +21,8 @@ all:
 
 	@echo "Creating .deb file"
 	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
-            -m dev-tools@dropbox.com --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
+	    --depends "lxc-dev (=$(LXC_DEV_VERSION))" -m dev-tools@dropbox.com \
+	    --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
 
 
 test:
@@ -34,6 +40,8 @@ dev:
 install:
 	go clean -i ./...
 	go install -ldflags "-X github.com/dropbox/changes-client/common/version.gitVersion $(REV)" -v ./...
+
+	@echo "changes-client linked against lxc-dev version:" $(LXC_DEV_VERSION)
 
 
 deps:
