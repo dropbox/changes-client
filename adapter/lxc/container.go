@@ -123,7 +123,9 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 	log.Print("[lxc] Checking for cached snapshot")
 
 	if c.snapshotIsCached(c.Snapshot) == false {
-		c.ensureImageCached(c.Snapshot, clientLog)
+		if err := c.ensureImageCached(c.Snapshot, clientLog); err != nil {
+			return err
+		}
 
 		template := "download"
 		if c.Compression != "xz" {
