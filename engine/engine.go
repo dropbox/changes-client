@@ -91,9 +91,10 @@ func RunBuildPlan(config *client.Config) (Result, error) {
 }
 
 func (e *Engine) Run() (Result, error) {
+	e.reporter.Init(e.config)
 	defer e.reporter.Shutdown()
 
-	wg := sync.WaitGroup{}
+	var wg sync.WaitGroup
 
 	wg.Add(1)
 	go func() {
@@ -102,8 +103,6 @@ func (e *Engine) Run() (Result, error) {
 	}()
 
 	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
-
-	e.reporter.Init(e.config)
 
 	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
