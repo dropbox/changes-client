@@ -9,3 +9,4 @@ mkdir -p `dirname $WORKSPACE`
 sudo cp -r . $WORKSPACE
 cd $WORKSPACE
 sudo PATH=$PATH GOPATH=$GOPATH make dev
+sudo PATH=$PATH GOPATH=$GOPATH go get golang.org/x/tools/cmd/vet
