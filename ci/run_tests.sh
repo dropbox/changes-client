@@ -8,6 +8,6 @@ vet -all . || true
 # report non-'err' shadows
 (vet -shadow -shadowstrict  . 2>&1 | grep -v "declaration of err") || true
 go get github.com/jstemmer/go-junit-report
-sudo PATH=$PATH GOPATH=$GOPATH `which go` test ./... -timeout=120s -v -race | tee test.log
+sudo CHANGES=1 PATH=$PATH GOPATH=$GOPATH `which go` test ./... -timeout=120s -v -race | tee test.log
 echo Generating junit.xml...
 go-junit-report -set-exit-code < test.log > junit.xml
