@@ -42,15 +42,16 @@ func GetClient() *raven.Client {
 		return nil
 	}
 
-	sentryClient, err := raven.NewClient(sentryDsn, map[string]string{
+	if client, err := raven.NewClient(sentryDsn, map[string]string{
 		"version": version.GetVersion(),
-	})
-	if err != nil {
+	}); err != nil {
 		// TODO: Try to avoid potentially dying fatally in a getter;
 		// we may want to log an error and move on, we might want defers
 		// to fire, etc. This will probably mean not creating the client
 		// lazily.
 		log.Fatal(err)
+	} else {
+		sentryClient = client
 	}
 	sentryClient.Transport = &NoisyTransport{sentryClient.Transport}
 
