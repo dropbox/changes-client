@@ -54,8 +54,6 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 
 		time.Sleep(3 * time.Second)
 	}
-
-	return fmt.Errorf("How did we get here?")
 }
 
 func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatResponse, error) {

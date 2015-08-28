@@ -84,7 +84,7 @@ func (c *Container) RootFs() string {
 func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	lock, err := lockfile.New(fmt.Sprintf("/tmp/lxc-%s.lock", name))
 	if err != nil {
-		fmt.Println("Cannot initialize lock: %s", err)
+		log.Printf("Cannot initialize lock: %s", err)
 		return nil, err
 	}
 
@@ -97,7 +97,7 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 			}
 
 			if err == lockfile.ErrBusy {
-				fmt.Println(fmt.Sprintf("Lock \"%v\" is busy - retrying in 3 seconds", lock))
+				log.Printf(`Lock "%v" is busy - retrying in 3 seconds`, lock)
 				time.Sleep(3 * time.Second)
 				continue
 			}

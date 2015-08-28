@@ -67,7 +67,7 @@ func testHttpCall(c *check.C, allData []FormData, lookIdx int, expectedData Form
 		c.Errorf("Expected data for call #%d, found none", lookIdx)
 		c.Fail()
 	} else if !reflect.DeepEqual(expectedData, allData[lookIdx]) {
-		c.Errorf("A", lookIdx, allData[lookIdx].params, expectedData.params)
+		c.Error("A", lookIdx, allData[lookIdx].params, expectedData.params)
 		c.Fail()
 	}
 }
@@ -144,9 +144,6 @@ func (s *EngineSuite) ensureContainerRemoved(c *check.C) {
 		}
 
 		formData = append(formData, f)
-		return
-
-		err = fmt.Errorf("Unexpected path: %s", r.URL.Path)
 	}))
 	defer ts.Close()
 

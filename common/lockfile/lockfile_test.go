@@ -28,14 +28,14 @@ import (
 func ExampleLockfile() {
 	lock, err := lockfile.New("/tmp/lock.me.now.lck")
 	if err != nil {
-		fmt.Println("Cannot init lock. reason: %v", err)
+		fmt.Printf("Cannot init lock. reason: %s\n", err)
 		panic(err)
 	}
 	err = lock.TryLock()
 
 	// Error handling is essential, as we only try to get the lock.
 	if err != nil {
-		fmt.Println("Cannot lock \"%v\", reason: %v", lock, err)
+		fmt.Printf("Cannot lock \"%v\", reason: %s\n", lock, err)
 		panic(err)
 	}
 

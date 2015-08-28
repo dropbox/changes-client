@@ -153,7 +153,7 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 					return
 				} else if err := sAfct.UploadArtifact(bytes.NewReader(contents)); err != nil {
 					// TODO retry if not a terminal error
-					clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s", artifact, err))
+                    clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s: %s", artifact, err))
 					return
 				}
 			}

@@ -90,7 +90,6 @@ func (l *Lockfile) GetOwner() (*os.Process, error) {
 	} else {
 		return nil, ErrInvalidPid
 	}
-	panic("Not reached")
 }
 
 // Try to get Lockfile lock. Returns nil, if successful and and error describing the reason, it didn't work out.

@@ -3,8 +3,9 @@ export GOPATH=~/
 export PATH=$GOPATH/bin:/usr/local/go/bin:$PATH
 WORKSPACE=$GOPATH/src/github.com/dropbox/changes-client
 cd $WORKSPACE
-# Just print vet issues for now.
-vet -all . || true
+echo Running vet...
+vet -all .
+echo Done.
 # report non-'err' shadows
 (vet -shadow -shadowstrict  . 2>&1 | grep -v "declaration of err") || true
 go get github.com/jstemmer/go-junit-report
