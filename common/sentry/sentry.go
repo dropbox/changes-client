@@ -16,6 +16,20 @@ var (
 	sentryClientMux sync.Mutex
 )
 
+type NoisyTransport struct {
+	inner raven.Transport
+}
+
+// By default Sentry quietly drops errors and it is awkward to retrieve them at reporting sites,
+// so this wraps the Transport to log any errors encountered.
+func (nt *NoisyTransport) Send(url, authHeader string, packet *raven.Packet) error {
+	err := nt.inner.Send(url, authHeader, packet)
+	if err != nil {
+		log.Printf("Error reporting to Sentry: %s (%s)", err, url)
+	}
+	return err
+}
+
 // Return our global Sentry client, or nil if none was configured.
 func GetClient() *raven.Client {
 	sentryClientMux.Lock()
@@ -38,23 +52,26 @@ func GetClient() *raven.Client {
 		// lazily.
 		log.Fatal(err)
 	}
+	sentryClient.Transport = &NoisyTransport{sentryClient.Transport}
 
 	return sentryClient
 }
 
 func Error(err error, tags map[string]string) {
 	if sentryClient := GetClient(); sentryClient != nil {
+		log.Printf("[Sentry Error] %s", err)
 		sentryClient.CaptureError(err, tags)
 	} else {
-		log.Printf("[Sentry Error] %s", err.Error())
+		log.Printf("[Sentry Error Unsent] %s", err)
 	}
 }
 
 func Message(str string, tags map[string]string) {
 	if sentryClient := GetClient(); sentryClient != nil {
+		log.Printf("[Sentry Message] %s", str)
 		sentryClient.CaptureMessage(str, tags)
 	} else {
-		log.Printf("[Sentry Message] %s")
+		log.Printf("[Sentry Message Unsent] %s", str)
 	}
 }
 

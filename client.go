@@ -33,6 +33,7 @@ func main() {
 // Returns whether run was successful.
 func run() bool {
 	if sentryClient := sentry.GetClient(); sentryClient != nil {
+		log.Printf("Using Sentry; ProjectID=%s, URL=%s", sentryClient.ProjectID(), sentryClient.URL())
 		// Don't return until we're finished sending to Sentry.
 		defer sentryClient.Wait()
 		// Ensure main thread panics are caught and reported.
@@ -48,10 +49,14 @@ func run() bool {
 				packet := raven.NewPacket(err.Error(), raven.NewException(err, raven.NewStacktrace(2, 3, nil)))
 				log.Printf("[client] Sending panic to Sentry")
 				_, ch := sentryClient.Capture(packet, map[string]string{})
-				<-ch
+				if serr := <-ch; serr != nil {
+					log.Printf("SENTRY ERROR: %s", serr)
+				}
 				panic(p)
 			}
 		}()
+	} else {
+		log.Println("Sentry NOT ENABLED.")
 	}
 
 	// Error handling in place; now we begin.
@@ -65,7 +70,7 @@ func run() bool {
 	log.Printf("[client] Finished: %s", result)
 	if err != nil {
 		log.Printf("[client] error: %s", err)
-		sentry.Error(err, nil)
+		sentry.Error(err, map[string]string{})
 	}
 	return err == nil && result == engine.RESULT_PASSED
 }
