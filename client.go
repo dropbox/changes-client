@@ -32,7 +32,8 @@ func main() {
 
 // Returns whether run was successful.
 func run() bool {
-	if sentryClient := sentry.GetClient(); sentryClient != nil {
+	var sentryClient *raven.Client
+	if sentryClient = sentry.GetClient(); sentryClient != nil {
 		log.Printf("Using Sentry; ProjectID=%s, URL=%s", sentryClient.ProjectID(), sentryClient.URL())
 		// Don't return until we're finished sending to Sentry.
 		defer sentryClient.Wait()
@@ -64,6 +65,12 @@ func run() bool {
 	config, err := client.GetConfig()
 	if err != nil {
 		panic(err)
+	}
+	if sentryClient != nil {
+		sentryClient.SetTagsContext(map[string]string{
+			"projectslug": config.Project.Slug,
+			"jobstep_id":  config.JobstepID,
+		})
 	}
 
 	result, err := engine.RunBuildPlan(config)

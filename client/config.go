@@ -53,6 +53,10 @@ type Config struct {
 			ID string
 		}
 	}
+	Project struct {
+		Name string
+		Slug string
+	}
 	Cmds []ConfigCmd `json:"commands"`
 }
 

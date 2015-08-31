@@ -103,6 +103,7 @@ func (e *Engine) Run() (Result, error) {
 	}()
 
 	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
+	e.clientLog.Writeln(fmt.Sprintf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug))
 
 	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
