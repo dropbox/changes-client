@@ -103,13 +103,13 @@ func (e *Engine) Run() (Result, error) {
 	}()
 
 	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
-	e.clientLog.Writeln(fmt.Sprintf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug))
+	e.clientLog.Printf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug)
 
 	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
 	result, err := e.runBuildPlan()
 
-	e.clientLog.Writeln(fmt.Sprintf("==> Build finished! Recorded result as %s", result))
+	e.clientLog.Printf("==> Build finished! Recorded result as %s", result)
 
 	e.reporter.PushJobstepStatus(STATUS_FINISHED, result.String())
 
@@ -125,12 +125,12 @@ func (e *Engine) executeCommands() (Result, error) {
 	defer wg.Wait()
 
 	for _, cmdConfig := range e.config.Cmds {
-		e.clientLog.Writeln(fmt.Sprintf("==> Running command %s", cmdConfig.ID))
-		e.clientLog.Writeln(fmt.Sprintf("==>     with script %s", cmdConfig.Script))
+		e.clientLog.Printf("==> Running command %s", cmdConfig.ID)
+		e.clientLog.Printf("==>     with script %s", cmdConfig.Script)
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
+			e.clientLog.Printf("==> Error: %s", err)
 			return RESULT_INFRA_FAILED, err
 		}
 		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
@@ -151,7 +151,7 @@ func (e *Engine) executeCommands() (Result, error) {
 
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			e.clientLog.Writeln(fmt.Sprintf("==> Error: %s", err.Error()))
+			e.clientLog.Printf("==> Error: %s", err)
 			return RESULT_INFRA_FAILED, err
 		}
 		result := RESULT_FAILED
@@ -230,14 +230,14 @@ func (e *Engine) runBuildPlan() (Result, error) {
 	err := e.adapter.Init(e.config)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err))
-		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: Failed to initialize %s adapter", selectedAdapter))
+		e.clientLog.Printf("==> ERROR: Failed to initialize %s adapter", selectedAdapter)
 		return RESULT_INFRA_FAILED, err
 	}
 
 	err = e.adapter.Prepare(e.clientLog)
 	if err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err))
-		e.clientLog.Writeln(fmt.Sprintf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err))
+		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err)
 		return RESULT_INFRA_FAILED, err
 	}
 	defer e.adapter.Shutdown(e.clientLog)

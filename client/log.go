@@ -39,10 +39,16 @@ func (l *Log) Write(payload []byte) error {
 }
 
 func (l *Log) Writeln(payload string) error {
-	l.Chan <- []byte(fmt.Sprintf("%s\n", payload))
+	l.Chan <- []byte(payload + "\n")
 	log.Println(payload)
-
 	return nil
+}
+
+// Printf calls l.Writeln to print to the log. Arguments are handled in
+// the manner of fmt.Printf.
+// The output is guaranteed to be newline-terminated.
+func (l *Log) Printf(format string, v ...interface{}) error {
+	return l.Writeln(fmt.Sprintf(format, v...))
 }
 
 func (l *Log) WriteStream(pipe io.Reader) {

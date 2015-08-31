@@ -2,7 +2,6 @@ package client
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"os/exec"
 	"sync"
@@ -45,8 +44,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 
 	cmdreader, cmdwriter := cw.CombinedOutputPipe()
 
-	// TODO(dcramer):
-	clientLog.Writeln(fmt.Sprintf("==> Executing %s", cw.cmd.Args))
+	clientLog.Printf("==> Executing %s", cw.cmd.Args)
 
 	var buffer *bytes.Buffer
 	var reader io.Reader = cmdreader
@@ -62,7 +60,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 	stdin.Close()
 
 	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("Failed to start %s %s", cw.cmd.Args, err.Error()))
+		clientLog.Printf("Failed to start %s %s", cw.cmd.Args, err)
 		return nil, err
 	}
 
@@ -87,7 +85,7 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 
 	select {
 	case <-timeLimit:
-		clientLog.Writeln(fmt.Sprintf("Failed to close all file descriptors! Ignoring and moving on.."))
+		clientLog.Writeln("Failed to close all file descriptors! Ignoring and moving on..")
 		break
 	case <-sem:
 		break

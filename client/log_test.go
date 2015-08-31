@@ -49,3 +49,26 @@ func TestWriteln(t *testing.T) {
 		t.Fail()
 	}
 }
+
+func drain(l *Log) string {
+	var out []byte
+	for c := range l.Chan {
+		out = append(out, c...)
+	}
+	return string(out)
+}
+
+func TestPrintf(t *testing.T) {
+	log := NewLog()
+
+	const expected = "Hello 4 Worlds!\n"
+	go func() {
+		log.Printf("Hello %d %s!", 4, "Worlds")
+		log.Close()
+	}()
+
+	result := drain(log)
+	if result != expected {
+		t.Fatalf("Expected %q, got %q", expected, result)
+	}
+}
