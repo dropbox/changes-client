@@ -2,7 +2,6 @@ package engine
 
 import (
 	"fmt"
-	"github.com/dropbox/changes-client/client"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -12,6 +11,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/dropbox/changes-client/client"
 
 	"gopkg.in/check.v1"
 )
@@ -157,7 +158,7 @@ func (s *EngineSuite) ensureContainerRemoved(c *check.C) {
 	config := &client.Config{}
 	config.Server = ts.URL
 	config.JobstepID = "job_1"
-	config.Workspace = workspaceRoot
+	config.ArtifactSearchPath = workspaceRoot
 	config.Repository.Backend.ID = "git"
 	config.Repository.URL = "https://github.com/dropbox/changes.git"
 	config.Source.Revision.Sha = "master"

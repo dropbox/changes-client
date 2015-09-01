@@ -4,14 +4,15 @@ package lxcadapter
 
 import (
 	"flag"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common/glob"
-	"gopkg.in/lxc/go-lxc.v2"
 	"log"
 	"path"
 	"path/filepath"
 	"strings"
+
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/common/glob"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 var (
@@ -31,9 +32,9 @@ var (
 )
 
 type Adapter struct {
-	config    *client.Config
-	container *Container
-	workspace string
+	config         *client.Config
+	container      *Container
+	artifactSource string
 }
 
 func (a *Adapter) Init(config *client.Config) error {
@@ -105,15 +106,15 @@ func (a *Adapter) Prepare(clientLog *client.Log) error {
 		return err
 	}
 
-	workspace := "/home/ubuntu"
-	if a.config.Workspace != "" {
-		workspace = path.Join(workspace, a.config.Workspace)
+	artifactSource := "/home/ubuntu"
+	if a.config.ArtifactSearchPath != "" {
+		artifactSource = a.config.ArtifactSearchPath
 	}
-	workspace, err = filepath.Abs(path.Join(a.container.RootFs(), strings.TrimLeft(workspace, "/")))
+	artifactSource, err = filepath.Abs(path.Join(a.container.RootFs(), strings.TrimLeft(artifactSource, "/")))
 	if err != nil {
 		return err
 	}
-	a.workspace = workspace
+	a.artifactSource = artifactSource
 
 	return nil
 }
@@ -172,8 +173,8 @@ func (a *Adapter) GetRootFs() string {
 }
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
-	log.Printf("[lxc] Searching for %s in %s", artifacts, a.workspace)
-	return glob.GlobTree(a.workspace, artifacts)
+	log.Printf("[lxc] Searching for %s in %s", artifacts, a.artifactSource)
+	return glob.GlobTree(a.artifactSource, artifacts)
 }
 
 func init() {

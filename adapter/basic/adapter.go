@@ -1,11 +1,12 @@
 package basic
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/common/glob"
-	"os"
-	"path/filepath"
 )
 
 type Adapter struct {
@@ -15,7 +16,7 @@ type Adapter struct {
 
 func (a *Adapter) Init(config *client.Config) error {
 	var err error
-	var workspace string = config.Workspace
+	var workspace string = config.ArtifactSearchPath
 
 	if workspace == "" {
 		workspace, err = os.Getwd()

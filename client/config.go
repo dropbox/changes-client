@@ -12,11 +12,11 @@ import (
 )
 
 var (
-	server          string
-	jobstepID       string
-	workspace       string
-	debug           bool
-	ignoreSnapshots bool
+	server             string
+	jobstepID          string
+	artifactSearchPath string
+	debug              bool
+	ignoreSnapshots    bool
 )
 
 type ConfigCmd struct {
@@ -32,11 +32,11 @@ type ConfigCmd struct {
 }
 
 type Config struct {
-	Server    string
-	JobstepID string
-	Workspace string
-	Debug     bool
-	Snapshot  struct {
+	Server             string
+	JobstepID          string
+	ArtifactSearchPath string
+	Debug              bool
+	Snapshot           struct {
 		ID string
 	}
 	Source struct {
@@ -130,7 +130,7 @@ func GetConfig() (*Config, error) {
 
 	conf.Server = server
 	conf.JobstepID = jobstepID
-	conf.Workspace = workspace
+	conf.ArtifactSearchPath = artifactSearchPath
 	conf.Debug = debug
 
 	if ignoreSnapshots {
@@ -143,7 +143,7 @@ func GetConfig() (*Config, error) {
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
 	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
-	flag.StringVar(&workspace, "workspace", "", "Workspace to checkout source into")
+	flag.StringVar(&artifactSearchPath, "artifact-search-path", "", "Folder where artifacts will be searched for relative to adapter root")
 	flag.BoolVar(&debug, "debug", false, "Indicates that the client is running in debug mode and should not report results upstream")
 	flag.BoolVar(&ignoreSnapshots, "no-snapshots", false, "Ignore any existing snapshots, and build a fresh environment")
 }

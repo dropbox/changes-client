@@ -3,13 +3,14 @@ package jenkinsreporter
 import (
 	"encoding/json"
 	"flag"
-	"github.com/dropbox/changes-client/client"
-	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/client/reporter"
 	"io/ioutil"
 	"log"
 	"os/exec"
 	"path"
+
+	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/reporter"
 )
 
 var (
@@ -83,6 +84,8 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 		return
 	}
 
+	// TODO: Create and use a.GetWorkspace() as artifactSource instead of double using
+	// artifactDestination.
 	artifactSource := path.Join(a.GetRootFs(), r.artifactDestination)
 	log.Printf("[reporter] Moving artifacts from %s to: %s\n", artifactSource, r.artifactDestination)
 	cmd := exec.Command("mkdir", "-p", artifactDestination)
