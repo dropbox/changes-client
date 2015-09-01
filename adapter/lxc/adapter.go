@@ -183,7 +183,7 @@ func init() {
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
-	flag.StringVar(&compression, "compression", "xz", "compression algorithm (xz,lz4)")
+	flag.StringVar(&compression, "compression", "lz4", "compression algorithm (xz,lz4)")
 	flag.StringVar(&bindMounts, "bind-mounts", "", "bind mounts. <source>:<dest>:<options>. comma separated.")
 
 	// the executor should have the following properties:
