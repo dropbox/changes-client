@@ -4,14 +4,17 @@ package lxcadapter
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"path"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/common/glob"
+	"github.com/dropbox/changes-client/common/sentry"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -126,6 +129,11 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 
 // Perform any cleanup actions within the environment.
 func (a *Adapter) Shutdown(clientLog *client.Log) error {
+	const timeout = 30 * time.Second
+	timer := time.AfterFunc(timeout, func() {
+		sentry.Message(fmt.Sprintf("Took more than %s to shutdown LXC adapter", timeout), map[string]string{})
+	})
+	defer timer.Stop()
 	if keepContainer || a.container.ShouldKeep() {
 		a.container.Executor.Deregister()
 
