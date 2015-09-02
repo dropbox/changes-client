@@ -9,6 +9,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/taggederr"
 )
 
 var (
@@ -57,7 +58,7 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	mkdircmd := exec.Command("mkdir", "-p", artifactDestination)
 	if output, err := mkdircmd.CombinedOutput(); err != nil {
 		log.Printf("[reporter] Failed to create artifact destination: %s", output)
-		return err
+		return tagged(err).AddTag("cmd", "mkdir")
 	}
 
 	// path.Join is not used here because path.Join(artifactSource, ".") results in just artifactSource.
@@ -65,9 +66,13 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	cpcmd := exec.Command("cp", "-f", "-r", artifactSource + "/.", r.artifactDestination)
 	if output, err := cpcmd.CombinedOutput(); err != nil {
 		log.Printf("[reporter] Failed to push artifacts; possibly the source artifact folder did not exist: %s", output)
-		return err
+		return tagged(err).AddTag("cmd", "cp")
 	}
 	return nil
+}
+
+func tagged(e error) taggederr.TaggedErr {
+	return taggederr.Wrap(e).AddTag("reporter", "jenkins")
 }
 
 func New() reporter.Reporter {

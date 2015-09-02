@@ -6,6 +6,7 @@ import (
 
 	"sync"
 
+	"github.com/dropbox/changes-client/common/taggederr"
 	"github.com/dropbox/changes-client/common/version"
 	"github.com/getsentry/raven-go"
 )
@@ -58,9 +59,20 @@ func GetClient() *raven.Client {
 	return sentryClient
 }
 
+func extractFromTagged(terr taggederr.TaggedErr, tags map[string]string) (error, map[string]string) {
+	result := terr.GetTags()
+	for k, v := range tags {
+		result[k] = v
+	}
+	return terr.GetInner(), result
+}
+
 func Error(err error, tags map[string]string) {
 	if sentryClient := GetClient(); sentryClient != nil {
 		log.Printf("[Sentry Error] %s", err)
+		if terr, ok := err.(taggederr.TaggedErr); ok {
+			err, tags = extractFromTagged(terr, tags)
+		}
 		sentryClient.CaptureError(err, tags)
 	} else {
 		log.Printf("[Sentry Error Unsent] %s", err)
