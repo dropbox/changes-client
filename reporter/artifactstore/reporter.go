@@ -169,9 +169,10 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 						// TODO retry if not a terminal error
 						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s: %s", artifact, err))
 						return
+					} else {
+						clientLog.Writeln(fmt.Sprintf("[artifactstore] Successfully uploaded artifact %s to %s", artifact, sAfct.GetContentURL()))
 					}
 				}
-				clientLog.Writeln(fmt.Sprintf("[artifactstore] Successfully uploaded artifact %s", artifact))
 			}(artifact)
 		}
 
