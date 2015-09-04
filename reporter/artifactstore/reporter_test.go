@@ -42,13 +42,6 @@ func (m *mockAdapter) CollectArtifacts([]string, *client.Log) ([]string, error) 
 	return []string{"/etc/hosts"}, nil
 }
 
-func drainLog(l *client.Log) {
-	go func() {
-		for _ = range l.Chan {
-		}
-	}()
-}
-
 func TestPublishArtifactsTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
@@ -64,10 +57,7 @@ func TestPublishArtifactsTimeout(t *testing.T) {
 
 	ma := &mockAdapter{}
 	ts.ExpectAndHang("POST", "/buckets/jobstep/artifacts")
-	l := client.NewLog()
-	drainLog(l)
-	defer l.Close()
-	r.PublishArtifacts(client.ConfigCmd{Artifacts: []string{"*hosts*"}}, ma, l)
+	r.PublishArtifacts(client.ConfigCmd{Artifacts: []string{"*hosts*"}}, ma, client.NewLog())
 
 	if !r.isDisabled() {
 		t.Error("PublishArtifacts did not fail with deadline exceeded")

@@ -77,14 +77,10 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 	}
 }
 
-func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
-	var firstError error
+func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
 	for _, r := range r.reporterDestinations {
-		if e := r.PublishArtifacts(cmdCnf, a, clientLog); e != nil && firstError == nil {
-			firstError = e
-		}
+		r.PublishArtifacts(cmdCnf, a, clientLog)
 	}
-	return firstError
 }
 
 func (r *Reporter) Shutdown() {

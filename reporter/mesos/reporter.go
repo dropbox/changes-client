@@ -16,6 +16,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/sentry"
 )
 
 var (
@@ -135,7 +136,7 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 // associated params (which corresponds to its data). We also attempt
 // httpPost multiple times in order to account for flakiness in the
 // network connection. This function is synchronous.
-func sendPayload(r *Reporter, rp ReportPayload) error {
+func sendPayload(r *Reporter, rp ReportPayload) {
 	var (
 		resp   *http.Response
 		err    error
@@ -172,10 +173,6 @@ func sendPayload(r *Reporter, rp ReportPayload) error {
 				log.Printf("[reporter] Error reading POST %s response body: %s", path, e)
 			}
 			errmsg = bodyData.String()
-			if len(errmsg) > 140 {
-				// Keep it a reasonable length.
-				errmsg = errmsg[:137] + "..."
-			}
 		}
 		log.Printf("[reporter] POST %s failed, try: %d, resp: %s, err: %s",
 			path, tryCnt, status, errmsg)
@@ -183,12 +180,16 @@ func sendPayload(r *Reporter, rp ReportPayload) error {
 		/* We are unable to publish to the endpoint.
 		 * Fail fast and let the above layers handle the outage */
 		if tryCnt == numPublishRetries {
-			return fmt.Errorf("mesos reporter couldn't connect to publish endpoint %s; %s", path, errmsg)
+			const msg = "Couldn't to connect to publish endpoint"
+			if client := sentry.GetClient(); client != nil {
+				client.CaptureMessageAndWait(msg, nil)
+			}
+			// TODO: Report an infra failure rather than panicing.
+			panic(msg)
 		}
 		log.Printf("[reporter] Sleep for %d ms", backoffTimeMs)
 		time.Sleep(time.Duration(backoffTimeMs) * time.Millisecond)
 	}
-	return nil
 }
 
 // Continually listens to the publish channel and sends the payloads
@@ -271,10 +272,10 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 	r.publishChannel <- ReportPayload{"/commands/" + cID + "/", form, ""}
 }
 
-func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
+func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
 	if len(cmd.Artifacts) == 0 {
 		clientLog.Writeln("==> Skipping artifact collection")
-		return nil
+		return
 	}
 
 	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", cmd.Artifacts))
@@ -282,27 +283,22 @@ func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, cli
 	matches, err := a.CollectArtifacts(cmd.Artifacts, clientLog)
 	if err != nil {
 		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
-		return err
+		return
 	}
 
 	for _, artifact := range matches {
 		clientLog.Writeln(fmt.Sprintf("==> Found: %s", artifact))
 	}
 
-	return r.pushArtifacts(matches)
+	r.pushArtifacts(matches)
 }
 
-func (r *Reporter) pushArtifacts(artifacts []string) error {
+func (r *Reporter) pushArtifacts(artifacts []string) {
 	// TODO: PushArtifacts is synchronous due to races with Adapter.Shutdown(), but
 	// really what we'd want to do is just say "wait until channel empty, ok continue"
-	var firstError error
 	for _, artifact := range artifacts {
-		e := sendPayload(r, ReportPayload{"/jobsteps/" + r.jobstepID + "/artifacts/", nil, artifact})
-		if e != nil && firstError == nil {
-			firstError = e
-		}
+		sendPayload(r, ReportPayload{"/jobsteps/" + r.jobstepID + "/artifacts/", nil, artifact})
 	}
-	return firstError
 }
 
 // Close the publish and shutdown channels, which causes the inner goroutines to

@@ -26,9 +26,6 @@ var (
 	// Bucket in the artifact server where content is being stored.
 	// Defaults to jobstepID if blank string is given.
 	artifactBucketId string
-
-	// Keep errors from escaping the Reporter.
-	discardErrors bool
 )
 
 const DefaultDeadline time.Duration = 15 * time.Second
@@ -123,38 +120,20 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 	// TODO: At some point in the future, we can add a per-command artifact to track output of each different command.
 }
 
-// Transforms a function returning an error into a function with no return value,
-// with the error instead sent to a channel if not nil.
-// If the channel send can't immediately succeed, the error will be discarded.
-// The intended use is to allow multiple operations to run (potentially concurrently) and
-// to capture only the first non-nil error.
-func captureError(errch chan error, fn func() error) func() {
-	return func() {
-		if err := fn(); err != nil {
-			select {
-			case errch <- err:
-			default:
-			}
-		}
-	}
-}
-
-func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
-	// first non-nil error
-	firstError := make(chan error, 1)
-	r.runWithDeadline(r.deadline, captureError(firstError, func() error {
+func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
+	r.runWithDeadline(r.deadline, func() {
 		if r.bucket == nil {
-			return nil
+			return
 		}
 
 		if len(cmdCnf.Artifacts) == 0 {
-			return nil
+			return
 		}
 
 		matches, err := a.CollectArtifacts(cmdCnf.Artifacts, clientLog)
 		if err != nil {
 			clientLog.Writeln(fmt.Sprintf("[artifactstore] ERROR filtering artifacts: " + err.Error()))
-			return err
+			return
 		}
 
 		var wg sync.WaitGroup
@@ -162,53 +141,43 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 			wg.Add(1)
 			go func(artifact string) {
 				defer wg.Done()
+
 				log.Println(fmt.Sprintf("[artifactstore] Uploading: %s", artifact))
 				fileBaseName := filepath.Base(artifact)
-				send := func() error {
-					if f, err := os.Open(artifact); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error opening file for streaming %s: %s", artifact, err))
-						return err
-					} else if stat, err := f.Stat(); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err))
-						return err
-					} else if sAfct, err := r.bucket.NewStreamedArtifact(fileBaseName, stat.Size()); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err))
-						return err
+
+				if f, err := os.Open(artifact); err != nil {
+					clientLog.Writeln(fmt.Sprintf("[artifactstore] Error opening file for streaming %s: %s", artifact, err))
+					return
+				} else if stat, err := f.Stat(); err != nil {
+					clientLog.Writeln(fmt.Sprintf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err))
+					return
+				} else if sAfct, err := r.bucket.NewStreamedArtifact(fileBaseName, stat.Size()); err != nil {
+					clientLog.Writeln(fmt.Sprintf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err))
+					return
+				} else {
+					// TODO: If possible, avoid reading entire contents of the file into memory, and pass the
+					// file io.Reader directly to http.Post.
+					//
+					// The reason it is done this way is because, using bytes.NewReader() ensures that
+					// Content-Length header is set to a correct value. If not, it is left blank. Alternately,
+					// we could remove this requirement from the server where Content-Length is verified before
+					// starting upload to S3.
+					if contents, err := ioutil.ReadAll(f); err != nil {
+						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error reading file for streaming %s: %s", artifact, err))
+						return
+					} else if err := sAfct.UploadArtifact(bytes.NewReader(contents)); err != nil {
+						// TODO retry if not a terminal error
+						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s: %s", artifact, err))
+						return
 					} else {
-						// TODO: If possible, avoid reading entire contents of the file into memory, and pass the
-						// file io.Reader directly to http.Post.
-						//
-						// The reason it is done this way is because, using bytes.NewReader() ensures that
-						// Content-Length header is set to a correct value. If not, it is left blank. Alternately,
-						// we could remove this requirement from the server where Content-Length is verified before
-						// starting upload to S3.
-						if contents, err := ioutil.ReadAll(f); err != nil {
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Error reading file for streaming %s: %s", artifact, err))
-							return err
-						} else if err := sAfct.UploadArtifact(bytes.NewReader(contents)); err != nil {
-							// TODO retry if not a terminal error
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s: %s", artifact, err))
-							return err
-						} else {
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Successfully uploaded artifact %s to %s", artifact, sAfct.GetContentURL()))
-							return nil
-						}
+						clientLog.Writeln(fmt.Sprintf("[artifactstore] Successfully uploaded artifact %s to %s", artifact, sAfct.GetContentURL()))
 					}
 				}
-				captureError(firstError, send)()
 			}(artifact)
 		}
 
 		wg.Wait()
-		// Any async errors will be sent to the channel
-		return nil
-	}))
-	if err, got := <-firstError; got {
-		if !discardErrors {
-			return err
-		}
-	}
-	return nil
+	})
 }
 
 func (r *Reporter) Shutdown() {
@@ -263,5 +232,4 @@ func init() {
 	reporter.Register("artifactstore", &Reporter{chunkedArtifacts: make(map[string]*artifacts.ChunkedArtifact), deadline: DefaultDeadline})
 	flag.StringVar(&artifactServer, "artifacts-server", "", "Artifacts server URL. If blank, this reporter is disabled.")
 	flag.StringVar(&artifactBucketId, "artifacts-bucket-id", "", "Artifacts Bucket ID (inside the main bucket; not a real s3 bucket; must not exist)")
-	flag.BoolVar(&discardErrors, "discard-artifactstore-errors", true, "Whether to keep ArtifactStore reporter errors from escaping and potentially triggering a failure")
 }

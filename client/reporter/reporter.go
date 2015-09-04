@@ -25,7 +25,7 @@ type Reporter interface {
 	// is different for each reporter and each detection relies on the adapter
 	// to figure out where to actually look for files, a reference to the adapter
 	// is required here.
-	PublishArtifacts(cmd client.ConfigCmd, adapter adapter.Adapter, clientLog *client.Log) error
+	PublishArtifacts(cmd client.ConfigCmd, adapter adapter.Adapter, clientLog *client.Log)
 
 	// Like above, this is responsible for doing something that will at
 	// some point in the future update the status of a snapshot image
