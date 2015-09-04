@@ -73,11 +73,10 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 }
 
 // If we were running in an lxc container, the artifacts are already grouped
-// but they need to be removed from the container and placed in the actual
-// artifact destination. Because we pass through the Jenkins environment
-// variables to the commands inside of the container, we expect that they
-// be in the same location as we expect them to be, except nested within
-// the mounted filesystem.
+// but they need to be copied from the container to the actual artifact
+// destination. Because we pass through the Jenkins environment variables
+// to the commands inside of the container, we expect that they be in the
+// same location as we expect them to be, except nested within the mounted filesystem.
 func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
 	if a.GetRootFs() == "/" {
 		log.Printf("[reporter] RootFs is /, no need to move artifacts")
@@ -87,7 +86,7 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	// TODO: Create and use a.GetWorkspace() as artifactSource instead of double using
 	// artifactDestination.
 	artifactSource := path.Join(a.GetRootFs(), r.artifactDestination)
-	log.Printf("[reporter] Moving artifacts from %s to: %s\n", artifactSource, r.artifactDestination)
+	log.Printf("[reporter] Copying artifacts from %s to: %s\n", artifactSource, r.artifactDestination)
 	cmd := exec.Command("mkdir", "-p", artifactDestination)
 	err := cmd.Run()
 	if err != nil {
