@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"flag"
 	"testing"
+	"time"
 )
 
 func TestWriteStream(t *testing.T) {
@@ -92,6 +93,10 @@ func TestCloseUnblocks(t *testing.T) {
 	}()
 	// Racy validation, but make sure that the writer can run before we close
 	rendez <- true
+	// Sleep here, because we'd like the Writeln call in the other goroutine to be
+	// blocked when we call Close. We can't easily guarantee it, but with rendez and
+	// the sleep, it's really likely.
+	time.Sleep(20 * time.Millisecond)
 	log.Close()
 	<-rendez
 }
