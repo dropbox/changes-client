@@ -2,6 +2,7 @@ package client
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -14,7 +15,8 @@ var (
 )
 
 type Log struct {
-	Chan chan []byte
+	chunkchan chan []byte
+	closed    chan struct{}
 }
 
 type LogLine struct {
@@ -24,24 +26,53 @@ type LogLine struct {
 
 func NewLog() *Log {
 	return &Log{
-		Chan: make(chan []byte),
+		chunkchan: make(chan []byte),
+		closed:    make(chan struct{}),
 	}
 }
 
 func (l *Log) Close() {
-	close(l.Chan)
+	close(l.closed)
 }
 
+// Sends the payload to the log, blocking until it is handled, and
+// returning an error only if it can't be (such as after
+// the log is closed).
 func (l *Log) Write(payload []byte) error {
-	l.Chan <- payload
-
-	return nil
+	select {
+	case <-l.closed:
+		// TODO: Too noisy?
+		log.Printf("WRITE AFTER CLOSE: %s", payload)
+		return errors.New("Write after close")
+	case l.chunkchan <- payload:
+		return nil
+	}
 }
 
+// Writes the payload (with a newline appended) to the console, and
+// uses Write to send it to the log.
 func (l *Log) Writeln(payload string) error {
-	l.Chan <- []byte(payload + "\n")
+	e := l.Write([]byte(payload + "\n"))
 	log.Println(payload)
-	return nil
+	return e
+}
+
+// Repeatedly calls GetChunk() until Close is called.
+// Mostly useful for tests.
+func (l *Log) Drain() {
+	for _, ok := l.GetChunk(); ok; _, ok = l.GetChunk() {
+	}
+}
+
+// Returns the next log chunk, or a nil slice and false if
+// Close was called.
+func (l *Log) GetChunk() ([]byte, bool) {
+	select {
+	case ch := <-l.chunkchan:
+		return ch, true
+	case <-l.closed:
+		return nil, false
+	}
 }
 
 // Printf calls l.Writeln to print to the log. Arguments are handled in
@@ -88,7 +119,7 @@ func (l *Log) WriteStream(pipe io.Reader) {
 		}
 
 		if len(payload) > 0 {
-			l.Chan <- payload
+			l.Write(payload)
 			log.Println(string(payload))
 		}
 	}

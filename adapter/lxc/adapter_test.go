@@ -28,7 +28,7 @@ var _ = Suite(&AdapterSuite{})
 
 // we want to output the log from running the container
 func (s *AdapterSuite) reportLogChunks(clientLog *client.Log) {
-	for chunk := range clientLog.Chan {
+	for chunk, ok := clientLog.GetChunk(); ok; chunk, ok = clientLog.GetChunk() {
 		log.Print(string(chunk))
 	}
 }

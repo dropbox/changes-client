@@ -57,7 +57,10 @@ func TestPublishArtifactsTimeout(t *testing.T) {
 
 	ma := &mockAdapter{}
 	ts.ExpectAndHang("POST", "/buckets/jobstep/artifacts")
-	r.PublishArtifacts(client.ConfigCmd{Artifacts: []string{"*hosts*"}}, ma, client.NewLog())
+	l := client.NewLog()
+	go l.Drain()
+	defer l.Close()
+	r.PublishArtifacts(client.ConfigCmd{Artifacts: []string{"*hosts*"}}, ma, l)
 
 	if !r.isDisabled() {
 		t.Error("PublishArtifacts did not fail with deadline exceeded")

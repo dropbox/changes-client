@@ -282,8 +282,8 @@ func (e *Engine) runBuildPlan() (Result, error) {
 }
 
 func reportLogChunks(name string, clientLog *client.Log, r reporter.Reporter) {
-	for chunk := range clientLog.Chan {
-		r.PushLogChunk(name, chunk)
+	for ch, ok := clientLog.GetChunk(); ok; ch, ok = clientLog.GetChunk() {
+		r.PushLogChunk(name, ch)
 	}
 }
 

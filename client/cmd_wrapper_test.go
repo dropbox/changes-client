@@ -9,12 +9,9 @@ func TestRun(t *testing.T) {
 	cw := NewCmdWrapper([]string{"/bin/bash", "-c", "echo -n 1"}, "", []string{})
 	log := NewLog()
 
-	cnt := 0
 	sem := make(chan bool)
 	go func() {
-		for _ = range log.Chan {
-			cnt++
-		}
+		log.Drain()
 		sem <- true
 	}()
 
@@ -37,8 +34,7 @@ func TestRunIgnoresStdin(t *testing.T) {
 
 	sem := make(chan bool)
 	go func() {
-		for _ = range log.Chan {
-		}
+		log.Drain()
 		sem <- true
 	}()
 
@@ -54,12 +50,9 @@ func TestRunFailToStart(t *testing.T) {
 	cw := NewCmdWrapper([]string{"/bin/bash", "-c", "echo -n 1"}, "", []string{})
 	log := NewLog()
 
-	cnt := 0
 	sem := make(chan bool)
 	go func() {
-		for _ = range log.Chan {
-			cnt++
-		}
+		log.Drain()
 		sem <- true
 	}()
 

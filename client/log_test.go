@@ -18,7 +18,7 @@ func TestWriteStream(t *testing.T) {
 	}()
 
 	cnt := 0
-	for _ = range log.Chan {
+	for _, ok := log.GetChunk(); ok; _, ok = log.GetChunk() {
 		cnt++
 	}
 
@@ -37,7 +37,7 @@ func TestWriteln(t *testing.T) {
 	}()
 
 	var out [][]byte
-	for c := range log.Chan {
+	for c, ok := log.GetChunk(); ok; c, ok = log.GetChunk() {
 		out = append(out, c)
 	}
 
@@ -52,7 +52,7 @@ func TestWriteln(t *testing.T) {
 
 func drain(l *Log) string {
 	var out []byte
-	for c := range l.Chan {
+	for c, ok := l.GetChunk(); ok; c, ok = l.GetChunk() {
 		out = append(out, c...)
 	}
 	return string(out)
@@ -71,4 +71,27 @@ func TestPrintf(t *testing.T) {
 	if result != expected {
 		t.Fatalf("Expected %q, got %q", expected, result)
 	}
+}
+
+func TestLateSend(t *testing.T) {
+	log := NewLog()
+	log.Close()
+	e := log.Writeln("Hello!")
+	if e == nil {
+		t.Fatalf("Expected error on Writeln")
+	}
+}
+
+func TestCloseUnblocks(t *testing.T) {
+	log := NewLog()
+	rendez := make(chan bool)
+	go func() {
+		<-rendez
+		t.Log(log.Writeln("Late"))
+		rendez <- true
+	}()
+	// Racy validation, but make sure that the writer can run before we close
+	rendez <- true
+	log.Close()
+	<-rendez
 }
