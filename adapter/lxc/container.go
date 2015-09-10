@@ -211,6 +211,32 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 	return err
 }
 
+type configItem struct {
+	Name, Value string
+}
+
+func (ci configItem) Set(l *lxc.Container) error {
+	if e := l.SetConfigItem(ci.Name, ci.Value); e != nil {
+		return fmt.Errorf("SetConfigItem(%q, %q) failed: %s", ci.Name, ci.Value, e)
+	}
+	return nil
+}
+
+type cgroupConfigItem struct {
+	Name, Value string
+}
+
+func (ci cgroupConfigItem) Set(l *lxc.Container) error {
+	if e := l.SetCgroupItem(ci.Name, ci.Value); e != nil {
+		return fmt.Errorf("SetCgroupItem(%q, %q) failed: %s", ci.Name, ci.Value, e)
+	}
+	return nil
+}
+
+type configSetter interface {
+	Set(*lxc.Container) error
+}
+
 // In this phase we actually launch the container that the tests
 // will be run in.
 //
@@ -299,44 +325,9 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	}
 
 	log.Print("[lxc] Configuring container options")
-	// More or less disable apparmor
-	if e := c.lxc.SetConfigItem("lxc.aa_profile", "unconfined"); e != nil {
-		return e
-	}
-
-	// Allow loop/squashfs in container
-	if e := c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "b 7:* rwm"); e != nil {
-		return e
-	}
-	if e := c.lxc.SetConfigItem("lxc.cgroup.devices.allow", "c 10:137 rwm"); e != nil {
-		return e
-	}
-
-	if e := c.lxc.SetConfigItem("lxc.utsname", fmt.Sprintf("%s-build", c.Name)); e != nil {
-		return e
-	}
-
-	// the default value for cpu_shares is 1024, so we make a soft assumption
-	// that we can just magnifiy the value based on the number of cpus we're requesting
-	// but it doesnt actually mean we'll get that many cpus
-	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
-	if c.CpuLimit != 0 {
-		c.lxc.SetCgroupItem("cpu.shares", strconv.Itoa(c.CpuLimit*1024))
-	}
-
-	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
-	if c.MemoryLimit != 0 {
-		c.lxc.SetCgroupItem("memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit))
-	}
-
-	// Enable autodev: https://wiki.archlinux.org/index.php/Lxc-systemd
-	c.lxc.SetConfigItem("lxc.autodev", "1")
-	c.lxc.SetConfigItem("lxc.pts", "1024")
-	c.lxc.SetConfigItem("lxc.kmsg", "0")
-
-	if c.BindMounts != nil {
-		for _, mount := range c.BindMounts {
-			c.lxc.SetConfigItem("lxc.mount.entry", mount.Format())
+	for _, cs := range c.getConfigSetters() {
+		if e := cs.Set(c.lxc); e != nil {
+			return e
 		}
 	}
 
@@ -355,6 +346,41 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	}
 
 	return nil
+}
+
+// getConfigSetters returns the configSetters that should be applied to the container before starting.
+func (c *Container) getConfigSetters() []configSetter {
+	result := []configSetter{
+		// More or less disable apparmor
+		configItem{"lxc.aa_profile", "unconfined"},
+		// Allow loop/squashfs in container
+		configItem{"lxc.cgroup.devices.allow", "b 7:* rwm"},
+		configItem{"lxc.cgroup.devices.allow", "c 10:137 rwm"},
+		configItem{"lxc.utsname", c.Name + "-build"},
+
+		// Enable autodev: https://wiki.archlinux.org/index.php/Lxc-systemd
+		configItem{"lxc.autodev", "1"},
+		configItem{"lxc.pts", "1024"},
+		configItem{"lxc.kmsg", "0"},
+	}
+
+	// the default value for cpu_shares is 1024, so we make a soft assumption
+	// that we can just magnifiy the value based on the number of cpus we're requesting
+	// but it doesnt actually mean we'll get that many cpus
+	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
+	if c.CpuLimit != 0 {
+		result = append(result, cgroupConfigItem{"cpu.shares", strconv.Itoa(c.CpuLimit * 1024)})
+	}
+
+	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
+	if c.MemoryLimit != 0 {
+		result = append(result, cgroupConfigItem{"memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit)})
+	}
+
+	for _, mount := range c.BindMounts {
+		result = append(result, configItem{"lxc.mount.entry", mount.Format()})
+	}
+	return result
 }
 
 // Takes care of the entire launch process as opposed to up to the
