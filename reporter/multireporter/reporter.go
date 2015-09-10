@@ -24,17 +24,14 @@ type Reporter struct {
 func (r *Reporter) Init(c *client.Config) {
 	reporters := strings.Split(reporterDestinations, ":")
 	for _, rep := range reporters {
-		newRep, err := reporter.Get(rep)
-		if err != nil {
+		if newRep, err := reporter.Create(rep); err != nil {
 			if sentryClient := sentry.GetClient(); sentryClient != nil {
 				sentryClient.CaptureError(err, map[string]string{})
 			}
 
 			// Allow other reporters to proceed
 			continue
-		}
-
-		if newRep != nil {
+		} else {
 			log.Printf("[multireporter] Initialization successful: %s", rep)
 			r.reporterDestinations = append(r.reporterDestinations, newRep)
 		}
@@ -89,8 +86,12 @@ func (r *Reporter) Shutdown() {
 	}
 }
 
+func New() reporter.Reporter {
+	return &Reporter{}
+}
+
 func init() {
 	flag.StringVar(&reporterDestinations, "reporter-destinations", "mesos:artifactstore", "Colon-separated list of reporter destinations")
 
-	reporter.Register("multireporter", &Reporter{})
+	reporter.Register("multireporter", New)
 }

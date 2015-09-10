@@ -85,7 +85,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	}
 
 	clientLog := client.NewLog()
-	adapter, err := adapter.Get("lxc")
+	adapter, err := adapter.Create("lxc")
 	c.Assert(err, IsNil)
 
 	wg := sync.WaitGroup{}

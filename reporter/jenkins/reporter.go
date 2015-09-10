@@ -103,11 +103,15 @@ func (r *Reporter) Shutdown() {
 	log.Print("[reporter] Shutdown complete [no-op]")
 }
 
+func New() reporter.Reporter {
+	return &Reporter{}
+}
+
 func init() {
 	// XXX figure out a reasonable default for this value or default to ""
 	// and sanity-check the reporter during Init. If this value is invalid
 	// we should trigger an infastracture failure.
 	flag.StringVar(&artifactDestination, "artifact-destination", "/dev/null", "Jenkins artifact destination")
 
-	reporter.Register("jenkins", &Reporter{})
+	reporter.Register("jenkins", New)
 }

@@ -310,6 +310,10 @@ func (r *Reporter) Shutdown() {
 	log.Print("[reporter] Shutdown complete")
 }
 
+func New() reporter.Reporter {
+	return &Reporter{}
+}
+
 func init() {
 	flag.IntVar(&maxPendingReports, "max_pending_reports", 64, "Backlog size")
 	flag.IntVar(&numPublishRetries, "num_publish_retries", 8,
@@ -317,5 +321,5 @@ func init() {
 	flag.IntVar(&maxPendingReports, "backoff_time_ms", 1000,
 		"Time to wait between two consecutive retries")
 
-	reporter.Register("mesos", &Reporter{})
+	reporter.Register("mesos", New)
 }

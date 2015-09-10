@@ -1,33 +1,24 @@
 package reporter
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
-var (
-	registry Registry
-)
+var registry = make(Registry)
 
-type Registry map[string]Reporter
+type Registry map[string]func() Reporter
 
-func (r Registry) register(name string, reporter Reporter) {
-	r[name] = reporter
-}
-
-func Register(name string, reporter Reporter) error {
-	registry.register(name, reporter)
+func (r Registry) register(name string, ctr func() Reporter) error {
+	r[name] = ctr
 	return nil
 }
 
-func Get(name string) (Reporter, error) {
-	reporter, present := registry[name]
-	if present {
-		return reporter, nil
-	}
-	return nil, errors.New(fmt.Sprintf("Reporter not found: %s", name))
+func Register(name string, ctr func() Reporter) error {
+	return registry.register(name, ctr)
 }
 
-func init() {
-	registry = make(Registry)
+func Create(name string) (Reporter, error) {
+	ctr, present := registry[name]
+	if present {
+		return ctr(), nil
+	}
+	return nil, fmt.Errorf("Reporter not found: %s", name)
 }

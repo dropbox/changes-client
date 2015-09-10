@@ -1,33 +1,24 @@
 package adapter
 
-import (
-	"errors"
-	"fmt"
-)
+import "fmt"
 
-var (
-	registry Registry
-)
+var registry = make(Registry)
 
-type Registry map[string]Adapter
+type Registry map[string]func() Adapter
 
-func (r Registry) register(name string, adapter Adapter) {
-	r[name] = adapter
+func (r Registry) register(name string, ctr func() Adapter) {
+	r[name] = ctr
 }
 
-func Register(name string, adapter Adapter) error {
-	registry.register(name, adapter)
+func Register(name string, ctr func() Adapter) error {
+	registry.register(name, ctr)
 	return nil
 }
 
-func Get(name string) (Adapter, error) {
-	adapter, present := registry[name]
+func Create(name string) (Adapter, error) {
+	ctr, present := registry[name]
 	if present {
-		return adapter, nil
+		return ctr(), nil
 	}
-	return nil, errors.New(fmt.Sprintf("Adapter not found: %s", name))
-}
-
-func init() {
-	registry = make(Registry)
+	return nil, fmt.Errorf("Adapter not found: %s", name)
 }

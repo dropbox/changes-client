@@ -228,8 +228,12 @@ func (r *Reporter) runWithDeadline(t time.Duration, f func()) {
 	}
 }
 
+func New() reporter.Reporter {
+	return &Reporter{chunkedArtifacts: make(map[string]*artifacts.ChunkedArtifact), deadline: DefaultDeadline}
+}
+
 func init() {
-	reporter.Register("artifactstore", &Reporter{chunkedArtifacts: make(map[string]*artifacts.ChunkedArtifact), deadline: DefaultDeadline})
+	reporter.Register("artifactstore", New)
 	flag.StringVar(&artifactServer, "artifacts-server", "", "Artifacts server URL. If blank, this reporter is disabled.")
 	flag.StringVar(&artifactBucketId, "artifacts-bucket-id", "", "Artifacts Bucket ID (inside the main bucket; not a real s3 bucket; must not exist)")
 }

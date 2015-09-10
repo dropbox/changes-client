@@ -185,6 +185,10 @@ func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([
 	return glob.GlobTree(a.artifactSource, artifacts)
 }
 
+func New() adapter.Adapter {
+	return &Adapter{}
+}
+
 func init() {
 	flag.StringVar(&preLaunch, "pre-launch", "", "Container pre-launch script")
 	flag.StringVar(&postLaunch, "post-launch", "", "Container post-launch script")
@@ -212,5 +216,5 @@ func init() {
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
 
-	adapter.Register("lxc", &Adapter{})
+	adapter.Register("lxc", New)
 }

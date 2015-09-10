@@ -68,12 +68,12 @@ type Engine struct {
 func RunBuildPlan(config *client.Config) (Result, error) {
 	var err error
 
-	currentAdapter, err := adapter.Get(selectedAdapter)
+	currentAdapter, err := adapter.Create(selectedAdapter)
 	if err != nil {
 		return RESULT_INFRA_FAILED, err
 	}
 
-	currentReporter, err := reporter.Get(selectedReporter)
+	currentReporter, err := reporter.Create(selectedReporter)
 	if err != nil {
 		log.Printf("[engine] failed to initialize reporter: %s", selectedReporter)
 		return RESULT_INFRA_FAILED, err

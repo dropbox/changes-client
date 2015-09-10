@@ -66,6 +66,10 @@ func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([
 	return glob.GlobTree(a.workspace, artifacts)
 }
 
+func New() adapter.Adapter {
+	return &Adapter{}
+}
+
 func init() {
-	adapter.Register("basic", &Adapter{})
+	adapter.Register("basic", New)
 }
