@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -320,12 +321,12 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	// but it doesnt actually mean we'll get that many cpus
 	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
 	if c.CpuLimit != 0 {
-		c.lxc.SetCgroupItem("cpu.shares", string(c.CpuLimit*1024))
+		c.lxc.SetCgroupItem("cpu.shares", strconv.Itoa(c.CpuLimit*1024))
 	}
 
 	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
 	if c.MemoryLimit != 0 {
-		c.lxc.SetCgroupItem("memory.limit_in_bytes", string(c.MemoryLimit))
+		c.lxc.SetCgroupItem("memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit))
 	}
 
 	// Enable autodev: https://wiki.archlinux.org/index.php/Lxc-systemd
