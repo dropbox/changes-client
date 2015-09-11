@@ -121,9 +121,6 @@ func (e *Engine) Run() (Result, error) {
 }
 
 func (e *Engine) executeCommands() (Result, error) {
-	wg := sync.WaitGroup{}
-	defer wg.Wait()
-
 	for _, cmdConfig := range e.config.Cmds {
 		e.clientLog.Printf("==> Running command %s", cmdConfig.ID)
 		e.clientLog.Printf("==>     with script %s", cmdConfig.Script)
@@ -166,13 +163,10 @@ func (e *Engine) executeCommands() (Result, error) {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 		}
 
-		wg.Add(1)
-		go func(cfgcmd client.ConfigCmd) {
-			// publishArtifacts is a synchronous operation and doesnt follow the normal queue flow of
-			// other operations
-			e.reporter.PublishArtifacts(cfgcmd, e.adapter, e.clientLog)
-			wg.Done()
-		}(cmdConfig)
+		if err := e.reporter.PublishArtifacts(cmdConfig, e.adapter, e.clientLog); err != nil {
+			e.clientLog.Printf("==> Error: %s", err)
+			return RESULT_INFRA_FAILED, err
+		}
 
 		if result.IsFailure() {
 			return result, nil

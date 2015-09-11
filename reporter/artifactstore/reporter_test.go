@@ -67,6 +67,20 @@ func TestPublishArtifactsTimeout(t *testing.T) {
 	}
 }
 
+func TestPublishArtifactsDoesntHang(t *testing.T) {
+	r := &Reporter{deadline: 100 * time.Millisecond}
+	r.Init(&client.Config{JobstepID: "jobstep"})
+	l := client.NewLog()
+	go l.Drain()
+	defer l.Close()
+	var ma mockAdapter
+	// No artifacts means it should finish immediately.
+	r.PublishArtifacts(client.ConfigCmd{Artifacts: []string{}}, &ma, l)
+	// There's no assertion here because we're implicitly verifying that even in the
+	// absence of errors, PublishArtifacts terminates.
+	// This may sound silly, but that was a bug we had, and this makes sure we won't again.
+}
+
 func TestShutdownTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()

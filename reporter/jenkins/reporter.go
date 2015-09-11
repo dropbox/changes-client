@@ -77,10 +77,10 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 // destination. Because we pass through the Jenkins environment variables
 // to the commands inside of the container, we expect that they be in the
 // same location as we expect them to be, except nested within the mounted filesystem.
-func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) {
+func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
 	if a.GetRootFs() == "/" {
 		log.Printf("[reporter] RootFs is /, no need to move artifacts")
-		return
+		return nil
 	}
 
 	// TODO: Create and use a.GetWorkspace() as artifactSource instead of double using
@@ -88,15 +88,16 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	artifactSource := path.Join(a.GetRootFs(), r.artifactDestination)
 	log.Printf("[reporter] Copying artifacts from %s to: %s\n", artifactSource, r.artifactDestination)
 	cmd := exec.Command("mkdir", "-p", artifactDestination)
-	err := cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		log.Printf("[reporter] Failed to create artifact destination")
+		return err
 	}
 	cmd = exec.Command("cp", "-f", "-r", path.Join(artifactSource, "."), r.artifactDestination)
-	err = cmd.Run()
-	if err != nil {
+	if err := cmd.Run(); err != nil {
 		log.Printf("[reporter] Failed to push artifacts; possibly the source artifact folder did not exist")
+		return err
 	}
+	return nil
 }
 
 func (r *Reporter) Shutdown() {
