@@ -37,8 +37,12 @@ type Container struct {
 	// Valid values: xz, lz4. These are also used as the file extensions
 	// for the rootfs tarballs
 	Compression string
-	lxc         *lxc.Container
-	Executor    *Executor
+	// Local path to directory of cached images. This determines where
+	// images are downloaded to and where we look for them.
+	// Required.
+	ImageCacheDir string
+	lxc           *lxc.Container
+	Executor      *Executor
 }
 
 type BindMount struct {
@@ -108,6 +112,20 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 	}
 }
 
+// Returns the compression type (xz or lz4) of the container's cached image.
+// The second return value indicates success in determining the type.
+func (c *Container) getImageCompressionType() (string, bool) {
+	localPath := filepath.Join(c.ImageCacheDir, c.getImagePath(c.Snapshot))
+
+	for _, compressionType := range []string{"xz", "lz4"} {
+		fileName := "rootfs.tar." + compressionType
+		if _, err := os.Stat(filepath.Join(localPath, fileName)); err == nil {
+			return compressionType, true
+		}
+	}
+	return "", false
+}
+
 func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 	var base *lxc.Container
 
@@ -129,8 +147,10 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		}
 
 		template := "download"
-		if c.Compression != "xz" {
-			template = fmt.Sprintf("download-%s", c.Compression)
+		if compressionType, ok := c.getImageCompressionType(); !ok {
+			return errors.New("Failed to determine compression type of cached image.")
+		} else if compressionType != "xz" {
+			template = fmt.Sprintf("download-%s", compressionType)
 		}
 
 		clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
@@ -563,7 +583,7 @@ func (c *Container) snapshotIsCached(snapshot string) bool {
 func (c *Container) removeCachedImage() error {
 	// Note that this won't fail if the cache doesn't exist, which
 	// is the desireed behavior
-	return os.RemoveAll(filepath.Join("/var/cache/lxc/download", c.getImagePath(c.Snapshot)))
+	return os.RemoveAll(filepath.Join(c.ImageCacheDir, c.getImagePath(c.Snapshot)))
 }
 
 // To avoid complexity of having a sort-of public host, and to ensure we
@@ -576,12 +596,18 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	var err error
 
 	relPath := c.getImagePath(snapshot)
-	localPath := filepath.Join("/var/cache/lxc/download", relPath)
+	localPath := filepath.Join(c.ImageCacheDir, relPath)
 
 	// list of files required to avoid network hit
-	fileList := []string{fmt.Sprintf("rootfs.tar.%s", c.Compression), "config", "snapshot_id"}
+	fileList := []string{"config", "snapshot_id"}
 
-	var missingFiles bool = false
+	missingFiles := false
+
+	// If we weren't able to determine the compression type, it's probably because we can't
+	// find the image file.
+	if _, ok := c.getImageCompressionType(); !ok {
+		missingFiles = true
+	}
 	for n := range fileList {
 		if _, err = os.Stat(filepath.Join(localPath, fileList[n])); os.IsNotExist(err) {
 			missingFiles = true
@@ -639,7 +665,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 		return err
 	}
 
-	dest := filepath.Join("/var/cache/lxc/download", c.getImagePath(snapshot))
+	dest := filepath.Join(c.ImageCacheDir, c.getImagePath(snapshot))
 	clientLog.Writeln(fmt.Sprintf("==> Saving snapshot to %s", dest))
 	start := time.Now()
 
@@ -731,7 +757,7 @@ func (c *Container) createImageSnapshotID(snapshotPath string, clientLog *client
 // either xz for high compression or lz4 for raw speed.
 func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	relPath := c.getImagePath(snapshot)
-	localPath := filepath.Join("/var/cache/lxc/download", relPath)
+	localPath := filepath.Join(c.ImageCacheDir, relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
 	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))

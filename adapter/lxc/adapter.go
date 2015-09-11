@@ -86,12 +86,13 @@ func (a *Adapter) Init(config *client.Config) error {
 		PostLaunch: postLaunch,
 		Snapshot:   snapshot,
 		// TODO(dcramer):  Move S3 logic into core engine
-		S3Bucket:    s3Bucket,
-		MemoryLimit: memory,
-		CpuLimit:    cpus,
-		Compression: compression,
-		Executor:    executor,
-		BindMounts:  mounts,
+		S3Bucket:      s3Bucket,
+		MemoryLimit:   memory,
+		CpuLimit:      cpus,
+		Compression:   compression,
+		Executor:      executor,
+		BindMounts:    mounts,
+		ImageCacheDir: "/var/cache/lxc/download",
 	}
 
 	a.config = config
@@ -196,7 +197,9 @@ func init() {
 	flag.StringVar(&dist, "dist", "ubuntu", "Linux distribution")
 	flag.StringVar(&release, "release", "trusty", "Distribution release")
 	flag.StringVar(&arch, "arch", "amd64", "Linux architecture")
-	flag.StringVar(&compression, "compression", "xz", "compression algorithm (xz,lz4)")
+	// This is the compression algorithm to be used for creating an image.
+	// The decompression used is determined by whether the image has the "xz" or "lz4" extension.
+	flag.StringVar(&compression, "compression", "lz4", "compression algorithm (xz,lz4)")
 	flag.StringVar(&bindMounts, "bind-mounts", "", "bind mounts. <source>:<dest>:<options>. comma separated.")
 
 	// the executor should have the following properties:
