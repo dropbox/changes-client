@@ -242,17 +242,6 @@ func (ci configItem) Set(l *lxc.Container) error {
 	return nil
 }
 
-type cgroupConfigItem struct {
-	Name, Value string
-}
-
-func (ci cgroupConfigItem) Set(l *lxc.Container) error {
-	if e := l.SetCgroupItem(ci.Name, ci.Value); e != nil {
-		return fmt.Errorf("SetCgroupItem(%q, %q) failed: %s", ci.Name, ci.Value, e)
-	}
-	return nil
-}
-
 type configSetter interface {
 	Set(*lxc.Container) error
 }
@@ -389,17 +378,18 @@ func (c *Container) getConfigSetters() []configSetter {
 	// but it doesnt actually mean we'll get that many cpus
 	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
 	if c.CpuLimit != 0 {
-		result = append(result, cgroupConfigItem{"cpu.shares", strconv.Itoa(c.CpuLimit * 1024)})
+		result = append(result, configItem{"lxc.cgroup.cpu.shares", strconv.Itoa(c.CpuLimit * 1024)})
 	}
 
 	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
 	if c.MemoryLimit != 0 {
-		result = append(result, cgroupConfigItem{"memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit)})
+		result = append(result, configItem{"lxc.cgroup.memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit)})
 	}
 
 	for _, mount := range c.BindMounts {
 		result = append(result, configItem{"lxc.mount.entry", mount.Format()})
 	}
+
 	return result
 }
 

@@ -102,6 +102,16 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	err = adapter.Init(config)
 	c.Assert(err, IsNil)
 
+	// Set CpuLimit and MemoryLimit.
+	// These values are usually set via flags that set `cpus` and `memory`.
+	// This is to sanity check that the container doesn't fail to start with
+	// reasonable values and our code for setting configs doesn't error out.
+	// TODO: Should have tests that verify that these values have the desired effects.
+	lxcAdapter, ok := adapter.(*Adapter)
+	c.Assert(ok, Equals, true)
+	lxcAdapter.container.CpuLimit = 1
+	lxcAdapter.container.MemoryLimit = 512 * 1024 * 1024
+
 	err = adapter.Prepare(clientLog)
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
