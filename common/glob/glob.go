@@ -7,27 +7,29 @@ package glob
 import (
 	"os"
 	"path/filepath"
-	"strings"
 )
 
-func GlobTree(root string, patterns []string) ([]string, error) {
-	matches := []string{}
-
+// GlobTreeRegular walks root looking for regular (non-dir, non-device) files
+// that match the provided glob patterns and returns them in matches.
+// Any non-regular files that match will be returned in skipped.
+// If there is an error, matches and skipped may be incomplete or empty.
+func GlobTreeRegular(root string, patterns []string) (matches []string, skipped []string, err error) {
 	visit := func(path string, f os.FileInfo, err error) error {
-		pathBits := strings.Split(path, "/")
-		filename := pathBits[len(pathBits)-1]
+		filename := filepath.Base(path)
 		for _, pattern := range patterns {
-			m, err := filepath.Match(pattern, filename)
-			if err != nil {
-				return err
-			}
-			if m {
-				matches = append(matches, path)
+			if m, e := filepath.Match(pattern, filename); e != nil {
+				return e
+			} else if m {
+				if !f.Mode().IsRegular() {
+					skipped = append(skipped, path)
+				} else {
+					matches = append(matches, path)
+				}
 			}
 		}
 		return nil
 	}
 
-	err := filepath.Walk(root, visit)
-	return matches, err
+	err = filepath.Walk(root, visit)
+	return matches, skipped, err
 }

@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	autil "github.com/dropbox/changes-client/adapter"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common/glob"
 	"github.com/dropbox/changes-client/common/sentry"
 	"gopkg.in/lxc/go-lxc.v2"
 )
@@ -183,7 +183,7 @@ func (a *Adapter) GetRootFs() string {
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
 	log.Printf("[lxc] Searching for %s in %s", artifacts, a.artifactSource)
-	return glob.GlobTree(a.artifactSource, artifacts)
+	return autil.CollectArtifactsIn(a.artifactSource, artifacts, clientLog)
 }
 
 func New() adapter.Adapter {

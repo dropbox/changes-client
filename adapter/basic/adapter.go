@@ -4,9 +4,9 @@ import (
 	"os"
 	"path/filepath"
 
+	autil "github.com/dropbox/changes-client/adapter"
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
-	"github.com/dropbox/changes-client/common/glob"
 )
 
 type Adapter struct {
@@ -63,7 +63,7 @@ func (a *Adapter) GetRootFs() string {
 }
 
 func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([]string, error) {
-	return glob.GlobTree(a.workspace, artifacts)
+	return autil.CollectArtifactsIn(a.workspace, artifacts, clientLog)
 }
 
 func New() adapter.Adapter {
