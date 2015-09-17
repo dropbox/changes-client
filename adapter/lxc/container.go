@@ -383,7 +383,7 @@ func (c *Container) getConfigSetters() []configSetter {
 
 	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
 	if c.MemoryLimit != 0 {
-		result = append(result, configItem{"lxc.cgroup.memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit)})
+		result = append(result, configItem{"lxc.cgroup.memory.limit_in_bytes", strconv.Itoa(c.MemoryLimit) + "M"})
 	}
 
 	for _, mount := range c.BindMounts {

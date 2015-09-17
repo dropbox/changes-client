@@ -110,7 +110,7 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	lxcAdapter, ok := adapter.(*Adapter)
 	c.Assert(ok, Equals, true)
 	lxcAdapter.container.CpuLimit = 1
-	lxcAdapter.container.MemoryLimit = 512 * 1024 * 1024
+	lxcAdapter.container.MemoryLimit = 512
 
 	err = adapter.Prepare(clientLog)
 	c.Assert(err, IsNil)

@@ -215,7 +215,7 @@ func init() {
 	//
 	flag.StringVar(&executorName, "executor", "", "Executor (unique runner id)")
 	flag.StringVar(&executorPath, "executor-path", "/var/lib/changes-client/executors", "Path to store executors")
-	flag.IntVar(&memory, "memory", 0, "Memory limit")
+	flag.IntVar(&memory, "memory", 0, "Memory limit (in MB)")
 	flag.IntVar(&cpus, "cpus", 0, "CPU limit")
 	flag.BoolVar(&keepContainer, "keep-container", false, "Do not destroy the container on cleanup")
 
