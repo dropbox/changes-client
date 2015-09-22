@@ -112,6 +112,9 @@ func (_ *noopAdapter) CaptureSnapshot(string, *client.Log) error { return nil }
 func (_ *noopAdapter) GetRootFs() string {
 	return "/"
 }
+func (_ *noopAdapter) GetArtifactRoot() string {
+	return "/"
+}
 func (_ *noopAdapter) CollectArtifacts([]string, *client.Log) ([]string, error) {
 	return nil, nil
 }

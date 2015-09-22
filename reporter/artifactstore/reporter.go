@@ -139,6 +139,18 @@ func captureError(errch chan error, fn func() error) func() {
 	}
 }
 
+func constructArtifactRelativePath(absoluteArtifactPath string, artifactSourceDir string) string {
+	if relativeName, err := filepath.Rel(artifactSourceDir, absoluteArtifactPath); err == nil {
+		// If relative path was calculated without issues, use it to construct artifact name.
+		return relativeName
+	}
+
+	// This will only happen if the artifact path was not absolute (we expect result from
+	// CollectArtifacts to only have absolute file paths).
+	log.Printf("[artifactstore] Could not determine relative file path. Using base file name as artifact name.")
+	return absoluteArtifactPath
+}
+
 func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
 	// first non-nil error
 	firstError := make(chan error, 1)
@@ -162,8 +174,9 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 			wg.Add(1)
 			go func(artifact string) {
 				defer wg.Done()
-				log.Println(fmt.Sprintf("[artifactstore] Uploading: %s", artifact))
-				fileBaseName := filepath.Base(artifact)
+				artifactName := filepath.Base(artifact)
+
+				log.Printf("[artifactstore] Uploading %s (from %s)", artifactName, artifact)
 				send := func() error {
 					if f, err := os.Open(artifact); err != nil {
 						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error opening file for streaming %s: %s", artifact, err))
@@ -171,7 +184,7 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 					} else if stat, err := f.Stat(); err != nil {
 						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err))
 						return err
-					} else if sAfct, err := r.bucket.NewStreamedArtifact(fileBaseName, stat.Size()); err != nil {
+					} else if sAfct, err := r.bucket.NewStreamedArtifact(constructArtifactRelativePath(artifact, a.GetArtifactRoot()), stat.Size()); err != nil {
 						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err))
 						return err
 					} else {

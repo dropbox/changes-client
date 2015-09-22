@@ -186,6 +186,10 @@ func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([
 	return autil.CollectArtifactsIn(a.artifactSource, artifacts, clientLog)
 }
 
+func (a *Adapter) GetArtifactRoot() string {
+	return a.artifactSource
+}
+
 func New() adapter.Adapter {
 	return &Adapter{}
 }

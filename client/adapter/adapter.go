@@ -2,6 +2,7 @@ package adapter
 
 import (
 	"fmt"
+
 	"github.com/dropbox/changes-client/client"
 )
 
@@ -16,6 +17,8 @@ type Adapter interface {
 	CaptureSnapshot(string, *client.Log) error
 	GetRootFs() string
 	CollectArtifacts([]string, *client.Log) ([]string, error)
+	// Get absolute path to directory in which artifacts are searched
+	GetArtifactRoot() string
 }
 
 func FormatUUID(uuid string) string {

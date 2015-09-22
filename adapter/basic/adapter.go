@@ -66,6 +66,10 @@ func (a *Adapter) CollectArtifacts(artifacts []string, clientLog *client.Log) ([
 	return autil.CollectArtifactsIn(a.workspace, artifacts, clientLog)
 }
 
+func (a *Adapter) GetArtifactRoot() string {
+	return a.workspace
+}
+
 func New() adapter.Adapter {
 	return &Adapter{}
 }

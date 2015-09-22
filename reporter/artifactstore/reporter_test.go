@@ -42,6 +42,10 @@ func (m *mockAdapter) CollectArtifacts([]string, *client.Log) ([]string, error) 
 	return []string{"/etc/hosts"}, nil
 }
 
+func (m *mockAdapter) GetArtifactRoot() string {
+	return "/"
+}
+
 func TestPublishArtifactsTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
