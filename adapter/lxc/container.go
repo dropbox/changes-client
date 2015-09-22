@@ -792,7 +792,7 @@ func (c *Container) runPreLaunch(clientLog *client.Log) error {
 	}
 
 	if !result.Success {
-		return errors.New("Post-launch script failed")
+		return errors.New("Pre-launch script failed")
 	}
 
 	return nil
