@@ -105,22 +105,20 @@ func (a *Adapter) Init(config *client.Config) error {
 // commands are processed and is run once.
 func (a *Adapter) Prepare(clientLog *client.Log) error {
 	clientLog.Writeln("LXC version: " + lxc.Version())
-	err := a.container.Launch(clientLog)
-	if err != nil {
+	if err := a.container.Launch(clientLog); err != nil {
 		return err
 	}
 
-	artifactSource := "/home/ubuntu"
+	containerArtifactSource := "/home/ubuntu"
 	if a.config.ArtifactSearchPath != "" {
-		artifactSource = a.config.ArtifactSearchPath
+		containerArtifactSource = a.config.ArtifactSearchPath
 	}
-	artifactSource, err = filepath.Abs(path.Join(a.container.RootFs(), strings.TrimLeft(artifactSource, "/")))
-	if err != nil {
+	if artifactSource, err := filepath.Abs(path.Join(a.container.RootFs(), containerArtifactSource)); err != nil {
 		return err
+	} else {
+		a.artifactSource = artifactSource
+		return nil
 	}
-	a.artifactSource = artifactSource
-
-	return nil
 }
 
 // Runs a given command. This may be called multiple times depending
@@ -161,14 +159,12 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
 	outputSnapshot = adapter.FormatUUID(outputSnapshot)
 
-	err := a.container.CreateImage(outputSnapshot, clientLog)
-	if err != nil {
+	if err := a.container.CreateImage(outputSnapshot, clientLog); err != nil {
 		return err
 	}
 
 	if a.container.S3Bucket != "" {
-		err = a.container.UploadImage(outputSnapshot, clientLog)
-		if err != nil {
+		if err := a.container.UploadImage(outputSnapshot, clientLog); err != nil {
 			return err
 		}
 	} else {

@@ -95,8 +95,7 @@ func (c *Container) acquireLock(name string) (*lockfile.Lockfile, error) {
 
 	startTime := time.Now()
 	for {
-		err = lock.TryLock()
-		if err != nil {
+		if err := lock.TryLock(); err != nil {
 			if time.Since(startTime) > lockTimeout {
 				return nil, err
 			}
@@ -226,7 +225,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		Backend:  lxc.Overlayfs,
 	})
 	if err == nil {
-		clientLog.Writeln(fmt.Sprintf("==> Created overlay container:% s", c.Name))
+		clientLog.Writeln(fmt.Sprintf("==> Created overlay container: %s", c.Name))
 	}
 	return err
 }
@@ -287,13 +286,11 @@ type configSetter interface {
 // Once the container is started, we mount the container and perform
 // basic configurations as well as run the pre-launch script.
 func (c *Container) launchContainer(clientLog *client.Log) error {
-	var err error
 
 	c.Executor.Clean()
 
 	if c.Snapshot != "" {
-		err := c.launchOverlayContainer(clientLog)
-		if err != nil {
+		if err := c.launchOverlayContainer(clientLog); err != nil {
 			return err
 		}
 	} else {
@@ -306,20 +303,20 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 		defer lxc.Release(base)
 
 		clientLog.Writeln(fmt.Sprintf("==> Creating container: %s", c.Name))
-		err = base.Create(lxc.TemplateOptions{
+		if err := base.Create(lxc.TemplateOptions{
 			Template: c.Dist,
 			Arch:     c.Arch,
 			Release:  c.Release,
-		})
-		if err != nil {
+		}); err != nil {
 			return err
 		}
 		clientLog.Writeln(fmt.Sprintf("==> Created container: %s", c.Name))
 	}
 
-	c.lxc, err = lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
-	if err != nil {
+	if newcont, err := lxc.NewContainer(c.Name, lxc.DefaultConfigPath()); err != nil {
 		return err
+	} else {
+		c.lxc = newcont
 	}
 	c.lxc.SetVerbosity(lxc.Quiet)
 
@@ -327,8 +324,7 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 
 	if c.PreLaunch != "" {
 		log.Print("[lxc] Running pre-launch script")
-		err = c.runPreLaunch(clientLog)
-		if err != nil {
+		if err := c.runPreLaunch(clientLog); err != nil {
 			return err
 		}
 	}
@@ -343,14 +339,12 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 	clientLog.Writeln("==> Waiting for container to be ready")
 
 	log.Print("[lxc] Starting the container")
-	err = c.lxc.Start()
-	if err != nil {
+	if err := c.lxc.Start(); err != nil {
 		return err
 	}
 
 	log.Print("[lxc] Waiting for container to startup networking")
-	_, err = c.lxc.WaitIPAddresses(30 * time.Second)
-	if err != nil {
+	if _, err := c.lxc.WaitIPAddresses(30 * time.Second); err != nil {
 		return err
 	}
 
@@ -401,10 +395,7 @@ func (c *Container) getConfigSetters() []configSetter {
 // which will provision the system (and depends on the completion
 // of the above three tasks).
 func (c *Container) Launch(clientLog *client.Log) error {
-	var err error
-
-	err = c.launchContainer(clientLog)
-	if err != nil {
+	if err := c.launchContainer(clientLog); err != nil {
 		return err
 	}
 
@@ -414,27 +405,23 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	if c.Snapshot == "" {
 		log.Print("[lxc] Installing ca-certificates")
 		cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
-		_, err = cw.Run(false, clientLog, c.lxc)
-		if err != nil {
+		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
 			return err
 		}
 		cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
-		_, err = cw.Run(false, clientLog, c.lxc)
-		if err != nil {
+		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
 			return err
 		}
 
 		log.Print("[lxc] Setting up sudoers")
-		err = c.setupSudoers()
-		if err != nil {
+		if err := c.setupSudoers(); err != nil {
 			return err
 		}
 	}
 
 	if c.PostLaunch != "" {
 		log.Print("[lxc] Running post-launch script")
-		err = c.runPostLaunch(clientLog)
-		if err != nil {
+		if err := c.runPostLaunch(clientLog); err != nil {
 			return err
 		}
 	}

@@ -88,7 +88,7 @@ func (e *Executor) Clean() {
 		if os.IsNotExist(err) {
 			log.Printf("[lxc] Executor doesn't exist, pre-existing state appears clean.")
 		} else {
-			log.Printf("[lxc] An unexpected io error occurred: %s", err.Error())
+			log.Printf("[lxc] An unexpected io error occurred: %s", err)
 		}
 	}
 }
