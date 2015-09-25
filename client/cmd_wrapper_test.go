@@ -38,12 +38,9 @@ func TestRunIgnoresStdin(t *testing.T) {
 		sem <- true
 	}()
 
-	_, err := cw.Run(false, log)
+	cw.Run(false, log)
 	log.Close()
 	<-sem
-	if err == nil {
-		t.Fatal("Expected a failure")
-	}
 }
 
 func TestRunFailToStart(t *testing.T) {

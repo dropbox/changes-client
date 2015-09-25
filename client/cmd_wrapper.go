@@ -93,9 +93,13 @@ func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, e
 
 	wg.Wait()
 
-	if err != nil {
-		// TODO(dcramer): what should we do here?
-		clientLog.Writeln(err.Error())
+	switch err.(type) {
+	case *exec.ExitError:
+		// ExitError means non-zero exit status, handled by CommandResult below.
+	case nil:
+		// Success, nothing to do.
+	default:
+		// Some failure trying to run the command.
 		return nil, err
 	}
 
