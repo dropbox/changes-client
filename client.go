@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common/sentry"
@@ -15,7 +16,7 @@ import (
 
 func main() {
 	showVersion := flag.Bool("version", false, "Prints changes-client version")
-	exitResult := flag.Bool("exit-result", false, "Determine exit code from result")
+	exitResult := flag.Bool("exit-result", false, "Determine exit code from result--exit 1 on any execution failure or 99 on any infrastructure failure")
 	flag.Parse()
 
 	if *showVersion {
@@ -23,15 +24,27 @@ func main() {
 		return
 	}
 
-	success := run()
-	if !success && *exitResult {
-		log.Fatal("[client] exit: 1")
+	result := run()
+	exitCode := 0
+	if *exitResult {
+		switch result {
+		case engine.RESULT_PASSED:
+			exitCode = 0
+		case engine.RESULT_INFRA_FAILED:
+			// We use exit code 99 to signal to the generic-build script that
+			// there was an infrastructure failure. Eventually, changes-client
+			// will probably report infra failures to Changes directly.
+			exitCode = 99
+		default:
+			exitCode = 1
+		}
 	}
-	log.Println("[client] exit: 0")
+	log.Println("[client] exit:", exitCode)
+	os.Exit(exitCode)
 }
 
 // Returns whether run was successful.
-func run() bool {
+func run() (result engine.Result) {
 	var sentryClient *raven.Client
 	if sentryClient = sentry.GetClient(); sentryClient != nil {
 		log.Printf("Using Sentry; ProjectID=%s, URL=%s", sentryClient.ProjectID(), sentryClient.URL())
@@ -53,7 +66,8 @@ func run() bool {
 				if serr := <-ch; serr != nil {
 					log.Printf("SENTRY ERROR: %s", serr)
 				}
-				panic(p)
+				// We consider panics an infra failure
+				result = engine.RESULT_INFRA_FAILED
 			}
 		}()
 	} else {
@@ -64,7 +78,9 @@ func run() bool {
 
 	config, err := client.GetConfig()
 	if err != nil {
-		panic(err)
+		log.Printf("[client] error: %s", err)
+		sentry.Error(err, map[string]string{})
+		return engine.RESULT_INFRA_FAILED
 	}
 	if sentryClient != nil {
 		sentryClient.SetTagsContext(map[string]string{
@@ -73,11 +89,12 @@ func run() bool {
 		})
 	}
 
-	result, err := engine.RunBuildPlan(config)
+	result, err = engine.RunBuildPlan(config)
 	log.Printf("[client] Finished: %s", result)
 	if err != nil {
 		log.Printf("[client] error: %s", err)
 		sentry.Error(err, map[string]string{})
+		result = engine.RESULT_INFRA_FAILED
 	}
-	return err == nil && result == engine.RESULT_PASSED
+	return result
 }

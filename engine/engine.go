@@ -127,7 +127,7 @@ func (e *Engine) executeCommands() (Result, error) {
 		cmd, err := client.NewCommand(cmdConfig.ID, cmdConfig.Script)
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			e.clientLog.Printf("==> Error: %s", err)
+			e.clientLog.Printf("==> Error creating command script: %s", err)
 			return RESULT_INFRA_FAILED, err
 		}
 		e.reporter.PushCommandStatus(cmd.ID, STATUS_IN_PROGRESS, -1)
@@ -148,7 +148,7 @@ func (e *Engine) executeCommands() (Result, error) {
 
 		if err != nil {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 255)
-			e.clientLog.Printf("==> Error: %s", err)
+			e.clientLog.Printf("==> Error running command: %s", err)
 			return RESULT_INFRA_FAILED, err
 		}
 		result := RESULT_FAILED
@@ -164,7 +164,7 @@ func (e *Engine) executeCommands() (Result, error) {
 		}
 
 		if err := e.reporter.PublishArtifacts(cmdConfig, e.adapter, e.clientLog); err != nil {
-			e.clientLog.Printf("==> Error: %s", err)
+			e.clientLog.Printf("==> PublishArtifacts Error: %s", err)
 			return RESULT_INFRA_FAILED, err
 		}
 
