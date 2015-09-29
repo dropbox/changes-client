@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -8,6 +9,8 @@ import (
 	"os"
 
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/reporter"
 	"github.com/dropbox/changes-client/common/sentry"
 	"github.com/dropbox/changes-client/common/version"
 	"github.com/dropbox/changes-client/engine"
@@ -15,13 +18,31 @@ import (
 )
 
 func main() {
-	showVersion := flag.Bool("version", false, "Prints changes-client version")
-	exitResult := flag.Bool("exit-result", false, "Determine exit code from result--exit 1 on any execution failure or 99 on any infrastructure failure")
+	var (
+		showVersion = flag.Bool("version", false, "Prints changes-client version")
+		exitResult  = flag.Bool("exit-result", false, "Determine exit code from result--exit 1 on any execution failure or 99 on any infrastructure failure")
+		showInfo    = flag.Bool("showinfo", false, "Prints basic information about this binary in a stable json format and exits.")
+	)
 	flag.Parse()
 
 	if *showVersion {
 		fmt.Println(version.GetVersion())
 		return
+	}
+	if *showInfo {
+		// This is intended to be a reliable way to externally verify
+		// the available functionality in this binary; change the format
+		// only with great care.
+		if d, e := json.MarshalIndent(map[string]interface{}{
+			"adapters":  adapter.Names(),
+			"reporters": reporter.Names(),
+			"version":   version.GetVersion(),
+		}, "", "   "); e != nil {
+			panic(e)
+		} else {
+			fmt.Println(string(d))
+			return
+		}
 	}
 
 	result := run()
