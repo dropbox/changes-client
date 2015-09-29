@@ -57,7 +57,18 @@ type Config struct {
 		Name string
 		Slug string
 	}
-	Cmds []ConfigCmd `json:"commands"`
+	Cmds        []ConfigCmd                `json:"commands"`
+	DebugConfig map[string]json.RawMessage `json:"debugConfig"`
+}
+
+// GetDebugConfig parses the debug config JSON at the given key to dest, returning whether the key
+// was present, and if it was, any error that occurred in trying to parse it to dest.
+func (c *Config) GetDebugConfig(key string, dest interface{}) (present bool, err error) {
+	data, ok := c.DebugConfig[key]
+	if !ok {
+		return false, nil
+	}
+	return true, json.Unmarshal([]byte(data), dest)
 }
 
 // Duration is in nanoseconds and is multiplied by 2 on each retry

@@ -96,6 +96,12 @@ func (a *Adapter) Init(config *client.Config) error {
 	}
 
 	a.config = config
+	if _, err := a.config.GetDebugConfig("prelaunch_env", &container.preLaunchEnv); err != nil {
+		log.Printf("[lxc] Failed to parse prelaunch_env: %s", err)
+	}
+	if _, err := a.config.GetDebugConfig("postlaunch_env", &container.postLaunchEnv); err != nil {
+		log.Printf("[lxc] Failed to parse postlaunch_env: %s", err)
+	}
 	a.container = container
 
 	return nil

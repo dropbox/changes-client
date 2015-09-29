@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var jobStepResponse = `
+const jobStepResponse = `
 {
 	"id": "549db9a70d4d4d258e0a6d475ccd8a15",
 	"commands": [
@@ -39,6 +39,9 @@ var jobStepResponse = `
 		"revision": {
 			"sha": "aaaaaa"
 		}
+	},
+	"debugConfig": {
+		"some_env": {"Name": "wat", "Val": 4}
 	}
 }
 `
@@ -64,7 +67,7 @@ func TestGetConfig(t *testing.T) {
 
 	config, err := GetConfig()
 	if err != nil {
-		t.Errorf(err.Error())
+		t.Fatal(err)
 	}
 
 	if config.Server != strings.TrimRight(ts.URL, "/") {
@@ -118,5 +121,64 @@ func TestGetConfig(t *testing.T) {
 	expected := map[string]string{"VAR": "hello world"}
 	if !reflect.DeepEqual(config.Cmds[0].Env, expected) {
 		t.Fail()
+	}
+
+	{
+		var envthing struct {
+			Name string
+			Val  int
+		}
+		dok, derr := config.GetDebugConfig("some_env", &envthing)
+		if !dok {
+			t.Fail()
+		}
+		if derr != nil {
+			t.Fail()
+		}
+		if envthing.Name != "wat" || envthing.Val != 4 {
+			t.Errorf(`Expected ("wat", 4), got %#v`, envthing)
+		}
+	}
+}
+
+func TestDebugConfig(t *testing.T) {
+	cases := []struct {
+		json, key string
+		dest      interface{}
+		Ok        bool
+		Error     bool
+	}{
+		// missing, no error, no ok
+		{json: "{}",
+			key: "absent", dest: new(string),
+			Ok: false, Error: false},
+		// type mismatch, ok, but error
+		{json: `{"debugConfig": {"foo": 44}}`,
+			key: "foo", dest: new(string),
+			Ok: true, Error: true},
+		// same as above, but proper type.
+		{json: `{"debugConfig": {"foo": 44}}`,
+			key: "foo", dest: new(int),
+			Ok: true, Error: false},
+	}
+
+	for _, c := range cases {
+		cfg, e := LoadConfig([]byte(c.json))
+		if e != nil {
+			panic(e)
+		}
+		ok, err := cfg.GetDebugConfig(c.key, c.dest)
+		if ok != c.Ok {
+			t.Errorf("For %q, extracting %q to %T, expected ok=%v, but was %v",
+				c.json, c.key, c.dest, c.Ok, ok)
+		}
+		if (err != nil) != c.Error {
+			msg := "expected"
+			if !c.Error {
+				msg = "didn't expect"
+			}
+			t.Errorf("For %q, extracting %q to %T, %s error, but got %#v",
+				c.json, c.key, c.dest, msg, err)
+		}
 	}
 }

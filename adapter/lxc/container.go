@@ -29,7 +29,9 @@ type Container struct {
 	S3Bucket       string
 	Name           string
 	PreLaunch      string
+	preLaunchEnv   map[string]string
 	PostLaunch     string
+	postLaunchEnv  map[string]string
 	OutputSnapshot string
 	MemoryLimit    int
 	CpuLimit       int
@@ -771,8 +773,11 @@ func (c *Container) ShouldKeep() bool {
 // environment with the container mounted at LXC_ROOTFS. Runs as the user
 // that changes-client runs as (usually root).
 func (c *Container) runPreLaunch(clientLog *client.Log) error {
-	preEnv := []string{fmt.Sprintf("LXC_ROOTFS=%s", c.RootFs()), fmt.Sprintf("LXC_NAME=%s", c.Name)}
-	cw := client.NewCmdWrapper([]string{c.PreLaunch}, "", preEnv)
+    env := []string{"LXC_ROOTFS=" + c.RootFs(), "LXC_NAME=" + c.Name}
+	for k, v := range c.preLaunchEnv {
+		env = append(env, k+"="+v)
+	}
+	cw := client.NewCmdWrapper([]string{c.PreLaunch}, "", env)
 	result, err := cw.Run(false, clientLog)
 	if err != nil {
 		return err
@@ -792,9 +797,14 @@ func (c *Container) runPreLaunch(clientLog *client.Log) error {
 // This runs within the container environment, not the host. Runs as the user
 // 'ubuntu'.
 func (c *Container) runPostLaunch(clientLog *client.Log) error {
+	var env []string
+	for k, v := range c.postLaunchEnv {
+		env = append(env, k+"="+v)
+	}
 	cw := &LxcCommand{
 		Args: []string{c.PostLaunch},
 		User: "root",
+		Env:  env,
 	}
 	result, err := cw.Run(false, clientLog, c.lxc)
 	if err != nil {
