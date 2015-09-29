@@ -13,6 +13,7 @@ REV=`git show -s --format=%ct-%h HEAD`
 all:
 	@echo "Compiling changes-client"
 	@make install
+	@echo "changes-client linked against lxc-dev version:" $(LXC_DEV_VERSION)
 
 	@echo "Setting up temp build folder"
 	rm -rf /tmp/changes-client-build
@@ -21,8 +22,24 @@ all:
 
 	@echo "Creating .deb file"
 	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
-	    --depends "lxc-dev (=$(LXC_DEV_VERSION))" -m dev-tools@dropbox.com \
+	    --depends "lxc-dev (=$(LXC_DEV_VERSION))" -m dev-tools@dropbox.com --provides changes-client \
 	    --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
+
+	@make nolxc
+
+nolxc:
+	@echo "Compiling changes-client"
+	TAGS=nolxc make install
+
+	@echo "Setting up temp build folder"
+	rm -rf /tmp/changes-client-build
+	mkdir -p /tmp/changes-client-build/usr/bin
+	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
+
+	@echo "Creating nolxc .deb file"
+	fpm -s dir -t deb -n "changes-client-nolxc" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
+	    -m dev-tools@dropbox.com --provides changes-client \
+	    --description "A build client for Changes (without LXC support)" --url https://www.github.com/dropbox/changes-client .
 
 
 test:
@@ -39,9 +56,8 @@ dev:
 
 install:
 	go clean -i ./...
-	go install -ldflags "-X github.com/dropbox/changes-client/common/version.gitVersion $(REV)" -v ./...
+	go install -tags '$(TAGS)' -ldflags "-X github.com/dropbox/changes-client/common/version.gitVersion $(REV)" -v ./...
 
-	@echo "changes-client linked against lxc-dev version:" $(LXC_DEV_VERSION)
 
 
 deps:
