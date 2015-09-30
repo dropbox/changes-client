@@ -68,7 +68,11 @@ func (c *Config) GetDebugConfig(key string, dest interface{}) (present bool, err
 	if !ok {
 		return false, nil
 	}
-	return true, json.Unmarshal([]byte(data), dest)
+	e := json.Unmarshal([]byte(data), dest)
+	if e != nil {
+		e = fmt.Errorf("Malformed JSON in debug config key %q: %s", key, e)
+	}
+	return true, e
 }
 
 // Duration is in nanoseconds and is multiplied by 2 on each retry
