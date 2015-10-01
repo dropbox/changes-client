@@ -774,7 +774,7 @@ func (c *Container) ShouldKeep() bool {
 // environment with the container mounted at LXC_ROOTFS. Runs as the user
 // that changes-client runs as (usually root).
 func (c *Container) runPreLaunch(clientLog *client.Log) error {
-    env := []string{"LXC_ROOTFS=" + c.RootFs(), "LXC_NAME=" + c.Name}
+	env := []string{"LXC_ROOTFS=" + c.RootFs(), "LXC_NAME=" + c.Name}
 	for k, v := range c.preLaunchEnv {
 		env = append(env, k+"="+v)
 	}

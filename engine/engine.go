@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -67,6 +68,12 @@ type Engine struct {
 
 func RunBuildPlan(config *client.Config) (Result, error) {
 	var err error
+
+	forceInfraFailure := false
+	if config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); forceInfraFailure {
+		return RESULT_INFRA_FAILED,
+			errors.New("Infra failure forced for debugging")
+	}
 
 	currentAdapter, err := adapter.Create(selectedAdapter)
 	if err != nil {
