@@ -2,7 +2,6 @@ package engine
 
 import (
 	"errors"
-	"reflect"
 	"testing"
 
 	"github.com/dropbox/changes-client/client"
@@ -11,62 +10,6 @@ import (
 
 	"gopkg.in/check.v1"
 )
-
-const jobStepResponse = `
-{
-	"id": "549db9a70d4d4d258e0a6d475ccd8a15",
-	"commands": [
-		{
-			"id": "cmd_1",
-			"script": "#!/bin/bash\necho -n $VAR",
-			"env": {"VAR": "hello world"},
-			"cwd": "/tmp",
-			"artifacts": ["junit.xml"]
-		},
-		{
-			"id": "cmd_2",
-			"script": "#!/bin/bash\necho test",
-			"cwd": "/tmp"
-		}
-	],
-	"result": {
-		"id": "unknown"
-	},
-	"status": {
-		"id": "unknown"
-	},
-	"repository": {
-		"url": "git@github.com:dropbox/changes.git",
-		"backend": {
-			"id": "git"
-		}
-	},
-	"source": {
-		"patch": {
-			"id": "patch_1"
-		},
-		"revision": {
-			"sha": "aaaaaa"
-		}
-	}
-}
-`
-
-type FormData struct {
-	params map[string]string
-	files  map[string]string
-	path   string
-}
-
-func testHttpCall(c *check.C, allData []FormData, lookIdx int, expectedData FormData) {
-	if len(allData) < lookIdx+1 {
-		c.Errorf("Expected data for call #%d, found none", lookIdx)
-		c.Fail()
-	} else if !reflect.DeepEqual(expectedData, allData[lookIdx]) {
-		c.Error("A", lookIdx, allData[lookIdx].params, expectedData.params)
-		c.Fail()
-	}
-}
 
 func TestEngine(t *testing.T) { check.TestingT(t) }
 
