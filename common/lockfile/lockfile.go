@@ -59,8 +59,7 @@ func (l *Lockfile) GetOwner() (*os.Process, error) {
 	}
 
 	var pid int
-	_, err = fmt.Sscanln(string(content), &pid)
-	if err != nil {
+	if _, err := fmt.Sscanln(string(content), &pid); err != nil {
 		return nil, ErrInvalidPid
 	}
 

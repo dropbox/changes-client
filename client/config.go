@@ -125,8 +125,6 @@ func LoadConfig(content []byte) (*Config, error) {
 }
 
 func GetConfig() (*Config, error) {
-	var err error
-
 	if server == "" {
 		return nil, fmt.Errorf("Missing required configuration: server")
 	}
@@ -151,8 +149,7 @@ func GetConfig() (*Config, error) {
 	if ignoreSnapshots {
 		conf.Snapshot.ID = ""
 	}
-
-	return conf, err
+	return conf, nil
 }
 
 func init() {

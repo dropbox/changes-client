@@ -29,17 +29,12 @@ type HeartbeatResponse struct {
 }
 
 func (um *UpstreamMonitor) WaitUntilAbort() error {
-	var (
-		err error
-		hr  *HeartbeatResponse
-	)
-
 	client := &http.Client{}
 
 	for {
 		log.Printf("[upstream] sending heartbeat")
 
-		hr, err = um.postHeartbeat(client)
+		hr, err := um.postHeartbeat(client)
 		if err != nil {
 			log.Printf("[upstream] %s", err)
 		} else if hr.Finished {
@@ -57,8 +52,6 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 }
 
 func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatResponse, error) {
-	var err error
-
 	url := um.Config.Server + "/jobsteps/" + um.Config.JobstepID + "/heartbeat/"
 
 	req, err := http.NewRequest("POST", url, nil)
@@ -80,8 +73,7 @@ func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatRespons
 	}
 
 	if resp.StatusCode != 200 {
-		err = fmt.Errorf("Request to fetch JobStep failed with status code: %d", resp.StatusCode)
-		return nil, err
+		return nil, fmt.Errorf("Request to fetch JobStep failed with status code: %d", resp.StatusCode)
 	}
 
 	body, err := ioutil.ReadAll(resp.Body)
@@ -90,8 +82,7 @@ func (um *UpstreamMonitor) postHeartbeat(client *http.Client) (*HeartbeatRespons
 	}
 
 	r := &JobStep{}
-	err = json.Unmarshal(body, r)
-	if err != nil {
+	if err := json.Unmarshal(body, r); err != nil {
 		return nil, err
 	}
 

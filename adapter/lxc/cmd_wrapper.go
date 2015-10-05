@@ -32,9 +32,6 @@ func NewLxcCommand(args []string, user string) *LxcCommand {
 }
 
 func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *lxc.Container) (*client.CommandResult, error) {
-	var err error
-
-	// TODO(dcramer):
 	clientLog.Writeln(fmt.Sprintf("==> Executing %s", strings.Join(cw.Args, " ")))
 
 	inreader, inwriter, err := os.Pipe()

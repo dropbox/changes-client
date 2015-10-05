@@ -77,9 +77,6 @@ func (s *AdapterSuite) TestLxcVersion(c *C) {
 }
 
 func (s *AdapterSuite) TestCompleteFlow(c *C) {
-	var cmd *client.Command
-	var err error
-	var result *client.CommandResult
 
 	if os.Getenv("CHANGES") == "1" {
 		c.ExpectFailure("For as yet unknown reasons, container initialization fails on Changes.")
@@ -117,9 +114,10 @@ func (s *AdapterSuite) TestCompleteFlow(c *C) {
 	c.Assert(err, IsNil)
 	defer adapter.Shutdown(clientLog)
 
-	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
+	cmd, err := client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
 	c.Assert(err, IsNil)
 
+	var result *client.CommandResult
 	result, err = adapter.Run(cmd, clientLog)
 	c.Assert(err, IsNil)
 	c.Assert(string(result.Output), Equals, "")

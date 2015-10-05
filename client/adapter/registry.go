@@ -11,11 +11,11 @@ func (r Registry) register(name string, ctr func() Adapter) {
 }
 
 func (r Registry) names() []string {
-    var res []string
-    for k := range r {
-        res = append(res, k)
-    }
-    return res
+	var res []string
+	for k := range r {
+		res = append(res, k)
+	}
+	return res
 }
 
 func Register(name string, ctr func() Adapter) error {
@@ -25,9 +25,8 @@ func Register(name string, ctr func() Adapter) error {
 
 // Names returns the names of all registered Adapters.
 func Names() []string {
-    return registry.names()
+	return registry.names()
 }
-
 
 func Create(name string) (Adapter, error) {
 	ctr, present := registry[name]

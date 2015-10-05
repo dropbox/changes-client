@@ -47,8 +47,6 @@ const jobStepResponse = `
 `
 
 func TestGetConfig(t *testing.T) {
-	var err error
-
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 

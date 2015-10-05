@@ -67,8 +67,6 @@ type Engine struct {
 }
 
 func RunBuildPlan(config *client.Config) (Result, error) {
-	var err error
-
 	forceInfraFailure := false
 	if config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); forceInfraFailure {
 		return RESULT_INFRA_FAILED,
@@ -228,16 +226,14 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		}()
 	}
 
-	err := e.adapter.Init(e.config)
-	if err != nil {
+	if err := e.adapter.Init(e.config); err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err))
 		e.clientLog.Printf("==> ERROR: Failed to initialize %s adapter", selectedAdapter)
 		return RESULT_INFRA_FAILED, err
 	}
 
-	err = e.adapter.Prepare(e.clientLog)
-	if err != nil {
-		log.Print(fmt.Sprintf("[adapter] %s", err))
+	if err := e.adapter.Prepare(e.clientLog); err != nil {
+		log.Printf("[adapter] %s", err)
 		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err)
 		return RESULT_INFRA_FAILED, err
 	}

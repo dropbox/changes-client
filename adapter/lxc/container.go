@@ -454,8 +454,6 @@ func (c *Container) Stop() error {
 // the next build)
 func (c *Container) Destroy() error {
 	// Destroy must operate idempotently
-	var err error
-
 	if c.lxc == nil {
 		return nil
 	}
@@ -466,8 +464,7 @@ func (c *Container) Destroy() error {
 
 	if c.lxc.Defined() {
 		log.Print("[lxc] Destroying container")
-		err = c.lxc.Destroy()
-		if err != nil {
+		if err := c.lxc.Destroy(); err != nil {
 			return err
 		}
 	}
@@ -573,8 +570,6 @@ func (c *Container) removeCachedImage() error {
 // existing cache (that we've correctly populated) and just reference the
 // image from there.
 func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) error {
-	var err error
-
 	relPath := c.getImagePath(snapshot)
 	localPath := filepath.Join(c.ImageCacheDir, relPath)
 
@@ -589,7 +584,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		missingFiles = true
 	}
 	for n := range fileList {
-		if _, err = os.Stat(filepath.Join(localPath, fileList[n])); os.IsNotExist(err) {
+		if _, err := os.Stat(filepath.Join(localPath, fileList[n])); os.IsNotExist(err) {
 			missingFiles = true
 			break
 		}
@@ -602,8 +597,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		return errors.New("Unable to find cached image, and no S3 bucket defined.")
 	}
 
-	err = os.MkdirAll(localPath, 0755)
-	if err != nil {
+	if err := os.MkdirAll(localPath, 0755); err != nil {
 		return err
 	}
 
@@ -638,10 +632,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 // on some sort of official server (not s3), but uses cached images when available.
 // The image we are creating is to be used as a cached image for the download template.
 func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
-	var err error
-
-	err = c.Stop()
-	if err != nil {
+	if err := c.Stop(); err != nil {
 		return err
 	}
 
@@ -651,18 +642,15 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 
 	os.MkdirAll(dest, 0755)
 
-	err = c.createImageMetadata(dest, clientLog)
-	if err != nil {
+	if err := c.createImageMetadata(dest, clientLog); err != nil {
 		return err
 	}
 
-	err = c.createImageSnapshotID(dest, clientLog)
-	if err != nil {
+	if err := c.createImageSnapshotID(dest, clientLog); err != nil {
 		return err
 	}
 
-	err = c.createImageRootFs(dest, clientLog)
-	if err != nil {
+	if err := c.createImageRootFs(dest, clientLog); err != nil {
 		return err
 	}
 
@@ -682,11 +670,7 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 	f.WriteString("lxc.include = LXC_TEMPLATE_CONFIG/ubuntu.common.conf\n")
 	f.WriteString("lxc.arch = x86_64\n")
 
-	err = f.Chmod(0440)
-	if err != nil {
-		return err
-	}
-	return nil
+	return f.Chmod(0440)
 }
 
 // Compresses the root of the filesystem into the desired compressed tarball.

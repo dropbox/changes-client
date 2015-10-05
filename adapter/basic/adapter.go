@@ -15,24 +15,21 @@ type Adapter struct {
 }
 
 func (a *Adapter) Init(config *client.Config) error {
-	var err error
-	var workspace string = config.ArtifactSearchPath
-
+	workspace := config.ArtifactSearchPath
 	if workspace == "" {
-		workspace, err = os.Getwd()
-		if err != nil {
+		if wd, err := os.Getwd(); err != nil {
 			return err
+		} else {
+			workspace = wd
 		}
 	}
 
-	workspace, err = filepath.Abs(workspace)
+	absworkspace, err := filepath.Abs(workspace)
 	if err != nil {
 		return err
 	}
-
 	a.config = config
-	a.workspace = workspace
-
+	a.workspace = absworkspace
 	return nil
 }
 

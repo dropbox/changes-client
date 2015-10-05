@@ -35,8 +35,6 @@ func (cw *CmdWrapper) CombinedOutputPipe() (io.ReadCloser, io.WriteCloser) {
 }
 
 func (cw *CmdWrapper) Run(captureOutput bool, clientLog *Log) (*CommandResult, error) {
-	var err error
-
 	stdin, err := cw.StdinPipe()
 	if err != nil {
 		return nil, err

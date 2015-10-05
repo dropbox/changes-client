@@ -28,8 +28,7 @@ func NewCommand(id string, script string) (*Command, error) {
 	}
 	defer f.Close()
 
-	_, err = f.WriteString(script)
-	if err != nil {
+	if _, err := f.WriteString(script); err != nil {
 		return nil, err
 	}
 
@@ -38,8 +37,7 @@ func NewCommand(id string, script string) (*Command, error) {
 		return nil, err
 	}
 
-	err = f.Chmod((info.Mode() & os.ModePerm) | 0111)
-	if err != nil {
+	if err := f.Chmod((info.Mode() & os.ModePerm) | 0111); err != nil {
 		return nil, err
 	}
 
