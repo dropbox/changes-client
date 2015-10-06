@@ -9,14 +9,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "gopkg.in/check.v1"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
-
-func TestContainer(t *testing.T) { TestingT(t) }
-
-type ContainerSuite struct{}
-
-var _ = Suite(&ContainerSuite{})
 
 func ensureFileExists(path string) {
 	if _, err := os.Stat(path); err != nil {
@@ -36,9 +31,9 @@ func ensureFileDoesNotExist(path string) {
 	}
 }
 
-func (s *ContainerSuite) TestGetImageCompressionType(c *C) {
+func TestGetImageCompressionType(t *testing.T) {
 	cacheDir, err := ioutil.TempDir("/tmp", "container_test")
-	c.Assert(err, IsNil)
+	require.Nil(t, err)
 	container := &Container{
 		Name:          containerName,
 		ImageCacheDir: cacheDir,
@@ -46,8 +41,7 @@ func (s *ContainerSuite) TestGetImageCompressionType(c *C) {
 	}
 
 	imagePath := filepath.Join(cacheDir, container.getImagePath("test_snapshot"))
-	err = os.MkdirAll(imagePath, 755)
-	c.Assert(err, IsNil)
+	require.NoError(t, os.MkdirAll(imagePath, 755))
 	defer os.RemoveAll(cacheDir)
 
 	lz4Path := filepath.Join(imagePath, "rootfs.tar.lz4")
@@ -57,18 +51,18 @@ func (s *ContainerSuite) TestGetImageCompressionType(c *C) {
 	ensureFileDoesNotExist(lz4Path)
 	ensureFileDoesNotExist(xzPath)
 	_, ok := container.getImageCompressionType()
-	c.Assert(ok, Equals, false)
+	require.False(t, ok)
 
 	// Test lz4 case
 	ensureFileExists(lz4Path)
 	compressionType, ok := container.getImageCompressionType()
-	c.Assert(ok, Equals, true)
-	c.Assert(compressionType, Equals, "lz4")
+	require.True(t, ok)
+	require.Equal(t, compressionType, "lz4")
 
 	// Test xz case
 	ensureFileDoesNotExist(lz4Path)
 	ensureFileExists(xzPath)
 	compressionType, ok = container.getImageCompressionType()
-	c.Assert(ok, Equals, true)
-	c.Assert(compressionType, Equals, "xz")
+	assert.True(t, ok)
+	assert.Equal(t, compressionType, "xz")
 }

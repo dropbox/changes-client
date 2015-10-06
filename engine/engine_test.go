@@ -8,14 +8,8 @@ import (
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
 
-	"gopkg.in/check.v1"
+	"github.com/stretchr/testify/assert"
 )
-
-func TestEngine(t *testing.T) { check.TestingT(t) }
-
-type EngineSuite struct{}
-
-var _ = check.Suite(&EngineSuite{})
 
 type noartReporter struct{}
 
@@ -54,7 +48,7 @@ func (_ *noopAdapter) CollectArtifacts([]string, *client.Log) ([]string, error) 
 	return nil, nil
 }
 
-func (s *EngineSuite) TestFailedArtifactInfraFails(c *check.C) {
+func TestFailedArtifactInfraFails(t *testing.T) {
 	nar := new(noartReporter)
 	log := client.NewLog()
 	defer log.Close()
@@ -66,14 +60,14 @@ func (s *EngineSuite) TestFailedArtifactInfraFails(c *check.C) {
 			{Artifacts: []string{"result.xml"}},
 		}}}
 	r, e := eng.executeCommands()
-	c.Assert(r, check.Equals, RESULT_INFRA_FAILED)
-	c.Assert(e, check.NotNil)
+	assert.Equal(t, r, RESULT_INFRA_FAILED)
+	assert.Error(t, e)
 }
 
-func (s *EngineSuite) TestDebugForceInfraFailure(c *check.C) {
+func TestDebugForceInfraFailure(t *testing.T) {
 	config, err := client.LoadConfig([]byte(`{"debugConfig": {"forceInfraFailure": true}}`))
-	c.Assert(err, check.IsNil)
+	assert.NoError(t, err)
 	result, err := RunBuildPlan(config)
-	c.Assert(result, check.Equals, RESULT_INFRA_FAILED)
-	c.Assert(err, check.NotNil)
+	assert.Equal(t, result, RESULT_INFRA_FAILED)
+	assert.Error(t, err)
 }
