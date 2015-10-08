@@ -123,7 +123,7 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 		sentry.Message(fmt.Sprintf("Took more than %s to shutdown LXC adapter", timeout), map[string]string{})
 	})
 	defer timer.Stop()
-	if keepContainer || a.container.ShouldKeep() {
+	if keepContainer || a.container.ShouldKeep() || shouldDebugKeep(clientLog, a.config) {
 		a.container.Executor.Deregister()
 
 		// Create a "named executor" which will never get cleaned
@@ -144,6 +144,25 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 		return nil
 	}
 	return a.container.Destroy()
+}
+
+// Parses debugConfig.lxc_keep_container_end_rfc3339 as an RFC3339 timestamp.
+// Example: "2015-10-08T19:31:56Z" or "2015-10-08T12:32:19-07:00"
+func shouldDebugKeep(clientLog *client.Log, cfg *client.Config) bool {
+	const key = "lxc_keep_container_end_rfc3339"
+	var keepEndtime string
+	if ok, err := cfg.GetDebugConfig(key, &keepEndtime); err != nil {
+		clientLog.Printf("[lxc] %s", err)
+		return false
+	} else if !ok {
+		return false
+	}
+	endTime, err := time.Parse(time.RFC3339, keepEndtime)
+	if err != nil {
+		clientLog.Printf("[lxc] Couldn't parse %s %q as time: %s", key, keepEndtime, err)
+		return false
+	}
+	return time.Now().Before(endTime)
 }
 
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {

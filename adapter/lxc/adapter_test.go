@@ -8,12 +8,14 @@ import (
 	"os"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/hashicorp/go-version"
 	"gopkg.in/lxc/go-lxc.v2"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -139,4 +141,30 @@ func TestCompleteFlow(t *testing.T) {
 	clientLog.Close()
 
 	wg.Wait()
+}
+
+func TestDebugKeep(t *testing.T) {
+	clientLog := client.NewLog()
+	go func() {
+		clientLog.Drain()
+	}()
+	{
+		future := time.Now().Add(10 * time.Minute)
+		cfg1, e := client.LoadConfig([]byte(`{"debugConfig":{"lxc_keep_container_end_rfc3339": "` + future.Format(time.RFC3339) + `"}}`))
+		if e != nil {
+			panic(e)
+		}
+		assert.True(t, shouldDebugKeep(clientLog, cfg1))
+	}
+
+	{
+		past := time.Now().Add(-10 * time.Minute)
+		cfg2, e := client.LoadConfig([]byte(`{"debugConfig":{"lxc_keep_container_end_rfc3339": "` + past.Format(time.RFC3339) + `"}}`))
+		if e != nil {
+			panic(e)
+		}
+		assert.False(t, shouldDebugKeep(clientLog, cfg2))
+	}
+
+	assert.False(t, shouldDebugKeep(clientLog, new(client.Config)))
 }
