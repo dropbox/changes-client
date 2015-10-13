@@ -12,6 +12,7 @@ import (
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/sentry"
 	"github.com/dropbox/changes-client/common/version"
 
 	_ "github.com/dropbox/changes-client/adapter/basic"
@@ -54,9 +55,9 @@ func (r Result) IsFailure() bool {
 }
 
 var (
-	selectedAdapter  string
-	selectedReporter string
-	outputSnapshot   string
+	selectedAdapterFlag  string
+	selectedReporterFlag string
+	outputSnapshotFlag   string
 )
 
 type Engine struct {
@@ -73,17 +74,17 @@ func RunBuildPlan(config *client.Config) (Result, error) {
 			errors.New("Infra failure forced for debugging")
 	}
 
-	currentAdapter, err := adapter.Create(selectedAdapter)
+	currentAdapter, err := adapter.Create(selectedAdapterFlag)
 	if err != nil {
 		return RESULT_INFRA_FAILED, err
 	}
 
-	currentReporter, err := reporter.Create(selectedReporter)
+	currentReporter, err := reporter.Create(selectedReporterFlag)
 	if err != nil {
-		log.Printf("[engine] failed to initialize reporter: %s", selectedReporter)
+		log.Printf("[engine] failed to initialize reporter: %s", selectedReporterFlag)
 		return RESULT_INFRA_FAILED, err
 	}
-	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporter, selectedAdapter)
+	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporterFlag, selectedAdapterFlag)
 
 	engine := &Engine{
 		config:    config,
@@ -95,12 +96,29 @@ func RunBuildPlan(config *client.Config) (Result, error) {
 	return engine.Run()
 }
 
+// Returns the ID to use for the generated snapshot, or an empty string if no
+// snapshot should be generated. Use this instead of the flag or config value.
+func (e *Engine) outputSnapshotID() string {
+	// Until we're confident that the config always matches the flag, use the
+	// flag to preserve behavior.
+	return outputSnapshotFlag
+}
+
+// checkForSnapshotInconsistency returns an error if the output snapshot specified via flag
+// appears inconsistent with the value from the JobStep config.
+func (e *Engine) checkForSnapshotInconsistency() error {
+	if outputSnapshotFlag != e.config.ExpectedSnapshot.ID {
+		return fmt.Errorf("Output snapshot mismatch; flag was %q, but config was %q",
+			outputSnapshotFlag, e.config.ExpectedSnapshot.ID)
+	}
+	return nil
+}
+
 func (e *Engine) Run() (Result, error) {
 	e.reporter.Init(e.config)
 	defer e.reporter.Shutdown()
 
 	var wg sync.WaitGroup
-
 	wg.Add(1)
 	go func() {
 		reportLogChunks("console", e.clientLog, e.reporter)
@@ -109,6 +127,13 @@ func (e *Engine) Run() (Result, error) {
 
 	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
 	e.clientLog.Printf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug)
+
+	if err := e.checkForSnapshotInconsistency(); err != nil {
+		sentry.Error(err, map[string]string{})
+		// Ugly, but better to be consistent.
+		// TODO(kylec): Remove this once we're confident in the config value.
+		e.config.ExpectedSnapshot.ID = e.outputSnapshotID()
+	}
 
 	e.reporter.PushJobstepStatus(STATUS_IN_PROGRESS, "")
 
@@ -183,10 +208,10 @@ func (e *Engine) executeCommands() (Result, error) {
 }
 
 func (e *Engine) captureSnapshot() error {
-	log.Printf("[adapter] Capturing snapshot %s", outputSnapshot)
-	err := e.adapter.CaptureSnapshot(outputSnapshot, e.clientLog)
+	log.Printf("[adapter] Capturing snapshot %s", e.outputSnapshotID())
+	err := e.adapter.CaptureSnapshot(e.outputSnapshotID(), e.clientLog)
 	if err != nil {
-		log.Printf("[adapter] Failed to capture snapshot: %s", err.Error())
+		log.Printf("[adapter] Failed to capture snapshot: %s", err)
 		return err
 	}
 	return nil
@@ -228,13 +253,13 @@ func (e *Engine) runBuildPlan() (Result, error) {
 
 	if err := e.adapter.Init(e.config); err != nil {
 		log.Print(fmt.Sprintf("[adapter] %s", err))
-		e.clientLog.Printf("==> ERROR: Failed to initialize %s adapter", selectedAdapter)
+		e.clientLog.Printf("==> ERROR: Failed to initialize %s adapter", selectedAdapterFlag)
 		return RESULT_INFRA_FAILED, err
 	}
 
 	if err := e.adapter.Prepare(e.clientLog); err != nil {
 		log.Printf("[adapter] %s", err)
-		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapter, err)
+		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapterFlag, err)
 		return RESULT_INFRA_FAILED, err
 	}
 	defer e.adapter.Shutdown(e.clientLog)
@@ -262,7 +287,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		return RESULT_ABORTED, nil
 	}
 
-	if result == RESULT_PASSED && outputSnapshot != "" {
+	if result == RESULT_PASSED && e.outputSnapshotID() != "" {
 		var snapshotStatus string
 		sserr := e.captureSnapshot()
 		if sserr != nil {
@@ -270,7 +295,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		} else {
 			snapshotStatus = SNAPSHOT_ACTIVE
 		}
-		e.reporter.PushSnapshotImageStatus(outputSnapshot, snapshotStatus)
+		e.reporter.PushSnapshotImageStatus(e.outputSnapshotID(), snapshotStatus)
 		if sserr != nil {
 			return RESULT_INFRA_FAILED, sserr
 		}
@@ -285,7 +310,7 @@ func reportLogChunks(name string, clientLog *client.Log, r reporter.Reporter) {
 }
 
 func init() {
-	flag.StringVar(&selectedAdapter, "adapter", "basic", "Adapter to run build against")
-	flag.StringVar(&selectedReporter, "reporter", "multireporter", "Reporter to send results to")
-	flag.StringVar(&outputSnapshot, "save-snapshot", "", "Save the resulting container snapshot")
+	flag.StringVar(&selectedAdapterFlag, "adapter", "basic", "Adapter to run build against")
+	flag.StringVar(&selectedReporterFlag, "reporter", "multireporter", "Reporter to send results to")
+	flag.StringVar(&outputSnapshotFlag, "save-snapshot", "", "Save the resulting container snapshot")
 }

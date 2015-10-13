@@ -71,3 +71,43 @@ func TestDebugForceInfraFailure(t *testing.T) {
 	assert.Equal(t, result, RESULT_INFRA_FAILED)
 	assert.Error(t, err)
 }
+
+func makeResetFunc(s *string) func() {
+	previous := *s
+	return func() {
+		*s = previous
+	}
+}
+
+func TestOutputSnapshotID(t *testing.T) {
+	// Leave things as we found them.
+	defer makeResetFunc(&outputSnapshotFlag)()
+
+	type testcase struct {
+		Flag, Config string
+		// Whether we find an inconsistency.
+		Error bool
+	}
+	cases := []testcase{
+		{Flag: "", Config: "1234", Error: true},
+		{Flag: "", Config: "", Error: false},
+		{Flag: "abcd", Config: "", Error: true},
+		{Flag: "abcd", Config: "abcd", Error: false},
+		{Flag: "abcd", Config: "1234", Error: true},
+	}
+	for _, c := range cases {
+		var cfg client.Config
+		cfg.ExpectedSnapshot.ID = c.Config
+		outputSnapshotFlag = c.Flag
+
+		eng := Engine{config: &cfg}
+		// For now, flag always wins.
+		assert.Equal(t, eng.outputSnapshotID(), c.Flag, "For outputSnapshotID() with %#v", c)
+		err := eng.checkForSnapshotInconsistency()
+		if c.Error {
+			assert.Error(t, err, "%#v", c)
+		} else {
+			assert.NoError(t, err, "%#v", c)
+		}
+	}
+}

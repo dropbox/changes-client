@@ -57,7 +57,11 @@ type Config struct {
 		Name string
 		Slug string
 	}
-	Cmds        []ConfigCmd                `json:"commands"`
+	Cmds             []ConfigCmd `json:"commands"`
+	ExpectedSnapshot struct {
+		// If this build is expected to generate a snapshot, this is the snapshot ID.
+		ID string
+	}
 	DebugConfig map[string]json.RawMessage `json:"debugConfig"`
 }
 

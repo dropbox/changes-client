@@ -4,9 +4,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const jobStepResponse = `
@@ -40,6 +41,9 @@ const jobStepResponse = `
 			"sha": "aaaaaa"
 		}
 	},
+	"expectedSnapshot": {
+		"id": "fed13008d3e94f6bb58e53237ad73f1d"
+	},
 	"debugConfig": {
 		"some_env": {"Name": "wat", "Val": 4}
 	}
@@ -64,79 +68,43 @@ func TestGetConfig(t *testing.T) {
 	jobstepID = "549db9a70d4d4d258e0a6d475ccd8a15"
 
 	config, err := GetConfig()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	if config.Server != strings.TrimRight(ts.URL, "/") {
-		t.Fail()
-	}
+	assert.Equal(t, config.Server, strings.TrimRight(ts.URL, "/"))
 
-	if config.JobstepID != jobstepID {
-		t.Fail()
-	}
+	assert.Equal(t, config.JobstepID, jobstepID)
 
-	if config.Repository.Backend.ID != "git" {
-		t.Fail()
-	}
+	assert.Equal(t, config.Repository.Backend.ID, "git")
 
-	if config.Repository.URL != "git@github.com:dropbox/changes.git" {
-		t.Fail()
-	}
+	assert.Equal(t, config.Repository.URL, "git@github.com:dropbox/changes.git")
 
-	if config.Source.Patch.ID != "patch_1" {
-		t.Fail()
-	}
+	assert.Equal(t, config.Source.Patch.ID, "patch_1")
 
-	if config.Source.Revision.Sha != "aaaaaa" {
-		t.Fail()
-	}
+	assert.Equal(t, config.Source.Revision.Sha, "aaaaaa")
 
-	if len(config.Cmds) != 2 {
-		t.Fail()
-	}
+	assert.Equal(t, config.ExpectedSnapshot.ID, "fed13008d3e94f6bb58e53237ad73f1d")
 
-	if config.Cmds[0].ID != "cmd_1" {
-		t.Fail()
-	}
+	assert.Equal(t, len(config.Cmds), 2)
 
-	if config.Cmds[0].Script != "#!/bin/bash\necho -n $VAR" {
-		t.Fail()
-	}
+	assert.Equal(t, config.Cmds[0], ConfigCmd{
+		ID:        "cmd_1",
+		Script:    "#!/bin/bash\necho -n $VAR",
+		Cwd:       "/tmp",
+		Artifacts: []string{"junit.xml"},
+		Env: map[string]string{
+			"VAR": "hello world",
+		},
+	})
 
-	if config.Cmds[0].Cwd != "/tmp" {
-		t.Fail()
+	type Pair struct {
+		Name string
+		Val  int
 	}
-
-	if len(config.Cmds[0].Artifacts) != 1 {
-		t.Fail()
-	}
-
-	if config.Cmds[0].Artifacts[0] != "junit.xml" {
-		t.Fail()
-	}
-
-	expected := map[string]string{"VAR": "hello world"}
-	if !reflect.DeepEqual(config.Cmds[0].Env, expected) {
-		t.Fail()
-	}
-
-	{
-		var envthing struct {
-			Name string
-			Val  int
-		}
-		dok, derr := config.GetDebugConfig("some_env", &envthing)
-		if !dok {
-			t.Fail()
-		}
-		if derr != nil {
-			t.Fail()
-		}
-		if envthing.Name != "wat" || envthing.Val != 4 {
-			t.Errorf(`Expected ("wat", 4), got %#v`, envthing)
-		}
-	}
+	var envthing Pair
+	dok, derr := config.GetDebugConfig("some_env", &envthing)
+	assert.True(t, dok)
+	assert.NoError(t, derr)
+	assert.Equal(t, envthing, Pair{"wat", 4})
 }
 
 func TestDebugConfig(t *testing.T) {

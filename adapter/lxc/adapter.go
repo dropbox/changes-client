@@ -25,7 +25,7 @@ type Adapter struct {
 }
 
 func (a *Adapter) Init(config *client.Config) error {
-	var snapshot string = config.Snapshot.ID
+	snapshot := config.Snapshot.ID
 	if snapshot != "" {
 		if s3Bucket == "" {
 			log.Print("[lxc] WARNING: s3bucket is not defined, snapshot ignored")
@@ -48,7 +48,6 @@ func (a *Adapter) Init(config *client.Config) error {
 	}
 
 	var mounts []*BindMount
-	mounts = nil
 	if bindMounts != "" {
 		mountStrings := strings.Split(bindMounts, ",")
 		mounts = make([]*BindMount, len(mountStrings))
@@ -62,13 +61,14 @@ func (a *Adapter) Init(config *client.Config) error {
 	}
 
 	container := &Container{
-		Name:       config.JobstepID,
-		Arch:       arch,
-		Dist:       dist,
-		Release:    release,
-		PreLaunch:  preLaunch,
-		PostLaunch: postLaunch,
-		Snapshot:   snapshot,
+		Name:           config.JobstepID,
+		Arch:           arch,
+		Dist:           dist,
+		Release:        release,
+		PreLaunch:      preLaunch,
+		PostLaunch:     postLaunch,
+		Snapshot:       snapshot,
+		OutputSnapshot: config.ExpectedSnapshot.ID,
 		// TODO(dcramer):  Move S3 logic into core engine
 		S3Bucket:      s3Bucket,
 		MemoryLimit:   memory,
