@@ -131,12 +131,12 @@ func TestCompleteFlow(t *testing.T) {
 	result, err = adapter.Run(cmd, clientLog)
 	require.NoError(t, err)
 	require.Equal(t, string(result.Output), "")
-	require.True(t, result.Success)
+	require.False(t, result.Success)
 
 	artifacts, err := adapter.CollectArtifacts([]string{"foo.txt"}, clientLog)
 	require.NoError(t, err)
 	require.Equal(t, len(artifacts), 1)
-	require.Regexp(t, artifacts[0], ".*/home/ubuntu/foo.txt")
+	require.Regexp(t, ".*/home/ubuntu/foo.txt", artifacts[0])
 
 	clientLog.Close()
 
