@@ -18,8 +18,8 @@ var (
 )
 
 type Reporter struct {
+	reporter.DefaultReporter
 	artifactDestination string
-	debug               bool
 }
 
 // This structure is used purely for json marshalling. The fields have to
@@ -34,7 +34,7 @@ type SnapshotResponse struct {
 func (r *Reporter) Init(c *client.Config) {
 	log.Printf("[reporter] Construct reporter with artifact destination: %s", artifactDestination)
 	r.artifactDestination = artifactDestination
-	r.debug = c.Debug
+	r.DefaultReporter.Init(c)
 }
 
 func (r *Reporter) PushJobstepStatus(status string, result string) {
