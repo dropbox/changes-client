@@ -370,12 +370,15 @@ func (c *Container) getConfigSetters() []configSetter {
 		configItem{"lxc.kmsg", "0"},
 	}
 
-	// the default value for cpu_shares is 1024, so we make a soft assumption
-	// that we can just magnifiy the value based on the number of cpus we're requesting
-	// but it doesnt actually mean we'll get that many cpus
-	// http://www.mjmwired.net/kernel/Documentation/scheduler/sched-design-CFS.txt
 	if c.CpuLimit != 0 {
-		result = append(result, configItem{"lxc.cgroup.cpu.shares", strconv.Itoa(c.CpuLimit * 1024)})
+		// CFS Bandwidth Control Reference: https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt
+		// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/sec-cpu.html
+		//
+		// Every 100ms,
+		result = append(result, configItem{"lxc.cgroup.cpu.cfs_period_us", strconv.Itoa(100000)})
+
+		// Allow up to CpuLimit * 100ms of CPU usage for the container.
+		result = append(result, configItem{"lxc.cgroup.cpu.cfs_quota_us", strconv.Itoa(c.CpuLimit * 100000)})
 	}
 
 	// http://www.mjmwired.net/kernel/Documentation/cgroups/memory.txt
