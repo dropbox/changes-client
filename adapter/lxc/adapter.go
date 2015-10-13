@@ -123,6 +123,7 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 		sentry.Message(fmt.Sprintf("Took more than %s to shutdown LXC adapter", timeout), map[string]string{})
 	})
 	defer timer.Stop()
+	a.container.logCPUStats(clientLog)
 	if keepContainer || a.container.ShouldKeep() || shouldDebugKeep(clientLog, a.config) {
 		a.container.Executor.Deregister()
 

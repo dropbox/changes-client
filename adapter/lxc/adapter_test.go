@@ -96,7 +96,6 @@ func TestCompleteFlow(t *testing.T) {
 	lxcAdapter.container.MemoryLimit = 512
 
 	require.NoError(t, adapter.Prepare(clientLog))
-	defer adapter.Shutdown(clientLog)
 
 	cmd, err := client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
 	require.NoError(t, err)
@@ -137,6 +136,8 @@ func TestCompleteFlow(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, len(artifacts), 1)
 	require.Regexp(t, ".*/home/ubuntu/foo.txt", artifacts[0])
+
+	require.NoError(t, adapter.Shutdown(clientLog))
 
 	clientLog.Close()
 

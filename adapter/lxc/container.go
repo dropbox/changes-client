@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -433,6 +434,30 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	}
 
 	return nil
+}
+
+// Report CPU usage information from the container to the infra log.
+// Should be called while the container is running, but after work is done.
+func (c *Container) logCPUStats(log *client.Log) {
+	if total, err := c.lxc.CPUTime(); err != nil {
+		log.Printf("[lxc] Failed to get CPU time: %s", err)
+	} else {
+		log.Printf("[lxc] Total CPU time: %s", total)
+	}
+
+	times, e := c.lxc.CPUTimePerCPU()
+	if e != nil {
+		log.Printf("[lxc] Failed to get per-CPU stats: %s", e)
+		return
+	}
+	var cpuids []int
+	for k := range times {
+		cpuids = append(cpuids, k)
+	}
+	sort.Ints(cpuids)
+	for _, id := range cpuids {
+		log.Printf("[lxc] CPU %d: %s", id, times[id])
+	}
 }
 
 func (c *Container) Stop() error {
