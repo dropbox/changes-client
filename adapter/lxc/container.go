@@ -436,9 +436,14 @@ func (c *Container) Launch(clientLog *client.Log) error {
 	return nil
 }
 
-// Report CPU usage information from the container to the infra log.
+// Report container resource information from the container to the infra log.
 // Should be called while the container is running, but after work is done.
-func (c *Container) logCPUStats(log *client.Log) {
+func (c *Container) logResourceUsageStats(log *client.Log) {
+	if usage, err := c.lxc.BlkioUsage(); err != nil {
+		log.Printf("[lxc] Failed to get disk IO: %s", err)
+	} else {
+		log.Printf("[lxc] Total disk IO: %s", usage)
+	}
 	if total, err := c.lxc.CPUTime(); err != nil {
 		log.Printf("[lxc] Failed to get CPU time: %s", err)
 	} else {
