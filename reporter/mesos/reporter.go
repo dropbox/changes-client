@@ -16,12 +16,6 @@ import (
 // allows the reporter to update the status of logs, snapshots, etc.
 type Reporter struct {
 	reporter.DefaultReporter
-	jobstepID string
-}
-
-func (r *Reporter) Init(c *client.Config) {
-	r.jobstepID = c.JobstepID
-	r.DefaultReporter.Init(c)
 }
 
 func (r *Reporter) PushJobstepStatus(status string, result string) {
@@ -36,7 +30,7 @@ func (r *Reporter) PushJobstepStatus(status string, result string) {
 	if err == nil {
 		form["node"] = hostname
 	}
-	r.PublishChannel <- reporter.ReportPayload{Path: "/jobsteps/" + r.jobstepID + "/", Data: form, Filename: ""}
+	r.PublishChannel <- reporter.ReportPayload{Path: r.JobstepAPIPath(), Data: form, Filename: ""}
 }
 
 func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
@@ -55,7 +49,7 @@ func (r *Reporter) PushLogChunk(source string, payload []byte) {
 	if r.Debug {
 		log.Print(string(payload))
 	}
-	r.PublishChannel <- reporter.ReportPayload{Path: "/jobsteps/" + r.jobstepID + "/logappend/", Data: form, Filename: ""}
+	r.PublishChannel <- reporter.ReportPayload{Path: r.JobstepAPIPath() + "logappend/", Data: form, Filename: ""}
 }
 
 func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {
@@ -94,7 +88,7 @@ func (r *Reporter) pushArtifacts(artifacts []string) error {
 	// really what we'd want to do is just say "wait until channel empty, ok continue"
 	var firstError error
 	for _, artifact := range artifacts {
-		e := r.SendPayload(reporter.ReportPayload{Path: "/jobsteps/" + r.jobstepID + "/artifacts/", Data: nil, Filename: artifact})
+		e := r.SendPayload(reporter.ReportPayload{Path: r.JobstepAPIPath() + "artifacts/", Data: nil, Filename: artifact})
 		if e != nil && firstError == nil {
 			firstError = e
 		}

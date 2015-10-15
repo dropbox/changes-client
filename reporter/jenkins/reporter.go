@@ -100,10 +100,6 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	return nil
 }
 
-func (r *Reporter) Shutdown() {
-	log.Print("[reporter] Shutdown complete [no-op]")
-}
-
 func New() reporter.Reporter {
 	return &Reporter{}
 }

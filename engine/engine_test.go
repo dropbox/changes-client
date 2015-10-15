@@ -23,14 +23,15 @@ func (nar *noartReporter) PushCommandStatus(_, _ string, _ int)           {}
 func (nar *noartReporter) PushJobstepStatus(_, _ string)                  {}
 func (nar *noartReporter) PushLogChunk(_ string, _ []byte)                {}
 func (nar *noartReporter) PushSnapshotImageStatus(_, _ string)            {}
+func (nar *noartReporter) ReportMetrics(_ client.Metrics)                 {}
 func (nar *noartReporter) Shutdown()                                      {}
 
 var _ reporter.Reporter = &noartReporter{}
 
 type noopAdapter struct{}
 
-func (_ *noopAdapter) Init(*client.Config) error { return nil }
-func (_ *noopAdapter) Prepare(*client.Log) error { return nil }
+func (_ *noopAdapter) Init(*client.Config) error                   { return nil }
+func (_ *noopAdapter) Prepare(*client.Log) (client.Metrics, error) { return nil, nil }
 func (_ *noopAdapter) Run(*client.Command, *client.Log) (*client.CommandResult, error) {
 	return &client.CommandResult{
 		Success: true,

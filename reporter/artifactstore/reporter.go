@@ -93,6 +93,10 @@ func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
 	// IGNORED - Not relevant
 }
 
+func (r *Reporter) ReportMetrics(metrics client.Metrics) {
+	// IGNORED - Not relevant
+}
+
 // source: Name of the log stream. Usually, differentiates between stdout and stderr streams.
 // payload: Stream of bytes to append to this stream.
 func (r *Reporter) PushLogChunk(source string, payload []byte) {

@@ -129,7 +129,7 @@ func (c *Container) getImageCompressionType() (string, bool) {
 	return "", false
 }
 
-func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
+func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client.Metrics) error {
 	var base *lxc.Container
 
 	clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
@@ -145,7 +145,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 	log.Print("[lxc] Checking for cached snapshot")
 
 	if c.snapshotIsCached(c.Snapshot) == false {
-		if err := c.ensureImageCached(c.Snapshot, clientLog); err != nil {
+		if err := c.ensureImageCached(c.Snapshot, clientLog, metrics); err != nil {
 			return err
 		}
 
@@ -163,7 +163,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
 		clientLog.Writeln("    (grab a coffee, this could take a while)")
 
-		start := time.Now()
+		timer := metrics.StartTimer()
 
 		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 		if err != nil {
@@ -201,22 +201,24 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log) error {
 		if err != nil {
 			return err
 		}
-		clientLog.Writeln(fmt.Sprintf("==> Base container online in %s", time.Since(start)))
+		timer.Record("baseContainerCreationTime")
 	} else {
 		clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
 		log.Print("[lxc] Creating base container")
 
-		start := time.Now()
+		timer := metrics.StartTimer()
 		base, err = lxc.NewContainer(c.Snapshot, lxc.DefaultConfigPath())
 		if err != nil {
 			return err
 		}
 		defer lxc.Release(base)
-		clientLog.Writeln(fmt.Sprintf("==> Base container online in %s", time.Since(start)))
+		timer.Record("existingBaseContainerCreationTime")
 	}
 
 	clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
 	c.removeCachedImage()
+
+	defer metrics.StartTimer().Record("overlayContainerCreationTime")
 
 	// XXX There must be some odd race condition here as doing `return base.Clone` causes
 	// go-lxc to die with a nil-pointer but assigning it to a variable and then returning
@@ -289,14 +291,16 @@ type configSetter interface {
 //
 // Once the container is started, we mount the container and perform
 // basic configurations as well as run the pre-launch script.
-func (c *Container) launchContainer(clientLog *client.Log) error {
+func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metrics) error {
 
 	c.Executor.Clean()
 
+	timer := metrics.StartTimer()
 	if c.Snapshot != "" {
-		if err := c.launchOverlayContainer(clientLog); err != nil {
+		if err := c.launchOverlayContainer(clientLog, metrics); err != nil {
 			return err
 		}
+		timer.Record("snapshotContainerCreationTime")
 	} else {
 		log.Print("[lxc] Creating new container")
 		base, err := lxc.NewContainer(c.Name, lxc.DefaultConfigPath())
@@ -315,7 +319,9 @@ func (c *Container) launchContainer(clientLog *client.Log) error {
 			return err
 		}
 		clientLog.Writeln(fmt.Sprintf("==> Created container: %s", c.Name))
+		timer.Record("noSnapshotContainerCreationTime")
 	}
+	defer metrics.StartTimer().Record("containerStartupTime")
 
 	if newcont, err := lxc.NewContainer(c.Name, lxc.DefaultConfigPath()); err != nil {
 		return err
@@ -401,11 +407,15 @@ func (c *Container) getConfigSetters() []configSetter {
 // set up sudoers, and finally run the post-launch script
 // which will provision the system (and depends on the completion
 // of the above three tasks).
-func (c *Container) Launch(clientLog *client.Log) error {
-	if err := c.launchContainer(clientLog); err != nil {
-		return err
+func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
+	metrics := client.Metrics{}
+	timer := metrics.StartTimer()
+	if err := c.launchContainer(clientLog, metrics); err != nil {
+		return metrics, err
 	}
+	timer.Record("containerLaunchTime")
 
+	defer metrics.StartTimer().Record("postLaunchTime")
 	// If we aren't using a snapshot then we need to install these,
 	// but the apt-get update is expensive so we don't do this
 	// if we come from a snapshot.
@@ -413,27 +423,26 @@ func (c *Container) Launch(clientLog *client.Log) error {
 		log.Print("[lxc] Installing ca-certificates")
 		cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
 		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
-			return err
+			return metrics, err
 		}
 		cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
 		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
-			return err
+			return metrics, err
 		}
 
 		log.Print("[lxc] Setting up sudoers")
 		if err := c.setupSudoers(); err != nil {
-			return err
+			return metrics, err
 		}
 	}
 
 	if c.PostLaunch != "" {
 		log.Print("[lxc] Running post-launch script")
 		if err := c.runPostLaunch(clientLog); err != nil {
-			return err
+			return metrics, err
 		}
 	}
-
-	return nil
+	return metrics, nil
 }
 
 // Report container resource information from the container to the infra log.
@@ -602,7 +611,9 @@ func (c *Container) removeCachedImage() error {
 // that when we attempt to run the image, the download will look for our
 // existing cache (that we've correctly populated) and just reference the
 // image from there.
-func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) error {
+func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log, metrics client.Metrics) error {
+	defer metrics.StartTimer().Record("snapshotImageDownloadTime")
+
 	relPath := c.getImagePath(snapshot)
 	localPath := filepath.Join(c.ImageCacheDir, relPath)
 
@@ -642,9 +653,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 		"HOME=/root",
 	})
 
-	start := time.Now()
 	result, err := cw.Run(false, clientLog)
-	dur := time.Since(start)
 
 	if err != nil {
 		return err
@@ -652,8 +661,6 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log) er
 	if !result.Success {
 		return errors.New("Failed downloading image")
 	}
-
-	clientLog.Writeln(fmt.Sprintf("==> Image downloaded in %s", dur))
 
 	return nil
 }

@@ -257,12 +257,14 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		return RESULT_INFRA_FAILED, err
 	}
 
-	if err := e.adapter.Prepare(e.clientLog); err != nil {
+	metrics, err := e.adapter.Prepare(e.clientLog)
+	if err != nil {
 		log.Printf("[adapter] %s", err)
 		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapterFlag, err)
 		return RESULT_INFRA_FAILED, err
 	}
 	defer e.adapter.Shutdown(e.clientLog)
+	e.reporter.ReportMetrics(metrics)
 
 	type cmdResult struct {
 		result Result

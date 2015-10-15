@@ -95,7 +95,8 @@ func TestCompleteFlow(t *testing.T) {
 	lxcAdapter.container.CpuLimit = 1
 	lxcAdapter.container.MemoryLimit = 512
 
-	require.NoError(t, adapter.Prepare(clientLog))
+	_, err = adapter.Prepare(clientLog)
+	require.NoError(t, err)
 
 	cmd, err := client.NewCommand("test", "#!/bin/bash -e\necho hello > foo.txt\nexit 0")
 	require.NoError(t, err)

@@ -35,8 +35,8 @@ func (a *Adapter) Init(config *client.Config) error {
 
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
-func (a *Adapter) Prepare(clientLog *client.Log) error {
-	return nil
+func (a *Adapter) Prepare(clientLog *client.Log) (client.Metrics, error) {
+	return nil, nil
 }
 
 // Runs a given command. This may be called multiple times depending

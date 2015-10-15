@@ -93,22 +93,22 @@ func (a *Adapter) Init(config *client.Config) error {
 
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
-func (a *Adapter) Prepare(clientLog *client.Log) error {
+func (a *Adapter) Prepare(clientLog *client.Log) (client.Metrics, error) {
 	clientLog.Writeln("LXC version: " + lxc.Version())
-	if err := a.container.Launch(clientLog); err != nil {
-		return err
+	metrics, err := a.container.Launch(clientLog)
+	if err != nil {
+		return metrics, err
 	}
 
 	containerArtifactSource := "/home/ubuntu"
 	if a.config.ArtifactSearchPath != "" {
 		containerArtifactSource = a.config.ArtifactSearchPath
 	}
-	if artifactSource, err := filepath.Abs(path.Join(a.container.RootFs(), containerArtifactSource)); err != nil {
-		return err
-	} else {
+	artifactSource, err := filepath.Abs(path.Join(a.container.RootFs(), containerArtifactSource))
+	if err == nil {
 		a.artifactSource = artifactSource
-		return nil
 	}
+	return metrics, err
 }
 
 // Runs a given command. This may be called multiple times depending

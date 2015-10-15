@@ -10,8 +10,9 @@ type Adapter interface {
 	// Init should be called before any other methods, and no more than once.
 	Init(*client.Config) error
 	// Prepare must be called no more than once, and must return successfully
-	// before any method other than Init is called.
-	Prepare(*client.Log) error
+	// before any method other than Init is called. Any returned metrics
+	// will be reported via the active Reporter
+	Prepare(*client.Log) (client.Metrics, error)
 	Run(*client.Command, *client.Log) (*client.CommandResult, error)
 	Shutdown(*client.Log) error
 	CaptureSnapshot(string, *client.Log) error

@@ -84,6 +84,12 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	return firstError
 }
 
+func (r *Reporter) ReportMetrics(metrics client.Metrics) {
+	for _, r := range r.reporterDestinations {
+		r.ReportMetrics(metrics)
+	}
+}
+
 func (r *Reporter) Shutdown() {
 	for _, r := range r.reporterDestinations {
 		r.Shutdown()

@@ -43,4 +43,8 @@ type Reporter interface {
 	PushCommandOutput(cID string, status string, retCode int, output []byte)
 	PushJobstepStatus(status string, result string)
 	PushLogChunk(source string, payload []byte)
+
+	// Report any collected metrics. This is optional, but can be used to e.g.
+	// send metrics to Changes.
+	ReportMetrics(metrics client.Metrics)
 }

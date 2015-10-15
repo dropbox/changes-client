@@ -2,6 +2,7 @@ package reporter
 
 import (
 	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -13,6 +14,7 @@ import (
 	"time"
 
 	"github.com/dropbox/changes-client/client"
+	"github.com/dropbox/changes-client/common/sentry"
 )
 
 var (
@@ -54,6 +56,7 @@ type DefaultReporter struct {
 	// Note that this is not safe to send to after Shutdown() is called.
 	PublishChannel  chan ReportPayload
 	Debug           bool
+	jobstepID       string
 	publishUri      string
 	shutdownChannel chan struct{}
 }
@@ -198,10 +201,15 @@ func transportSend(r *DefaultReporter) {
 	r.shutdownChannel <- struct{}{}
 }
 
+func (r *DefaultReporter) JobstepAPIPath() string {
+	return "/jobsteps/" + r.jobstepID + "/"
+}
+
 func (r *DefaultReporter) Init(c *client.Config) {
 	log.Printf("[reporter] Construct reporter with publish uri: %s", c.Server)
 	r.publishUri = c.Server
 	r.shutdownChannel = make(chan struct{})
+	r.jobstepID = c.JobstepID
 	r.PublishChannel = make(chan ReportPayload, maxPendingReports)
 	r.Debug = c.Debug
 	// Initialize the goroutine that actually sends the requests. We spawn
@@ -225,6 +233,20 @@ func (r *DefaultReporter) PushSnapshotImageStatus(iID string, status string) {
 	form := make(map[string]string)
 	form["status"] = status
 	r.PublishChannel <- ReportPayload{"/snapshotimages/" + iID + "/", form, ""}
+}
+
+func (r *DefaultReporter) ReportMetrics(metrics client.Metrics) {
+	if metrics.Empty() {
+		return
+	}
+	data, err := json.Marshal(metrics)
+	if err != nil {
+		log.Printf("[reporter] Error encoding metrics: %s", err)
+		sentry.Error(err, map[string]string{})
+		return
+	}
+	form := map[string]string{"metrics": string(data)}
+	r.PublishChannel <- ReportPayload{r.JobstepAPIPath(), form, ""}
 }
 
 func init() {
