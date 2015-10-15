@@ -94,7 +94,7 @@ func (a *Adapter) Init(config *client.Config) error {
 // Prepare the environment for future commands. This is run before any
 // commands are processed and is run once.
 func (a *Adapter) Prepare(clientLog *client.Log) (client.Metrics, error) {
-	clientLog.Writeln("LXC version: " + lxc.Version())
+	clientLog.Printf("LXC version: %s", lxc.Version())
 	metrics, err := a.container.Launch(clientLog)
 	if err != nil {
 		return metrics, err

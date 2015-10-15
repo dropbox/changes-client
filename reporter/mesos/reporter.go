@@ -1,7 +1,6 @@
 package mesosreporter
 
 import (
-	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -64,20 +63,20 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 
 func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
 	if len(cmd.Artifacts) == 0 {
-		clientLog.Writeln("==> Skipping artifact collection")
+		clientLog.Printf("==> Skipping artifact collection")
 		return nil
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Collecting artifacts matching %s", cmd.Artifacts))
+	clientLog.Printf("==> Collecting artifacts matching %s", cmd.Artifacts)
 
 	matches, err := a.CollectArtifacts(cmd.Artifacts, clientLog)
 	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("==> ERROR: " + err.Error()))
+		clientLog.Printf("==> ERROR: %s", err)
 		return err
 	}
 
 	for _, artifact := range matches {
-		clientLog.Writeln(fmt.Sprintf("==> Found: %s", artifact))
+		clientLog.Printf("==> Found: %s", artifact)
 	}
 
 	return r.pushArtifacts(matches)

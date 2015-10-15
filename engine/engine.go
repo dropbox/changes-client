@@ -125,7 +125,7 @@ func (e *Engine) Run() (Result, error) {
 		wg.Done()
 	}()
 
-	e.clientLog.Writeln("changes-client version: " + version.GetVersion())
+	e.clientLog.Printf("changes-client version: %s", version.GetVersion())
 	e.clientLog.Printf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug)
 
 	if err := e.checkForSnapshotInconsistency(); err != nil {
@@ -285,7 +285,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		}
 		result = cmdresult.result
 	case <-cancel:
-		e.clientLog.Writeln("==> ERROR: Build was aborted by upstream")
+		e.clientLog.Printf("==> ERROR: Build was aborted by upstream")
 		return RESULT_ABORTED, nil
 	}
 

@@ -132,13 +132,13 @@ func (c *Container) getImageCompressionType() (string, bool) {
 func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client.Metrics) error {
 	var base *lxc.Container
 
-	clientLog.Writeln(fmt.Sprintf("==> Acquiring lock on container: %s", c.Snapshot))
+	clientLog.Printf("==> Acquiring lock on container: %s", c.Snapshot)
 	lock, err := c.acquireLock(c.Snapshot)
 	if err != nil {
 		return err
 	}
 	defer func() {
-		clientLog.Writeln(fmt.Sprintf("==> Releasing lock on container: %s", c.Snapshot))
+		clientLog.Printf("==> Releasing lock on container: %s", c.Snapshot)
 		lock.Unlock()
 	}()
 
@@ -156,12 +156,12 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client
 			template = fmt.Sprintf("download-%s", compressionType)
 		}
 
-		clientLog.Writeln(fmt.Sprintf("==> Creating new base container: %s", c.Snapshot))
-		clientLog.Writeln(fmt.Sprintf("      Template: %s", template))
-		clientLog.Writeln(fmt.Sprintf("      Arch:     %s", c.Arch))
-		clientLog.Writeln(fmt.Sprintf("      Distro:   %s", c.Dist))
-		clientLog.Writeln(fmt.Sprintf("      Release:  %s", c.Release))
-		clientLog.Writeln("    (grab a coffee, this could take a while)")
+		clientLog.Printf("==> Creating new base container: %s", c.Snapshot)
+		clientLog.Printf("      Template: %s", template)
+		clientLog.Printf("      Arch:     %s", c.Arch)
+		clientLog.Printf("      Distro:   %s", c.Dist)
+		clientLog.Printf("      Release:  %s", c.Release)
+		clientLog.Printf("    (grab a coffee, this could take a while)")
 
 		timer := metrics.StartTimer()
 
@@ -203,7 +203,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client
 		}
 		timer.Record("baseContainerCreationTime")
 	} else {
-		clientLog.Writeln(fmt.Sprintf("==> Launching existing base container: %s", c.Snapshot))
+		clientLog.Printf("==> Launching existing base container: %s", c.Snapshot)
 		log.Print("[lxc] Creating base container")
 
 		timer := metrics.StartTimer()
@@ -215,7 +215,7 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client
 		timer.Record("existingBaseContainerCreationTime")
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Clearing lxc cache for base container: %s", c.Snapshot))
+	clientLog.Printf("==> Clearing lxc cache for base container: %s", c.Snapshot)
 	c.removeCachedImage()
 
 	defer metrics.StartTimer().Record("overlayContainerCreationTime")
@@ -224,14 +224,14 @@ func (c *Container) launchOverlayContainer(clientLog *client.Log, metrics client
 	// go-lxc to die with a nil-pointer but assigning it to a variable and then returning
 	// the variable doesn't. If in the future we see the error again adding a sleep
 	// for 0.1 seconds may resolve it (going on the assumption that this part is race-y)
-	clientLog.Writeln(fmt.Sprintf("==> Creating overlay container: %s", c.Name))
+	clientLog.Printf("==> Creating overlay container: %s", c.Name)
 	err = base.Clone(c.Name, lxc.CloneOptions{
 		KeepName: true,
 		Snapshot: true,
 		Backend:  lxc.Overlayfs,
 	})
 	if err == nil {
-		clientLog.Writeln(fmt.Sprintf("==> Created overlay container: %s", c.Name))
+		clientLog.Printf("==> Created overlay container: %s", c.Name)
 	}
 	return err
 }
@@ -310,7 +310,7 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 		}
 		defer lxc.Release(base)
 
-		clientLog.Writeln(fmt.Sprintf("==> Creating container: %s", c.Name))
+		clientLog.Printf("==> Creating container: %s", c.Name)
 		if err := base.Create(lxc.TemplateOptions{
 			Template: c.Dist,
 			Arch:     c.Arch,
@@ -318,7 +318,7 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 		}); err != nil {
 			return err
 		}
-		clientLog.Writeln(fmt.Sprintf("==> Created container: %s", c.Name))
+		clientLog.Printf("==> Created container: %s", c.Name)
 		timer.Record("noSnapshotContainerCreationTime")
 	}
 	defer metrics.StartTimer().Record("containerStartupTime")
@@ -346,7 +346,7 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 		}
 	}
 
-	clientLog.Writeln("==> Waiting for container to be ready")
+	clientLog.Printf("==> Waiting for container to be ready")
 
 	log.Print("[lxc] Starting the container")
 	if err := c.lxc.Start(); err != nil {
@@ -647,7 +647,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log, me
 
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
-	clientLog.Writeln(fmt.Sprintf("==> Downloading image %s", snapshot))
+	clientLog.Printf("==> Downloading image %s", snapshot)
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", remotePath, localPath}, "", []string{
 		"HOME=/root",
@@ -677,7 +677,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 	}
 
 	dest := filepath.Join(c.ImageCacheDir, c.getImagePath(snapshot))
-	clientLog.Writeln(fmt.Sprintf("==> Saving snapshot to %s", dest))
+	clientLog.Printf("==> Saving snapshot to %s", dest)
 	start := time.Now()
 
 	os.MkdirAll(dest, 0755)
@@ -694,7 +694,7 @@ func (c *Container) CreateImage(snapshot string, clientLog *client.Log) error {
 		return err
 	}
 
-	clientLog.Writeln(fmt.Sprintf("==> Snapshot created in %s", time.Since(start)))
+	clientLog.Printf("==> Snapshot created in %s", time.Since(start))
 
 	return nil
 }
@@ -718,7 +718,7 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 func (c *Container) createImageRootFs(snapshotPath string, clientLog *client.Log) error {
 	rootFsTxz := filepath.Join(snapshotPath, fmt.Sprintf("rootfs.tar.%s", c.Compression))
 
-	clientLog.Writeln(fmt.Sprintf("==> Creating rootfs.tar.%s", c.Compression))
+	clientLog.Printf("==> Creating rootfs.tar.%s", c.Compression)
 
 	var cw *client.CmdWrapper
 	if c.Compression == "xz" {
@@ -764,7 +764,7 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	localPath := filepath.Join(c.ImageCacheDir, relPath)
 	remotePath := fmt.Sprintf("s3://%s/%s", c.S3Bucket, relPath)
 
-	clientLog.Writeln(fmt.Sprintf("==> Uploading image %s", snapshot))
+	clientLog.Printf("==> Uploading image %s", snapshot)
 	// TODO(dcramer): verify env is passed correctly here
 	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", localPath, remotePath}, "", []string{})
 
@@ -778,7 +778,7 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 	if !result.Success {
 		return errors.New("Failed uploading image")
 	}
-	clientLog.Writeln(fmt.Sprintf("==> Image uploaded in %s", dur))
+	clientLog.Printf("==> Image uploaded in %s", dur)
 
 	return nil
 }

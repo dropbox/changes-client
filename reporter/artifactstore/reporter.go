@@ -169,7 +169,7 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 
 		matches, err := a.CollectArtifacts(cmdCnf.Artifacts, clientLog)
 		if err != nil {
-			clientLog.Writeln(fmt.Sprintf("[artifactstore] ERROR filtering artifacts: " + err.Error()))
+			clientLog.Printf("[artifactstore] ERROR filtering artifacts: %s", err)
 			return err
 		}
 
@@ -183,13 +183,13 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 				log.Printf("[artifactstore] Uploading %s (from %s)", artifactName, artifact)
 				send := func() error {
 					if f, err := os.Open(artifact); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error opening file for streaming %s: %s", artifact, err))
+						clientLog.Printf("[artifactstore] Error opening file for streaming %s: %s", artifact, err)
 						return err
 					} else if stat, err := f.Stat(); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err))
+						clientLog.Printf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err)
 						return err
 					} else if sAfct, err := r.bucket.NewStreamedArtifact(constructArtifactRelativePath(artifact, a.GetArtifactRoot()), stat.Size()); err != nil {
-						clientLog.Writeln(fmt.Sprintf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err))
+						clientLog.Printf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err)
 						return err
 					} else {
 						// TODO: If possible, avoid reading entire contents of the file into memory, and pass the
@@ -200,14 +200,14 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 						// we could remove this requirement from the server where Content-Length is verified before
 						// starting upload to S3.
 						if contents, err := ioutil.ReadAll(f); err != nil {
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Error reading file for streaming %s: %s", artifact, err))
+							clientLog.Printf("[artifactstore] Error reading file for streaming %s: %s", artifact, err)
 							return err
 						} else if err := sAfct.UploadArtifact(bytes.NewReader(contents)); err != nil {
 							// TODO retry if not a terminal error
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Error uploading contents of %s: %s", artifact, err))
+							clientLog.Printf("[artifactstore] Error uploading contents of %s: %s", artifact, err)
 							return err
 						} else {
-							clientLog.Writeln(fmt.Sprintf("[artifactstore] Successfully uploaded artifact %s to %s", artifact, sAfct.GetContentURL()))
+							clientLog.Printf("[artifactstore] Successfully uploaded artifact %s to %s", artifact, sAfct.GetContentURL())
 							return nil
 						}
 					}

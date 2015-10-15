@@ -32,7 +32,7 @@ func NewLxcCommand(args []string, user string) *LxcCommand {
 }
 
 func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *lxc.Container) (*client.CommandResult, error) {
-	clientLog.Writeln(fmt.Sprintf("==> Executing %s", strings.Join(cw.Args, " ")))
+	clientLog.Printf("==> Executing %s", strings.Join(cw.Args, " "))
 
 	inreader, inwriter, err := os.Pipe()
 	if err != nil {
@@ -102,7 +102,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		ClearEnv:   true,
 	})
 	if err != nil {
-		clientLog.Writeln(fmt.Sprintf("Command failed: %s", err.Error()))
+		clientLog.Printf("Command failed: %s", err)
 		cmdwriter.Close()
 		return nil, err
 	}
@@ -119,7 +119,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	select {
 	case <-timeLimit:
-		clientLog.Writeln(fmt.Sprintf("Failed to close all file descriptors! Ignoring and moving on.."))
+		clientLog.Printf("Failed to close all file descriptors! Ignoring and moving on..")
 		break
 	case <-sem:
 		break
