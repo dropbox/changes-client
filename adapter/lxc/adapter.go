@@ -79,13 +79,29 @@ func (a *Adapter) Init(config *client.Config) error {
 		ImageCacheDir: "/var/cache/lxc/download",
 	}
 
-	a.config = config
-	if _, err := a.config.GetDebugConfig("prelaunch_env", &container.preLaunchEnv); err != nil {
+	var limits struct {
+		CpuLimit    *int
+		MemoryLimit *int
+	}
+	if ok, err := config.GetDebugConfig("resourceLimits", &limits); err != nil {
+		log.Printf("[lxc] %s", err)
+	} else if ok {
+		if limits.CpuLimit != nil {
+			container.CpuLimit = *limits.CpuLimit
+		}
+		if limits.MemoryLimit != nil {
+			container.MemoryLimit = *limits.MemoryLimit
+		}
+	}
+
+	if _, err := config.GetDebugConfig("prelaunch_env", &container.preLaunchEnv); err != nil {
 		log.Printf("[lxc] Failed to parse prelaunch_env: %s", err)
 	}
-	if _, err := a.config.GetDebugConfig("postlaunch_env", &container.postLaunchEnv); err != nil {
+	if _, err := config.GetDebugConfig("postlaunch_env", &container.postLaunchEnv); err != nil {
 		log.Printf("[lxc] Failed to parse postlaunch_env: %s", err)
 	}
+
+	a.config = config
 	a.container = container
 
 	return nil

@@ -170,3 +170,15 @@ func TestDebugKeep(t *testing.T) {
 
 	assert.False(t, shouldDebugKeep(clientLog, new(client.Config)))
 }
+
+func TestInit(t *testing.T) {
+	adapter, err := adapter.Create("lxc")
+	require.NoError(t, err)
+
+	config, e := client.LoadConfig([]byte(`{"debugConfig":{"resourceLimits": {"cpuLimit": 3, "memoryLimit": 9}}}`))
+	require.NoError(t, e)
+	config.JobstepID = containerName
+	require.NoError(t, adapter.Init(config))
+	require.Equal(t, adapter.(*Adapter).container.CpuLimit, 3)
+	require.Equal(t, adapter.(*Adapter).container.MemoryLimit, 9)
+}
