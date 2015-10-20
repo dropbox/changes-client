@@ -188,6 +188,9 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 					} else if stat, err := f.Stat(); err != nil {
 						clientLog.Printf("[artifactstore] Error stat'ing file for streaming %s: %s", artifact, err)
 						return err
+					} else if stat.Size() == 0 {
+						clientLog.Printf("[artifactstore] Ignoring zero-length artifact %s", artifact)
+						return nil
 					} else if sAfct, err := r.bucket.NewStreamedArtifact(constructArtifactRelativePath(artifact, a.GetArtifactRoot()), stat.Size()); err != nil {
 						clientLog.Printf("[artifactstore] Error creating streaming artifact for %s: %s", artifact, err)
 						return err
