@@ -458,6 +458,11 @@ func (c *Container) logResourceUsageStats(log *client.Log) {
 	} else {
 		log.Printf("[lxc] Total CPU time: %s", total)
 	}
+	if cgroupStats := c.lxc.CgroupItem("cpu.stat"); cgroupStats == nil {
+		log.Printf("[lxc] Failed to get Cgroup stats")
+	} else {
+		log.Printf("[lxc] Cgroup stats: %v", cgroupStats)
+	}
 
 	times, e := c.lxc.CPUTimePerCPU()
 	if e != nil {
