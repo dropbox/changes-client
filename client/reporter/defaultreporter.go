@@ -47,15 +47,9 @@ var (
 // them at the endpoint. More importantly, however, because the
 // requests are sent in a separate goroutine, the methods here may
 // succeed even when the endpoing requests fail.
-//
-// In debug mode, endpoint requests are still queued in the publish
-// channel but never sent by the publishing goroutine, which allows
-// the reporter to run without actually connecting
-// to the changes server. TODO(nate): why is this useful?
 type DefaultReporter struct {
 	// Note that this is not safe to send to after Shutdown() is called.
 	PublishChannel  chan ReportPayload
-	Debug           bool
 	jobstepID       string
 	publishUri      string
 	shutdownChannel chan struct{}
@@ -188,14 +182,8 @@ func (r *DefaultReporter) SendPayload(rp ReportPayload) error {
 }
 
 // Continually listens to the publish channel and sends the payloads
-// if we aren't in debug mode.
 func transportSend(r *DefaultReporter) {
 	for rp := range r.PublishChannel {
-		// dont send reports when running in debug mode
-		if r.Debug {
-			continue
-		}
-
 		r.SendPayload(rp)
 	}
 	r.shutdownChannel <- struct{}{}
@@ -211,12 +199,7 @@ func (r *DefaultReporter) Init(c *client.Config) {
 	r.shutdownChannel = make(chan struct{})
 	r.jobstepID = c.JobstepID
 	r.PublishChannel = make(chan ReportPayload, maxPendingReports)
-	r.Debug = c.Debug
-	// Initialize the goroutine that actually sends the requests. We spawn
-	// this even when in debug mode to prevent the payloads from
-	// massively queueing. Since we by default use a queue with a maximum
-	// limit, once it reaches that limit writes will block causing the
-	// main goroutine to halt forever.
+	// Initialize the goroutine that actually sends the requests.
 	go transportSend(r)
 }
 

@@ -45,9 +45,6 @@ func (r *Reporter) PushLogChunk(source string, payload []byte) {
 	form := make(map[string]string)
 	form["source"] = source
 	form["text"] = string(payload)
-	if r.Debug {
-		log.Print(string(payload))
-	}
 	r.PublishChannel <- reporter.ReportPayload{Path: r.JobstepAPIPath() + "logappend/", Data: form, Filename: ""}
 }
 

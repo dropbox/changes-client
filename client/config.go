@@ -15,6 +15,7 @@ var (
 	server             string
 	jobstepID          string
 	artifactSearchPath string
+	upstreamMonitor    bool
 	debug              bool
 	ignoreSnapshots    bool
 )
@@ -35,7 +36,7 @@ type Config struct {
 	Server             string
 	JobstepID          string
 	ArtifactSearchPath string
-	Debug              bool
+	UpstreamMonitor    bool
 	Snapshot           struct {
 		ID string
 	}
@@ -148,7 +149,11 @@ func GetConfig() (*Config, error) {
 	conf.Server = server
 	conf.JobstepID = jobstepID
 	conf.ArtifactSearchPath = artifactSearchPath
-	conf.Debug = debug
+	conf.UpstreamMonitor = upstreamMonitor
+	// deprecated flag
+	if debug {
+		conf.UpstreamMonitor = false
+	}
 
 	if ignoreSnapshots {
 		conf.Snapshot.ID = ""
@@ -160,6 +165,7 @@ func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
 	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&artifactSearchPath, "artifact-search-path", "", "Folder where artifacts will be searched for relative to adapter root")
-	flag.BoolVar(&debug, "debug", false, "Indicates that the client is running in debug mode and should not report results upstream")
+	flag.BoolVar(&upstreamMonitor, "upstream-monitor", true, "Indicates whether the client should monitor upstream for aborts")
+	flag.BoolVar(&debug, "debug", false, "DEPRECATED. debug=true is the same as upstreamMonitor=false.")
 	flag.BoolVar(&ignoreSnapshots, "no-snapshots", false, "Ignore any existing snapshots, and build a fresh environment")
 }

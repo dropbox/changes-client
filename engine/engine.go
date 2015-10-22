@@ -241,7 +241,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 
 	// We need to ensure that we're able to abort the build if upstream suggests
 	// that it's been cancelled.
-	if !e.config.Debug {
+	if e.config.UpstreamMonitor {
 		go func() {
 			um := &UpstreamMonitor{
 				Config: e.config,
