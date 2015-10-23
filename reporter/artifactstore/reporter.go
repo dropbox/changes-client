@@ -31,7 +31,7 @@ var (
 	discardErrors bool
 )
 
-const DefaultDeadline time.Duration = 15 * time.Second
+const DefaultDeadline time.Duration = 30 * time.Second
 
 // Reporter instance to interact with artifact store API to post console logs and artifact files to
 // the artifact store. It uses the artifact store client to perform most operations.
