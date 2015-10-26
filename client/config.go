@@ -63,17 +63,17 @@ type Config struct {
 		// If this build is expected to generate a snapshot, this is the snapshot ID.
 		ID string
 	}
-	DebugConfig map[string]json.RawMessage `json:"debugConfig"`
+	DebugConfig map[string]*json.RawMessage `json:"debugConfig"`
 }
 
 // GetDebugConfig parses the debug config JSON at the given key to dest, returning whether the key
 // was present, and if it was, any error that occurred in trying to parse it to dest.
 func (c *Config) GetDebugConfig(key string, dest interface{}) (present bool, err error) {
 	data, ok := c.DebugConfig[key]
-	if !ok {
+	if !ok || data == nil {
 		return false, nil
 	}
-	e := json.Unmarshal([]byte(data), dest)
+	e := json.Unmarshal([]byte(*data), dest)
 	if e != nil {
 		e = fmt.Errorf("Malformed JSON in debug config key %q: %s", key, e)
 	}

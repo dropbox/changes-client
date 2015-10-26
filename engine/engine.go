@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -127,6 +128,14 @@ func (e *Engine) Run() (Result, error) {
 
 	e.clientLog.Printf("changes-client version: %s", version.GetVersion())
 	e.clientLog.Printf("Running jobstep %s for %s (%s)", e.config.JobstepID, e.config.Project.Name, e.config.Project.Slug)
+	if e.config.DebugConfig != nil {
+		if jsout, err := json.MarshalIndent(e.config.DebugConfig, "", "  "); err != nil {
+			// Should never happen, but no use crashing about it.
+			sentry.Error(err, map[string]string{})
+		} else {
+			e.clientLog.Printf("Debug config: %s", jsout)
+		}
+	}
 
 	if err := e.checkForSnapshotInconsistency(); err != nil {
 		sentry.Error(err, map[string]string{})
