@@ -10,9 +10,11 @@ import (
 	"time"
 )
 
-var (
-	chunkSize = 4096
-)
+// After this many bytes are buffered, the buffered log data will be flushed.
+var byteFlushThreshold = flag.Int("log_chunk_size", 10240, "Size of log chunks to send to http server")
+
+// After this much time has elapsed, buffered log data will be flushed.
+const timeFlushThreshold = 4 * time.Second
 
 type Log struct {
 	chunkchan chan []byte
@@ -88,9 +90,9 @@ func (l *Log) WriteStream(pipe io.Reader) {
 	finished := false
 	for !finished {
 		var payload []byte
-		timeLimit := time.After(2 * time.Second)
+		timeLimit := time.After(timeFlushThreshold)
 
-		for len(payload) < chunkSize {
+		for len(payload) < *byteFlushThreshold {
 			var logLine *LogLine
 			timeLimitExceeded := false
 
@@ -142,8 +144,4 @@ func newLogLineReader(pipe io.Reader) <-chan *LogLine {
 	}()
 
 	return ch
-}
-
-func init() {
-	flag.IntVar(&chunkSize, "log_chunk_size", 4096, "Size of log chunks to send to http server")
 }
