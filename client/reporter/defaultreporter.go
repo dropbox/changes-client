@@ -88,9 +88,11 @@ func httpPost(uri string, params map[string]string, file string) (resp *http.Res
 			return nil, err
 		}
 
-		err = writer.WriteField("name", filepath.Base(file))
-		if err != nil {
-			return nil, err
+		if _, ok := params["name"]; !ok {
+			err = writer.WriteField("name", filepath.Base(file))
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		fileField, err := writer.CreateFormFile("file", filepath.Base(file))

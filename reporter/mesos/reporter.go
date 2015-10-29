@@ -3,6 +3,7 @@ package mesosreporter
 import (
 	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 
 	"github.com/dropbox/changes-client/client"
@@ -76,15 +77,20 @@ func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, cli
 		clientLog.Printf("==> Found: %s", artifact)
 	}
 
-	return r.pushArtifacts(matches)
+	return r.pushArtifacts(matches, a.GetArtifactRoot())
 }
 
-func (r *Reporter) pushArtifacts(artifacts []string) error {
+func (r *Reporter) pushArtifacts(artifacts []string, root string) error {
 	// TODO: PushArtifacts is synchronous due to races with Adapter.Shutdown(), but
 	// really what we'd want to do is just say "wait until channel empty, ok continue"
 	var firstError error
 	for _, artifact := range artifacts {
-		e := r.SendPayload(reporter.ReportPayload{Path: r.JobstepAPIPath() + "artifacts/", Data: nil, Filename: artifact})
+		name := artifact
+		if relativePath, err := filepath.Rel(root, artifact); err == nil {
+			name = relativePath
+		}
+		e := r.SendPayload(reporter.ReportPayload{Path: r.JobstepAPIPath() + "artifacts/",
+			Data: map[string]string{"name": name}, Filename: artifact})
 		if e != nil && firstError == nil {
 			firstError = e
 		}
