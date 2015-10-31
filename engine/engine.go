@@ -12,6 +12,7 @@ import (
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/filelog"
 	"github.com/dropbox/changes-client/client/reporter"
 	"github.com/dropbox/changes-client/common/sentry"
 	"github.com/dropbox/changes-client/common/version"
@@ -68,23 +69,40 @@ type Engine struct {
 	reporter  reporter.Reporter
 }
 
-func RunBuildPlan(config *client.Config) (Result, error) {
-	forceInfraFailure := false
-	if config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); forceInfraFailure {
-		return RESULT_INFRA_FAILED,
-			errors.New("Infra failure forced for debugging")
+func RunBuildPlan(config *client.Config, infraLog *filelog.FileLog) (result Result, err error) {
+	exitFunc := func() {
+		log.Printf("[engine] Finished: %s", result)
+		if err != nil {
+			log.Printf("[engine] error: %s", err)
+		}
 	}
 
-	currentAdapter, err := adapter.Create(selectedAdapterFlag)
-	if err != nil {
-		return RESULT_INFRA_FAILED, err
+	forceInfraFailure := false
+	if config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); forceInfraFailure {
+		defer exitFunc()
+		return RESULT_INFRA_FAILED, errors.New("Infra failure forced for debugging")
 	}
 
 	currentReporter, err := reporter.Create(selectedReporterFlag)
 	if err != nil {
+		defer exitFunc()
 		log.Printf("[engine] failed to initialize reporter: %s", selectedReporterFlag)
 		return RESULT_INFRA_FAILED, err
 	}
+	currentReporter.Init(config)
+	defer currentReporter.Shutdown()
+	if infraLog != nil {
+		infraLog.StartReporting(currentReporter)
+		defer infraLog.Shutdown()
+	}
+	defer exitFunc()
+
+	currentAdapter, err := adapter.Create(selectedAdapterFlag)
+	if err != nil {
+		log.Printf("[engine] failed to initialize adapter: %s", selectedAdapterFlag)
+		return RESULT_INFRA_FAILED, err
+	}
+
 	log.Printf("[engine] started with reporter %s, adapter %s", selectedReporterFlag, selectedAdapterFlag)
 
 	engine := &Engine{
@@ -116,9 +134,6 @@ func (e *Engine) checkForSnapshotInconsistency() error {
 }
 
 func (e *Engine) Run() (Result, error) {
-	e.reporter.Init(e.config)
-	defer e.reporter.Shutdown()
-
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -153,7 +168,6 @@ func (e *Engine) Run() (Result, error) {
 	e.reporter.PushJobstepStatus(STATUS_FINISHED, result.String())
 
 	e.clientLog.Close()
-
 	wg.Wait()
 
 	return result, err

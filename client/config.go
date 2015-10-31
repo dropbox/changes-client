@@ -13,7 +13,6 @@ import (
 
 var (
 	server             string
-	jobstepID          string
 	artifactSearchPath string
 	upstreamMonitor    bool
 	debug              bool
@@ -129,7 +128,7 @@ func LoadConfig(content []byte) (*Config, error) {
 	return r, nil
 }
 
-func GetConfig() (*Config, error) {
+func GetConfig(jobstepID string) (*Config, error) {
 	if server == "" {
 		return nil, fmt.Errorf("Missing required configuration: server")
 	}
@@ -163,7 +162,6 @@ func GetConfig() (*Config, error) {
 
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
-	flag.StringVar(&jobstepID, "jobstep_id", "", "Job ID whose commands are to be executed")
 	flag.StringVar(&artifactSearchPath, "artifact-search-path", "", "Folder where artifacts will be searched for relative to adapter root")
 	flag.BoolVar(&upstreamMonitor, "upstream-monitor", true, "Indicates whether the client should monitor upstream for aborts")
 	flag.BoolVar(&debug, "debug", false, "DEPRECATED. debug=true is the same as upstreamMonitor=false.")

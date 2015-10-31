@@ -99,27 +99,36 @@ func (r *Reporter) ReportMetrics(metrics client.Metrics) {
 
 // source: Name of the log stream. Usually, differentiates between stdout and stderr streams.
 // payload: Stream of bytes to append to this stream.
-func (r *Reporter) PushLogChunk(source string, payload []byte) {
+func (r *Reporter) PushLogChunk(source string, payload []byte) bool {
+	retch := make(chan bool, 1)
 	r.runWithDeadline(r.deadline, func() {
 		if r.bucket == nil {
+			retch <- false
 			return
 		}
 
 		if _, ok := r.chunkedArtifacts[source]; !ok {
 			if artifact, err := r.bucket.NewChunkedArtifact(source); err != nil {
 				sentry.Error(err, map[string]string{})
-
-				log.Printf("Error creating console log artifact: %s\n", err)
+				log.Printf("Error creating log artifact for %s: %s", source, err)
+				retch <- false
 				return
 			} else {
-				log.Printf("Created new artifact with name %s\n", source)
+				log.Printf("Created new artifact with name %s", source)
 				r.chunkedArtifacts[source] = artifact
 			}
 		}
 
 		logstream := r.chunkedArtifacts[source]
 		logstream.AppendLog(string(payload[:]))
+		retch <- true
 	})
+	select {
+	case ret := <-retch:
+		return ret
+	default:
+		return false
+	}
 }
 
 func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {

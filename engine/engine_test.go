@@ -11,22 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-type noartReporter struct{}
+type noartReporter struct {
+	reporter.NoopReporter
+}
 
-func (nar *noartReporter) Init(_ *client.Config) {}
 func (nar *noartReporter) PublishArtifacts(_ client.ConfigCmd, _ adapter.Adapter, _ *client.Log) error {
 	return errors.New("Couldn't publish artifacts somehow")
 }
-
-func (nar *noartReporter) PushCommandOutput(_, _ string, _ int, _ []byte) {}
-func (nar *noartReporter) PushCommandStatus(_, _ string, _ int)           {}
-func (nar *noartReporter) PushJobstepStatus(_, _ string)                  {}
-func (nar *noartReporter) PushLogChunk(_ string, _ []byte)                {}
-func (nar *noartReporter) PushSnapshotImageStatus(_, _ string)            {}
-func (nar *noartReporter) ReportMetrics(_ client.Metrics)                 {}
-func (nar *noartReporter) Shutdown()                                      {}
-
-var _ reporter.Reporter = &noartReporter{}
 
 type noopAdapter struct{}
 
@@ -68,7 +59,7 @@ func TestFailedArtifactInfraFails(t *testing.T) {
 func TestDebugForceInfraFailure(t *testing.T) {
 	config, err := client.LoadConfig([]byte(`{"debugConfig": {"forceInfraFailure": true}}`))
 	assert.NoError(t, err)
-	result, err := RunBuildPlan(config)
+	result, err := RunBuildPlan(config, nil)
 	assert.Equal(t, result, RESULT_INFRA_FAILED)
 	assert.Error(t, err)
 }

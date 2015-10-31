@@ -40,7 +40,8 @@ func (l *Log) Close() {
 // Sends the payload to the log, blocking until it is handled, and
 // returning an error only if it can't be (such as after
 // the log is closed).
-func (l *Log) Write(payload []byte) error {
+func (l *Log) write(payload []byte) error {
+	log.Print(string(payload))
 	select {
 	case <-l.closed:
 		// TODO: Too noisy?
@@ -54,8 +55,7 @@ func (l *Log) Write(payload []byte) error {
 // Writes the payload (with a newline appended) to the console, and
 // uses Write to send it to the log.
 func (l *Log) Writeln(payload string) error {
-	e := l.Write([]byte(payload + "\n"))
-	log.Println(payload)
+	e := l.write([]byte(payload + "\n"))
 	return e
 }
 
@@ -114,15 +114,13 @@ func (l *Log) WriteStream(pipe io.Reader) {
 
 			if logLine.err != nil {
 				finished = true
-				line := []byte(fmt.Sprintf("%s", logLine.err))
-				payload = append(payload, line...)
+				payload = append(payload, logLine.err.Error()...)
 				break
 			}
 		}
 
 		if len(payload) > 0 {
-			l.Write(payload)
-			log.Println(string(payload))
+			l.write(payload)
 		}
 	}
 }

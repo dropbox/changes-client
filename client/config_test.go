@@ -65,9 +65,9 @@ func TestGetConfig(t *testing.T) {
 	defer ts.Close()
 
 	server = ts.URL
-	jobstepID = "549db9a70d4d4d258e0a6d475ccd8a15"
+	jobstepID := "549db9a70d4d4d258e0a6d475ccd8a15"
 
-	config, err := GetConfig()
+	config, err := GetConfig(jobstepID)
 	assert.NoError(t, err)
 
 	assert.Equal(t, config.Server, strings.TrimRight(ts.URL, "/"))

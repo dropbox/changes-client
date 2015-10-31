@@ -42,11 +42,16 @@ func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 	r.PublishChannel <- reporter.ReportPayload{Path: "/commands/" + cID + "/", Data: form, Filename: ""}
 }
 
-func (r *Reporter) PushLogChunk(source string, payload []byte) {
+func (r *Reporter) PushLogChunk(source string, payload []byte) bool {
+	// logappend endpoint only works for console logs
+	if source != "console" {
+		return true
+	}
 	form := make(map[string]string)
 	form["source"] = source
 	form["text"] = string(payload)
 	r.PublishChannel <- reporter.ReportPayload{Path: r.JobstepAPIPath() + "logappend/", Data: form, Filename: ""}
+	return true
 }
 
 func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {

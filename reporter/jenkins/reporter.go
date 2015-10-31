@@ -66,7 +66,8 @@ func (r *Reporter) PushSnapshotImageStatus(imageID string, status string) {
 	}
 }
 
-func (r *Reporter) PushLogChunk(source string, payload []byte) {
+func (r *Reporter) PushLogChunk(source string, payload []byte) bool {
+	return true
 }
 
 func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, output []byte) {

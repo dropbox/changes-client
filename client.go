@@ -5,11 +5,13 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log"
 	"os"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
+	"github.com/dropbox/changes-client/client/filelog"
 	"github.com/dropbox/changes-client/client/reporter"
 	"github.com/dropbox/changes-client/common/sentry"
 	"github.com/dropbox/changes-client/common/version"
@@ -22,6 +24,7 @@ func main() {
 		showVersion = flag.Bool("version", false, "Prints changes-client version")
 		exitResult  = flag.Bool("exit-result", false, "Determine exit code from result--exit 1 on any execution failure or 99 on any infrastructure failure")
 		showInfo    = flag.Bool("showinfo", false, "Prints basic information about this binary in a stable json format and exits.")
+		jobstepID   = flag.String("jobstep_id", "", "Jobstep ID whose commands are to be executed")
 	)
 	flag.Parse()
 
@@ -45,7 +48,7 @@ func main() {
 		}
 	}
 
-	result := run()
+	result := run(*jobstepID)
 	exitCode := 0
 	if *exitResult {
 		switch result {
@@ -65,7 +68,15 @@ func main() {
 }
 
 // Returns whether run was successful.
-func run() (result engine.Result) {
+func run(jobstepID string) (result engine.Result) {
+	infraLog, err := filelog.New(jobstepID, "infralog")
+	if err != nil {
+		log.Printf("[client] error creating infralog: %s", err)
+		sentry.Error(err, map[string]string{})
+	} else {
+		log.SetOutput(io.MultiWriter(os.Stderr, infraLog))
+	}
+
 	var sentryClient *raven.Client
 	if sentryClient = sentry.GetClient(); sentryClient != nil {
 		log.Printf("Using Sentry; ProjectID=%s, URL=%s", sentryClient.ProjectID(), sentryClient.URL())
@@ -97,9 +108,9 @@ func run() (result engine.Result) {
 
 	// Error handling in place; now we begin.
 
-	config, err := client.GetConfig()
+	config, err := client.GetConfig(jobstepID)
 	if err != nil {
-		log.Printf("[client] error: %s", err)
+		log.Printf("[client] error getting config: %s", err)
 		sentry.Error(err, map[string]string{})
 		return engine.RESULT_INFRA_FAILED
 	}
@@ -110,10 +121,8 @@ func run() (result engine.Result) {
 		})
 	}
 
-	result, err = engine.RunBuildPlan(config)
-	log.Printf("[client] Finished: %s", result)
+	result, err = engine.RunBuildPlan(config, infraLog)
 	if err != nil {
-		log.Printf("[client] error: %s", err)
 		sentry.Error(err, map[string]string{})
 		result = engine.RESULT_INFRA_FAILED
 	}

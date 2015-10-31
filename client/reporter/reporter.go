@@ -42,7 +42,8 @@ type Reporter interface {
 	PushCommandStatus(cID string, status string, retCode int)
 	PushCommandOutput(cID string, status string, retCode int, output []byte)
 	PushJobstepStatus(status string, result string)
-	PushLogChunk(source string, payload []byte)
+	// returns false if pushing the log chunk failed
+	PushLogChunk(source string, payload []byte) bool
 
 	// Report any collected metrics. This is optional, but can be used to e.g.
 	// send metrics to Changes.
