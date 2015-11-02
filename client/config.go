@@ -31,6 +31,15 @@ type ConfigCmd struct {
 	}
 }
 
+// ResourceLimits describes all specified limits
+// that should be applied while executing the JobStep.
+type ResourceLimits struct {
+	// Number of CPUs.
+	Cpus *int
+	// Memory limit in megabytes.
+	Memory *int
+}
+
 type Config struct {
 	Server             string
 	JobstepID          string
@@ -62,6 +71,9 @@ type Config struct {
 		// If this build is expected to generate a snapshot, this is the snapshot ID.
 		ID string
 	}
+
+	ResourceLimits ResourceLimits
+
 	DebugConfig map[string]*json.RawMessage `json:"debugConfig"`
 }
 

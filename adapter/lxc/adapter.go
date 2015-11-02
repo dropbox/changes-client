@@ -60,6 +60,18 @@ func (a *Adapter) Init(config *client.Config) error {
 		}
 	}
 
+	mergeLimits := func(v int, other *int) int {
+		if other != nil {
+			if v == 0 || *other < v {
+				return *other
+			}
+		}
+		return v
+	}
+
+	cpuLimit := mergeLimits(cpus, config.ResourceLimits.Cpus)
+	memoryLimit := mergeLimits(memory, config.ResourceLimits.Memory)
+
 	container := &Container{
 		Name:           config.JobstepID,
 		Arch:           arch,
@@ -71,14 +83,15 @@ func (a *Adapter) Init(config *client.Config) error {
 		OutputSnapshot: config.ExpectedSnapshot.ID,
 		// TODO(dcramer):  Move S3 logic into core engine
 		S3Bucket:      s3Bucket,
-		MemoryLimit:   memory,
-		CpuLimit:      cpus,
+		MemoryLimit:   memoryLimit,
+		CpuLimit:      cpuLimit,
 		Compression:   compression,
 		Executor:      executor,
 		BindMounts:    mounts,
 		ImageCacheDir: "/var/cache/lxc/download",
 	}
 
+	// DebugConfig limits override standard config.
 	var limits struct {
 		CpuLimit    *int
 		MemoryLimit *int

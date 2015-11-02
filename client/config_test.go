@@ -44,6 +44,10 @@ const jobStepResponse = `
 	"expectedSnapshot": {
 		"id": "fed13008d3e94f6bb58e53237ad73f1d"
 	},
+	"resourceLimits": {
+		"cpus": 4,
+		"memory": 8127
+	},
 	"debugConfig": {
 		"some_env": {"Name": "wat", "Val": 4}
 	}
@@ -96,6 +100,9 @@ func TestGetConfig(t *testing.T) {
 		},
 	})
 
+	assert.Equal(t, *config.ResourceLimits.Cpus, 4)
+	assert.Equal(t, *config.ResourceLimits.Memory, 8127)
+
 	type Pair struct {
 		Name string
 		Val  int
@@ -105,6 +112,31 @@ func TestGetConfig(t *testing.T) {
 	assert.True(t, dok)
 	assert.NoError(t, derr)
 	assert.Equal(t, envthing, Pair{"wat", 4})
+}
+
+func TestParseResourceLimits(t *testing.T) {
+	ptrto := func(p int) *int {
+		return &p
+	}
+	cases := []struct {
+		json     string
+		expected ResourceLimits
+	}{
+		{`{"resourceLimits": {"cpus": 8}}`, ResourceLimits{Cpus: ptrto(8)}},
+		{`{"resourceLimits": {"memory": 8000}}`, ResourceLimits{Memory: ptrto(8000)}},
+		{`{"resourceLimits": {"cpus": 9, "memory": 8008}}`,
+			ResourceLimits{Cpus: ptrto(9), Memory: ptrto(8008)}},
+		{`{"resourceLimits": {}}`, ResourceLimits{}},
+		{`{}`, ResourceLimits{}},
+	}
+	for i, c := range cases {
+		cfg, e := LoadConfig([]byte(c.json))
+		if e != nil {
+			panic(e)
+		}
+		assert.Equal(t, c.expected, cfg.ResourceLimits, "case %v: %v", i, c.json)
+	}
+
 }
 
 func TestDebugConfig(t *testing.T) {

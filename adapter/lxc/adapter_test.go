@@ -104,7 +104,7 @@ func TestCompleteFlow(t *testing.T) {
 	var result *client.CommandResult
 	result, err = adapter.Run(cmd, clientLog)
 	require.NoError(t, err)
-	require.Equal(t, string(result.Output), "")
+	require.Equal(t, "", string(result.Output))
 	require.True(t, result.Success)
 
 	cmd, err = client.NewCommand("test", "#!/bin/bash -e\necho $HOME\nexit 0")
@@ -113,7 +113,7 @@ func TestCompleteFlow(t *testing.T) {
 
 	result, err = adapter.Run(cmd, clientLog)
 	require.NoError(t, err)
-	require.Equal(t, string(result.Output), "/home/ubuntu\n")
+	require.Equal(t, "/home/ubuntu\n", string(result.Output))
 	require.True(t, result.Success)
 
 	cmd, err = client.NewCommand("test", "#!/bin/bash -e\ndd if=/dev/zero of=test.img bs=1M count=10 && mkfs.ext4 -b 1024 -j -F test.img && sudo mount -v -o loop test.img /mnt")
@@ -130,12 +130,12 @@ func TestCompleteFlow(t *testing.T) {
 
 	result, err = adapter.Run(cmd, clientLog)
 	require.NoError(t, err)
-	require.Equal(t, string(result.Output), "")
+	require.Equal(t, "", string(result.Output))
 	require.False(t, result.Success)
 
 	artifacts, err := adapter.CollectArtifacts([]string{"foo.txt"}, clientLog)
 	require.NoError(t, err)
-	require.Equal(t, len(artifacts), 1)
+	require.Equal(t, 1, len(artifacts))
 	require.Regexp(t, ".*/home/ubuntu/foo.txt", artifacts[0])
 
 	require.NoError(t, adapter.Shutdown(clientLog))
@@ -171,7 +171,7 @@ func TestDebugKeep(t *testing.T) {
 	assert.False(t, shouldDebugKeep(clientLog, new(client.Config)))
 }
 
-func TestInit(t *testing.T) {
+func TestDebugConfigInit(t *testing.T) {
 	adapter, err := adapter.Create("lxc")
 	require.NoError(t, err)
 
@@ -179,6 +179,51 @@ func TestInit(t *testing.T) {
 	require.NoError(t, e)
 	config.JobstepID = containerName
 	require.NoError(t, adapter.Init(config))
-	require.Equal(t, adapter.(*Adapter).container.CpuLimit, 3)
-	require.Equal(t, adapter.(*Adapter).container.MemoryLimit, 9)
+	require.Equal(t, 3, adapter.(*Adapter).container.CpuLimit)
+	require.Equal(t, 9, adapter.(*Adapter).container.MemoryLimit)
+}
+
+func makeResetFunc(v *int) func() {
+	val := *v
+	return func() {
+		*v = val
+	}
+}
+
+func TestResourceLimitsInit(t *testing.T) {
+	defer makeResetFunc(&cpus)()
+	defer makeResetFunc(&memory)()
+	ptrto := func(v int) *int { return &v }
+	cases := []struct {
+		CpusFlag       int
+		MemoryFlag     int
+		ResourceLimits client.ResourceLimits
+		ExpectedCpus   int
+		ExpectedMemory int
+	}{
+		{CpusFlag: 0, MemoryFlag: 0, ResourceLimits: client.ResourceLimits{},
+			ExpectedCpus: 0, ExpectedMemory: 0},
+		{CpusFlag: 8, MemoryFlag: 8000,
+			ResourceLimits: client.ResourceLimits{Cpus: ptrto(4), Memory: ptrto(7000)},
+			ExpectedCpus:   4, ExpectedMemory: 7000},
+		{CpusFlag: 4, MemoryFlag: 7000,
+			ResourceLimits: client.ResourceLimits{Cpus: ptrto(8), Memory: ptrto(8000)},
+			ExpectedCpus:   4, ExpectedMemory: 7000},
+		{CpusFlag: 0, MemoryFlag: 8000,
+			ResourceLimits: client.ResourceLimits{Cpus: ptrto(4)},
+			ExpectedCpus:   4, ExpectedMemory: 8000},
+	}
+	for i, c := range cases {
+		cpus, memory = c.CpusFlag, c.MemoryFlag
+		adapter, err := adapter.Create("lxc")
+		require.NoError(t, err)
+
+		var config client.Config
+		config.ResourceLimits = c.ResourceLimits
+		config.JobstepID = containerName
+		assert.NoError(t, adapter.Init(&config))
+		lxcadapter := adapter.(*Adapter)
+		assert.Equal(t, c.ExpectedCpus, lxcadapter.container.CpuLimit, "CpuLimit (case %v: %+v)", i, c)
+		assert.Equal(t, c.ExpectedMemory, lxcadapter.container.MemoryLimit, "MemoryLimit (case %v: %+v)", i, c)
+	}
 }
