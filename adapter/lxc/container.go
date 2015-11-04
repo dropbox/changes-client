@@ -447,7 +447,7 @@ func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
 
 // Report container resource information from the container to the infra log.
 // Should be called while the container is running, but after work is done.
-func (c *Container) logResourceUsageStats(log *client.Log) {
+func (c *Container) logResourceUsageStats() {
 	if usage, err := c.lxc.BlkioUsage(); err != nil {
 		log.Printf("[lxc] Failed to get disk IO: %s", err)
 	} else {
