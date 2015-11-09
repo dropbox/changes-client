@@ -89,8 +89,9 @@ func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 	// IGNORED - Not relevant
 }
 
-func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
+func (r *Reporter) PushSnapshotImageStatus(iID string, status string) error {
 	// IGNORED - Not relevant
+	return nil
 }
 
 func (r *Reporter) ReportMetrics(metrics client.Metrics) {

@@ -27,12 +27,7 @@ type Reporter interface {
 	// is required here.
 	PublishArtifacts(cmd client.ConfigCmd, adapter adapter.Adapter, clientLog *client.Log) error
 
-	// Like above, this is responsible for doing something that will at
-	// some point in the future update the status of a snapshot image
-	// but it is not required to happen immediately (which allows Jenkins
-	// to transfer this information through the artifact pipeline rather
-	// than through http).
-	PushSnapshotImageStatus(iID string, status string)
+	PushSnapshotImageStatus(imgID string, status string) error
 
 	// These are optional, implement empty functions to just not provide
 	// this functionality as a reporter (ie, Jenkins). However it should

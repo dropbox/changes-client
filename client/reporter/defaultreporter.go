@@ -214,10 +214,13 @@ func (r *DefaultReporter) Shutdown() {
 	log.Print("[reporter] Shutdown complete")
 }
 
-func (r *DefaultReporter) PushSnapshotImageStatus(iID string, status string) {
-	form := make(map[string]string)
-	form["status"] = status
-	r.PublishChannel <- ReportPayload{"/snapshotimages/" + iID + "/", form, ""}
+func (r *DefaultReporter) PushSnapshotImageStatus(imgID string, status string) error {
+	return r.SendPayload(ReportPayload{
+		Path: "/snapshotimages/" + imgID + "/",
+		Data: map[string]string{
+			"status": status,
+		},
+	})
 }
 
 func (r *DefaultReporter) ReportMetrics(metrics client.Metrics) {
@@ -230,8 +233,9 @@ func (r *DefaultReporter) ReportMetrics(metrics client.Metrics) {
 		sentry.Error(err, map[string]string{})
 		return
 	}
-	form := map[string]string{"metrics": string(data)}
-	r.PublishChannel <- ReportPayload{r.JobstepAPIPath(), form, ""}
+	r.PublishChannel <- ReportPayload{Path: r.JobstepAPIPath(), Data: map[string]string{
+		"metrics": string(data),
+	}}
 }
 
 func init() {

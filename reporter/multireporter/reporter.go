@@ -56,10 +56,14 @@ func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 	}
 }
 
-func (r *Reporter) PushSnapshotImageStatus(iID string, status string) {
+func (r *Reporter) PushSnapshotImageStatus(iID string, status string) error {
+	var firstError error
 	for _, r := range r.reporterDestinations {
-		r.PushSnapshotImageStatus(iID, status)
+        if e := r.PushSnapshotImageStatus(iID, status); e != nil && firstError == nil {
+            firstError = e
+        }
 	}
+    return firstError
 }
 
 func (r *Reporter) PushLogChunk(source string, payload []byte) bool {

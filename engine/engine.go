@@ -320,7 +320,12 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		} else {
 			snapshotStatus = SNAPSHOT_ACTIVE
 		}
-		e.reporter.PushSnapshotImageStatus(e.outputSnapshotID(), snapshotStatus)
+		if err := e.reporter.PushSnapshotImageStatus(e.outputSnapshotID(), snapshotStatus); err != nil {
+			log.Printf("Failed to push snapshot image status: %s", err)
+			if sserr == nil {
+				sserr = err
+			}
+		}
 		if sserr != nil {
 			return RESULT_INFRA_FAILED, sserr
 		}
