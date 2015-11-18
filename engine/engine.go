@@ -69,23 +69,9 @@ type Engine struct {
 	reporter  reporter.Reporter
 }
 
-func RunBuildPlan(config *client.Config, infraLog *filelog.FileLog) (result Result, err error) {
-	exitFunc := func() {
-		log.Printf("[engine] Finished: %s", result)
-		if err != nil {
-			log.Printf("[engine] error: %s", err)
-		}
-	}
-
-	forceInfraFailure := false
-	if config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); forceInfraFailure {
-		defer exitFunc()
-		return RESULT_INFRA_FAILED, errors.New("Infra failure forced for debugging")
-	}
-
+func RunBuildPlan(config *client.Config, infraLog *filelog.FileLog) (Result, error) {
 	currentReporter, err := reporter.Create(selectedReporterFlag)
 	if err != nil {
-		defer exitFunc()
 		log.Printf("[engine] failed to initialize reporter: %s", selectedReporterFlag)
 		return RESULT_INFRA_FAILED, err
 	}
@@ -95,7 +81,6 @@ func RunBuildPlan(config *client.Config, infraLog *filelog.FileLog) (result Resu
 		infraLog.StartReporting(currentReporter)
 		defer infraLog.Shutdown()
 	}
-	defer exitFunc()
 
 	currentAdapter, err := adapter.Create(selectedAdapterFlag)
 	if err != nil {
@@ -164,6 +149,9 @@ func (e *Engine) Run() (Result, error) {
 	result, err := e.runBuildPlan()
 
 	e.clientLog.Printf("==> Build finished! Recorded result as %s", result)
+	if err != nil {
+		e.clientLog.Printf("==> Error: %s", err)
+	}
 
 	e.reporter.PushJobstepStatus(STATUS_FINISHED, result.String())
 
@@ -241,6 +229,13 @@ func (e *Engine) captureSnapshot() error {
 }
 
 func (e *Engine) runBuildPlan() (Result, error) {
+	forceInfraFailure := false
+	if _, err := e.config.GetDebugConfig("forceInfraFailure", &forceInfraFailure); err != nil {
+		return RESULT_INFRA_FAILED, err
+	} else if forceInfraFailure {
+		return RESULT_INFRA_FAILED, errors.New("Infra failure forced for debugging")
+	}
+
 	// cancellation signal
 	cancel := make(chan struct{})
 

@@ -59,7 +59,15 @@ func TestFailedArtifactInfraFails(t *testing.T) {
 func TestDebugForceInfraFailure(t *testing.T) {
 	config, err := client.LoadConfig([]byte(`{"debugConfig": {"forceInfraFailure": true}}`))
 	assert.NoError(t, err)
-	result, err := RunBuildPlan(config, nil)
+	log := client.NewLog()
+	defer log.Close()
+	eng := Engine{reporter: &reporter.NoopReporter{},
+		clientLog: log,
+		adapter:   &noopAdapter{},
+		config:    config,
+	}
+
+	result, err := eng.runBuildPlan()
 	assert.Equal(t, result, RESULT_INFRA_FAILED)
 	assert.Error(t, err)
 }
