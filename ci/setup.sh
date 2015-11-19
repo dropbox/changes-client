@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-sudo support/bootstrap-ubuntu.sh
+sudo -E support/bootstrap-ubuntu.sh
 sudo chown -R `whoami` ~
 export PATH=/usr/local/go/bin:$PATH
 export GOPATH=~/

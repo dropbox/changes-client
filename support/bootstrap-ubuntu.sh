@@ -1,4 +1,4 @@
-#!/bin/bash -eux
+#!/bin/bash -ex
 
 export DEBIAN_FRONTEND=noninteractive
 
@@ -6,7 +6,12 @@ GO_VERSION=1.3
 
 sudo apt-get install -y python-software-properties software-properties-common
 sudo add-apt-repository -y ppa:awstools-dev/awstools
-sudo add-apt-repository -y ppa:ubuntu-lxc/stable
+
+# If we're running on Changes, don't pick up LXC ppa
+if [ -z $CHANGES ]
+then
+  sudo add-apt-repository -y ppa:ubuntu-lxc/stable
+fi
 
 sudo apt-get update -y
 
@@ -17,7 +22,6 @@ sudo apt-get install -y git mercurial pkg-config wget
 sudo apt-get install -y awscli
 
 # Install go
-set -ex
 cd /tmp
 wget "http://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz"
 tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
