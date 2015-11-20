@@ -54,14 +54,14 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 	// artifactDestination.
 	artifactSource := path.Join(a.GetRootFs(), r.artifactDestination)
 	log.Printf("[reporter] Copying artifacts from %s to: %s\n", artifactSource, r.artifactDestination)
-	cmd := exec.Command("mkdir", "-p", artifactDestination)
-	if err := cmd.Run(); err != nil {
-		log.Printf("[reporter] Failed to create artifact destination")
+	mkdircmd := exec.Command("mkdir", "-p", artifactDestination)
+	if output, err := mkdircmd.CombinedOutput(); err != nil {
+		log.Printf("[reporter] Failed to create artifact destination: %s", output)
 		return err
 	}
-	cmd = exec.Command("cp", "-f", "-r", path.Join(artifactSource, "."), r.artifactDestination)
-	if err := cmd.Run(); err != nil {
-		log.Printf("[reporter] Failed to push artifacts; possibly the source artifact folder did not exist")
+	cpcmd := exec.Command("cp", "-f", "-r", path.Join(artifactSource, "."), r.artifactDestination)
+	if output, err := cpcmd.CombinedOutput(); err != nil {
+		log.Printf("[reporter] Failed to push artifacts; possibly the source artifact folder did not exist: %s", output)
 		return err
 	}
 	return nil
