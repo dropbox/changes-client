@@ -59,7 +59,10 @@ func (r *Reporter) PublishArtifacts(cmdCnf client.ConfigCmd, a adapter.Adapter, 
 		log.Printf("[reporter] Failed to create artifact destination: %s", output)
 		return err
 	}
-	cpcmd := exec.Command("cp", "-f", "-r", path.Join(artifactSource, "."), r.artifactDestination)
+
+	// path.Join is not used here because path.Join(artifactSource, ".") results in just artifactSource.
+	// The source needs to end in '/.' for cp to copy the directory contents and not the directory itself.
+	cpcmd := exec.Command("cp", "-f", "-r", artifactSource + "/.", r.artifactDestination)
 	if output, err := cpcmd.CombinedOutput(); err != nil {
 		log.Printf("[reporter] Failed to push artifacts; possibly the source artifact folder did not exist: %s", output)
 		return err
