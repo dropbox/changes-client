@@ -5,7 +5,6 @@ package lxcadapter
 
 import (
 	"log"
-	"os"
 	"sync"
 	"testing"
 	"time"
@@ -61,10 +60,6 @@ func TestLxcVersion(t *testing.T) {
 const containerName = "84e6165919c04514a330fe789f367007"
 
 func TestCompleteFlow(t *testing.T) {
-	if os.Getenv("CHANGES") == "1" {
-		t.Skip("For as yet unknown reasons, container initialization fails on Changes.")
-	}
-
 	ensureContainerRemoved(t, containerName)
 
 	clientLog := client.NewLog()
