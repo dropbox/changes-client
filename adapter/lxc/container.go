@@ -375,6 +375,7 @@ func (c *Container) getConfigSetters() []configSetter {
 		configItem{"lxc.autodev", "1"},
 		configItem{"lxc.pts", "1024"},
 		configItem{"lxc.kmsg", "0"},
+		configItem{"lxc.seccomp", ""},
 	}
 
 	if c.CpuLimit != 0 {
