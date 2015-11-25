@@ -5,6 +5,7 @@ package lxcadapter
 
 import (
 	"crypto/rand"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -415,6 +416,17 @@ func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
 		return metrics, err
 	}
 	timer.Record("containerLaunchTime")
+
+	currentConfig := make(map[string][]string)
+	for _, k := range c.lxc.ConfigKeys() {
+		currentConfig[k] = c.lxc.ConfigItem(k)
+	}
+	if configJSON, err := json.MarshalIndent(currentConfig, "", "   "); err != nil {
+		// Should be impossible.
+		panic(err)
+	} else {
+		log.Println("Container config: ", string(configJSON))
+	}
 
 	defer metrics.StartTimer().Record("postLaunchTime")
 	// If we aren't using a snapshot then we need to install these,
