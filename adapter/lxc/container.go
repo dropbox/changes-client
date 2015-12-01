@@ -19,6 +19,7 @@ import (
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/common/lockfile"
+	"github.com/dropbox/changes-client/common/taggederr"
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
@@ -497,7 +498,7 @@ func (c *Container) Stop() error {
 		log.Print("[lxc] Stopping container")
 		err := c.lxc.Stop()
 		if err != nil {
-			return err
+			return tagged(err).AddTag("action", "Stop")
 		}
 	}
 	if c.lxc.Running() {
@@ -520,12 +521,14 @@ func (c *Container) Destroy() error {
 
 	defer lxc.Release(c.lxc)
 
-	c.Stop()
+	// We don't return on error here, because we're only stopping
+	// to be polite.
+	_ = c.Stop()
 
 	if c.lxc.Defined() {
 		log.Print("[lxc] Destroying container")
 		if err := c.lxc.Destroy(); err != nil {
-			return err
+			return tagged(err).AddTag("action", "Destroy")
 		}
 	}
 	if c.lxc.Defined() {
@@ -859,4 +862,8 @@ func (c *Container) runPostLaunch(clientLog *client.Log) error {
 	}
 
 	return nil
+}
+
+func tagged(e error) taggederr.TaggedErr {
+	return taggederr.Wrap(e).AddTag("adapter", "lxc")
 }
