@@ -1,7 +1,6 @@
 package basic
 
 import (
-	"os"
 	"path/filepath"
 
 	autil "github.com/dropbox/changes-client/adapter"
@@ -15,21 +14,13 @@ type Adapter struct {
 }
 
 func (a *Adapter) Init(config *client.Config) error {
-	workspace := config.ArtifactSearchPath
-	if workspace == "" {
-		if wd, err := os.Getwd(); err != nil {
-			return err
-		} else {
-			workspace = wd
-		}
+	if workspace, err := filepath.Abs(config.ArtifactSearchPath); err != nil {
+		return err
+	} else {
+		a.workspace = workspace
 	}
 
-	absworkspace, err := filepath.Abs(workspace)
-	if err != nil {
-		return err
-	}
 	a.config = config
-	a.workspace = absworkspace
 	return nil
 }
 

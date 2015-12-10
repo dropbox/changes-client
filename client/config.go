@@ -174,7 +174,7 @@ func GetConfig(jobstepID string) (*Config, error) {
 
 func init() {
 	flag.StringVar(&server, "server", "", "URL to get config from")
-	flag.StringVar(&artifactSearchPath, "artifact-search-path", "", "Folder where artifacts will be searched for relative to adapter root")
+	flag.StringVar(&artifactSearchPath, "artifact-search-path", ".", "Folder where artifacts will be searched for relative to adapter root")
 	flag.BoolVar(&upstreamMonitor, "upstream-monitor", true, "Indicates whether the client should monitor upstream for aborts")
 	flag.BoolVar(&debug, "debug", false, "DEPRECATED. debug=true is the same as upstreamMonitor=false.")
 	flag.BoolVar(&ignoreSnapshots, "no-snapshots", false, "Ignore any existing snapshots, and build a fresh environment")

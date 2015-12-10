@@ -62,9 +62,11 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 
 	homeDir := getHomeDir(cw.User)
 
-	// we want to ensure that our path is always treated as relative to our
-	// home directory
-	cwd := filepath.Join(homeDir, cw.Cwd)
+	cwd := cw.Cwd
+	// ensure cwd is an absolute path
+	if !filepath.IsAbs(cwd) {
+		cwd = filepath.Join(homeDir, cwd)
+	}
 
 	env := []string{
 		fmt.Sprintf("USER=%s", cw.User),

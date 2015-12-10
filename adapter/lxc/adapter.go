@@ -6,7 +6,6 @@ package lxcadapter
 import (
 	"fmt"
 	"log"
-	"path"
 	"path/filepath"
 	"strings"
 	"time"
@@ -129,14 +128,12 @@ func (a *Adapter) Prepare(clientLog *client.Log) (client.Metrics, error) {
 		return metrics, err
 	}
 
-	containerArtifactSource := "/home/ubuntu"
-	if a.config.ArtifactSearchPath != "" {
-		containerArtifactSource = a.config.ArtifactSearchPath
+	containerArtifactSource := a.config.ArtifactSearchPath
+	// ensure path is absolute
+	if !filepath.IsAbs(containerArtifactSource) {
+		containerArtifactSource = filepath.Join("/home/ubuntu", containerArtifactSource)
 	}
-	artifactSource, err := filepath.Abs(path.Join(a.container.RootFs(), containerArtifactSource))
-	if err == nil {
-		a.artifactSource = artifactSource
-	}
+	a.artifactSource = filepath.Join(a.container.RootFs(), containerArtifactSource)
 	return metrics, err
 }
 
