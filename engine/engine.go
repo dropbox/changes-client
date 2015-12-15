@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"sync"
+	"time"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
@@ -204,10 +205,12 @@ func (e *Engine) executeCommands() (Result, error) {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
 		}
 
+		t0 := time.Now()
 		if err := e.reporter.PublishArtifacts(cmdConfig, e.adapter, e.clientLog); err != nil {
-			e.clientLog.Printf("==> PublishArtifacts Error: %s", err)
+			e.clientLog.Printf("==> PublishArtifacts Error: %s after %s", err, time.Since(t0))
 			return RESULT_INFRA_FAILED, err
 		}
+		log.Printf("Took %s to publish artifacts.", time.Since(t0))
 
 		if result.IsFailure() {
 			return result, nil
