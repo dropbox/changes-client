@@ -61,7 +61,7 @@ We use [fpm](https://github.com/jordansissel/fpm) to build our deb file.
 
 ```
 $ work
-$ make deb
+$ make
 ```
 
 Thats it. A `.deb` file should be available as changes-client\_$VERSION\_amd64.deb
