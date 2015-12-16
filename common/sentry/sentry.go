@@ -1,8 +1,11 @@
 package sentry
 
 import (
+	"bytes"
 	"flag"
+	"fmt"
 	"log"
+	"strings"
 
 	"sync"
 
@@ -86,6 +89,65 @@ func Message(str string, tags map[string]string) {
 	} else {
 		log.Printf("[Sentry Message Unsent] %s", str)
 	}
+}
+
+// Warningf takes a format string and arguments with the same meaning as with fmt.Printf and
+// sends the message as a warning to Sentry if Sentry is configured.
+// It makes a best-effort attempt to process the arguments to ensure that Sentry buckets the
+// warning by the format string rather than by the specific values of the arguments.
+func Warningf(msgfmt string, args ...interface{}) {
+	if sentryClient := GetClient(); sentryClient != nil {
+		msg := fmt.Sprintf(msgfmt, args...)
+		packet := makePacket(raven.WARNING, msg, fmtSanitize(msgfmt, args))
+		log.Printf("[Sentry Warning] %s", msg)
+		sentryClient.Capture(packet, map[string]string{})
+	} else {
+		log.Printf("[Sentry Warning Unsent] %s", fmt.Sprintf(msgfmt, args...))
+	}
+}
+
+func makePacket(severity raven.Severity, message string, ravenMsg *raven.Message) *raven.Packet {
+	var ifaces []raven.Interface
+	if ravenMsg != nil {
+		ifaces = append(ifaces, ravenMsg)
+	}
+	p := raven.NewPacket(message, ifaces...)
+	p.Level = severity
+	return p
+}
+
+// The Sentry server doesn't speak Go fmt strings, so this tries to translate,
+// or if it can't, return nil so we can just fall back to the locally fmt'd version.
+func fmtSanitize(msg string, args []interface{}) *raven.Message {
+	var newmsg bytes.Buffer
+	newargs := append([]interface{}(nil), args...)
+	argidx := 0
+	const supportedVerbs = "qvds"
+	lastpct := false
+	for _, m := range msg {
+		if lastpct {
+			if strings.ContainsRune(supportedVerbs, m) {
+				if argidx >= len(args) {
+					return nil
+				}
+				newargs[argidx] = fmt.Sprintf("%"+string(m), args[argidx])
+				newmsg.WriteRune('s')
+				argidx++
+			} else if m == '%' {
+				newmsg.WriteRune('%')
+			} else {
+				return nil
+			}
+			lastpct = false
+		} else {
+			newmsg.WriteRune(m)
+			lastpct = m == '%'
+		}
+	}
+	if lastpct || argidx < len(args) {
+		return nil
+	}
+	return &raven.Message{Message: newmsg.String(), Params: newargs}
 }
 
 func init() {
