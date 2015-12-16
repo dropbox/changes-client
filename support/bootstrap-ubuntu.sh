@@ -24,9 +24,9 @@ sudo apt-get install -y awscli
 # Install go
 cd /tmp
 wget "http://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz"
-tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
-echo 'export PATH=/usr/local/go/bin:$PATH' > /etc/profile.d/golang.sh
-echo 'export GOPATH=~/' > /etc/profile.d/gopath.sh
+sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
+echo 'export PATH=/usr/local/go/bin:$PATH' | sudo tee /etc/profile.d/golang.sh
+echo 'export GOPATH=~/' | sudo tee /etc/profile.d/gopath.sh
 
 # Install lxc
 sudo apt-get install -y libcgmanager0 lxc lxc-dev
