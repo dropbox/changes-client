@@ -3,6 +3,7 @@ package filelog
 import (
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -34,20 +35,21 @@ func New(jobstepID, name string) (*FileLog, error) {
 }
 
 // Same as New() but allows specifying how long to wait between flushing to the
-// reporter, and the root directory for the log file
-// (which has a sensible default if empty)
+// reporter, and the root directory for the log file (which has a sensible default if empty).
 func NewWithOptions(jobstepID, name string, flushDelay time.Duration, rootDir string) (*FileLog, error) {
 	if rootDir == "" {
 		rootDir = filepath.Join(os.TempDir(), "changes-client")
 	}
-	directory := filepath.Join(rootDir, jobstepID)
+	directory, err := ioutil.TempDir(rootDir, jobstepID+"-")
+	if err != nil {
+		return nil, err
+	}
 	filename := filepath.Join(directory, fmt.Sprintf("%s.log", name))
 	f := &FileLog{name: name, flushDelay: flushDelay, reporterLock: &sync.Mutex{},
 		shutdown: make(chan struct{}), shutdownComplete: make(chan struct{})}
 	if err := os.MkdirAll(directory, 0755); err != nil {
 		return nil, err
 	}
-	var err error
 	f.writeFile, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		return nil, err

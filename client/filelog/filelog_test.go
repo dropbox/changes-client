@@ -183,3 +183,14 @@ func TestFailedReporter(t *testing.T) {
 	log.StartReporting(reporter)
 	log.Shutdown()
 }
+
+func TestNoConflict(t *testing.T) {
+	tempdir := newTempDir(t)
+	defer os.RemoveAll(tempdir)
+	log1, err1 := NewWithOptions("1", "infralog", 0, tempdir)
+	require.NoError(t, err1)
+	log1.Shutdown()
+	log2, err2 := NewWithOptions("1", "infralog", 0, tempdir)
+	require.NoError(t, err2)
+	log2.Shutdown()
+}
