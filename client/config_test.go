@@ -180,3 +180,37 @@ func TestDebugConfig(t *testing.T) {
 		}
 	}
 }
+
+func TestGetDebugConfigBool(t *testing.T) {
+	cases := []struct {
+		json, key        string
+		fallback, result bool
+	}{
+		{json: "{}",
+			key: "absent", fallback: true,
+			result: true},
+		{json: `{"debugConfig": {"foo": "banana"}}`,
+			key: "foo", fallback: true,
+			result: true},
+		{json: `{"debugConfig": {"foo": "banana"}}`,
+			key: "foo", fallback: false,
+			result: false},
+		{json: `{"debugConfig": {"foo": true}}`,
+			key: "foo", fallback: false,
+			result: true},
+		{json: `{"debugConfig": {"foo": false}}`,
+			key: "foo", fallback: true,
+			result: false},
+	}
+
+	for i, c := range cases {
+		cfg, e := LoadConfig([]byte(c.json))
+		if e != nil {
+			panic(e)
+		}
+		result := cfg.GetDebugConfigBool(c.key, c.fallback)
+		if result != c.result {
+			t.Errorf("%v: Expected %v, got %v (%q)", i, c.result, result, c.json)
+		}
+	}
+}

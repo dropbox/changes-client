@@ -91,6 +91,16 @@ func (c *Config) GetDebugConfig(key string, dest interface{}) (present bool, err
 	return true, e
 }
 
+// GetDebugConfigBool is a helper to simplify basic gating; it acts just like GetDebugConfig,
+// but always uses the fallback value when the value is missing or there is an error.
+func (c *Config) GetDebugConfigBool(key string, fallback bool) bool {
+	var val bool
+	if ok, e := c.GetDebugConfig(key, &val); !ok || e != nil {
+		return fallback
+	}
+	return val
+}
+
 // Duration is in nanoseconds and is multiplied by 2 on each retry
 //
 // We need to retry because there is a race condition in interactions
