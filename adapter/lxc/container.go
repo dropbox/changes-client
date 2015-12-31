@@ -356,9 +356,11 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 	}
 
 	log.Print("[lxc] Waiting for container to startup networking")
+	beforeNetwork := time.Now()
 	if _, err := c.lxc.WaitIPAddresses(30 * time.Second); err != nil {
 		return err
 	}
+	log.Printf("[lxc] Networking up after %s", time.Since(beforeNetwork))
 
 	return nil
 }
