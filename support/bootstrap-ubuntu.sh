@@ -40,4 +40,4 @@ sudo apt-get install -y libcgmanager0 lxc lxc-dev
 
 # Install fpm
 sudo apt-get install -y ruby-dev gcc
-sudo gem install fpm --no-ri --no-rdoc
+fpm -h > /dev/null || sudo gem install fpm --no-ri --no-rdoc
