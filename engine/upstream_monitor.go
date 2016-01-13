@@ -3,9 +3,11 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"github.com/dropbox/changes-client/client"
 	"io/ioutil"
 	"log"
+	"math/rand"
 	"net/http"
 	"time"
 )
@@ -31,6 +33,13 @@ type HeartbeatResponse struct {
 func (um *UpstreamMonitor) WaitUntilAbort() error {
 	client := &http.Client{}
 
+	h := fnv.New64()
+	// seed with JobstepID so each jobstep hits Changes at slightly
+	// different times
+	h.Write([]byte(um.Config.JobstepID))
+	// make our own random generator so that heartbeat variance is
+	// unaffected by other interspersed calls to math/rand
+	randGen := rand.New(rand.NewSource(int64(h.Sum64())))
 	for {
 		log.Printf("[upstream] sending heartbeat")
 
@@ -47,7 +56,9 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 			}
 		}
 
-		time.Sleep(10 * time.Second)
+		// vary sleep time by up to 5 seconds to avoid all shards sending
+		// heartbeats at the same time
+		time.Sleep(time.Duration(10+randGen.Intn(5)) * time.Second)
 	}
 }
 
