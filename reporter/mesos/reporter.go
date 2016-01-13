@@ -16,6 +16,12 @@ import (
 // allows the reporter to update the status of logs, snapshots, etc.
 type Reporter struct {
 	reporter.DefaultReporter
+	dontPushLogChunks bool
+}
+
+func (r *Reporter) Init(c *client.Config) {
+	r.dontPushLogChunks = c.GetDebugConfigBool("mesosDontPushLogChunks", false)
+	r.DefaultReporter.Init(c)
 }
 
 func (r *Reporter) PushJobstepStatus(status string, result string) {
@@ -43,6 +49,9 @@ func (r *Reporter) PushCommandStatus(cID string, status string, retCode int) {
 }
 
 func (r *Reporter) PushLogChunk(source string, payload []byte) bool {
+	if r.dontPushLogChunks {
+		return true
+	}
 	// logappend endpoint only works for console logs
 	if source != "console" {
 		return true
