@@ -3,6 +3,7 @@ package filelog
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -39,6 +40,14 @@ func newLog(t *testing.T, flushDelay time.Duration, testDir string) *FileLog {
 	log, err := NewWithOptions("1", "infralog", flushDelay, testDir)
 	require.NoError(t, err)
 	return log
+}
+
+func TestCreatesTempDir(t *testing.T) {
+	tempdir := newTempDir(t)
+	defer os.RemoveAll(tempdir)
+	// will fail if this directory isn't created
+	log := newLog(t, 0, filepath.Join(tempdir, "doesnt_exist"))
+	log.Shutdown()
 }
 
 func TestWriteAfterReporter(t *testing.T) {

@@ -40,6 +40,9 @@ func NewWithOptions(jobstepID, name string, flushDelay time.Duration, rootDir st
 	if rootDir == "" {
 		rootDir = filepath.Join(os.TempDir(), "changes-client")
 	}
+	if err := os.MkdirAll(rootDir, 0755); err != nil {
+		return nil, err
+	}
 	directory, err := ioutil.TempDir(rootDir, jobstepID+"-")
 	if err != nil {
 		return nil, err
@@ -47,9 +50,6 @@ func NewWithOptions(jobstepID, name string, flushDelay time.Duration, rootDir st
 	filename := filepath.Join(directory, fmt.Sprintf("%s.log", name))
 	f := &FileLog{name: name, flushDelay: flushDelay, reporterLock: &sync.Mutex{},
 		shutdown: make(chan struct{}), shutdownComplete: make(chan struct{})}
-	if err := os.MkdirAll(directory, 0755); err != nil {
-		return nil, err
-	}
 	f.writeFile, err = os.OpenFile(filename, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0666)
 	if err != nil {
 		return nil, err

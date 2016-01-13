@@ -3,8 +3,8 @@ package engine
 import (
 	"encoding/json"
 	"fmt"
-	"hash/fnv"
 	"github.com/dropbox/changes-client/client"
+	"hash/fnv"
 	"io/ioutil"
 	"log"
 	"math/rand"
