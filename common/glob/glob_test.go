@@ -1,6 +1,7 @@
 package glob
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -33,35 +34,58 @@ func TestGlobRegular(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer os.RemoveAll(dirname)
-	if e := newfiles(dirname, "base.xml", "foo/test.xml", "coverage.xml/ohmy.txt", "bar/ohsnap.xml"); e != nil {
+	if e := newfiles(dirname, "base.xml", "foo/test.xml", "coverage.xml/ohmy.txt", "bar/ohsnap.xml", "tests.json", "foo/tests.json", "foo/bar/weird.json", "foo/bar/baz/weird.json", "bar/foo/weird.json"); e != nil {
 		t.Fatal(e)
 	}
 	// TODO: Move this to a build tagged file once we have builders that don't support Mkfifo.
 	if e := syscall.Mkfifo(filepath.Join(dirname, "special.xml"), 0777); e != nil {
 		t.Fatal(e)
 	}
-	matches, skipped, e := GlobTreeRegular(dirname, []string{"*.xml"})
+	matches, skipped, e := GlobTreeRegular(dirname, []string{"*.xml", "/tests.json", "foo/*/weird.json"})
 	if e != nil {
 		t.Fatal(e)
 	}
-	expected := []string{"base.xml", "foo/test.xml", "bar/ohsnap.xml"}
-	for _, ex := range expected {
-		p := filepath.Join(dirname, ex)
-		if !contains(matches, p) {
-			t.Errorf("Expected %q, but not found", ex)
-		}
+	matches = stripPrefix(t, dirname, matches)
+	skipped = stripPrefix(t, dirname, skipped)
+	expected := []string{"base.xml", "foo/test.xml", "bar/ohsnap.xml", "tests.json", "foo/bar/weird.json"}
+	if e := equalAnyOrder(expected, matches); e != nil {
+		t.Errorf("GlobTreeRegular had unexpected matches: %s", e)
 	}
 
-	unexpected := []string{"coverage.xml", "special.xml"}
-	for _, uex := range unexpected {
-		p := filepath.Join(dirname, uex)
-		if contains(matches, p) {
-			t.Errorf("Didn't expected %q, but matched", uex)
-		}
-		if !contains(skipped, p) {
-			t.Errorf("Expected %q to be skipped, but wasn't", p)
+	shouldSkip := []string{"coverage.xml", "special.xml"}
+	if e := equalAnyOrder(shouldSkip, skipped); e != nil {
+		t.Errorf("GlobTreeRegular had unexpected skips: %s", e)
+	}
+}
+
+func stripPrefix(t *testing.T, prefix string, slice []string) []string {
+	var strippedArray []string
+	for _, elem := range slice {
+		if rel, err := filepath.Rel(prefix, elem); err != nil {
+			t.Fatal(err)
+		} else {
+			strippedArray = append(strippedArray, rel)
 		}
 	}
+	return strippedArray
+}
+
+func equalAnyOrder(expected, actual []string) error {
+	errMsg := ""
+	for _, elem := range expected {
+		if !contains(actual, elem) {
+			errMsg += fmt.Sprintf("Expected %q but not found\n", elem)
+		}
+	}
+	for _, elem := range actual {
+		if !contains(expected, elem) {
+			errMsg += fmt.Sprintf("Didn't expect %q but it was present\n", elem)
+		}
+	}
+	if errMsg != "" {
+		return fmt.Errorf(errMsg)
+	}
+	return nil
 }
 
 func contains(l []string, s string) bool {
