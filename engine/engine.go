@@ -203,6 +203,12 @@ func (e *Engine) executeCommands() (Result, error) {
 			}
 		} else {
 			e.reporter.PushCommandStatus(cmd.ID, STATUS_FINISHED, 1)
+			// infra_setup commands are generated and owned by Changes, so when they fail,
+			// it is an infrastructural failure.
+			if cmdConfig.Type.ID == "infra_setup" {
+				return RESULT_INFRA_FAILED,
+					fmt.Errorf("Failure while executing infrastructural setup command %s", cmdConfig.ID)
+			}
 		}
 
 		t0 := time.Now()
