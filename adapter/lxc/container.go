@@ -23,6 +23,11 @@ import (
 	"gopkg.in/lxc/go-lxc.v2"
 )
 
+// The directory in which the container can access files that are copied into
+// the host's container.InputMountSource. This is how the container should
+// access external files rather than copying them directly to the container.
+const containerInputDirectory = "/var/changes/input"
+
 const lockTimeout = 1 * time.Hour
 
 type Container struct {
@@ -40,6 +45,8 @@ type Container struct {
 	MemoryLimit    int
 	CpuLimit       int
 	BindMounts     []*BindMount
+	// directory we should copy files into to make them accessible to the container.
+	InputMountSource string
 	// Valid values: xz, lz4. These are also used as the file extensions
 	// for the rootfs tarballs
 	Compression string
@@ -73,13 +80,23 @@ func (b *BindMount) Format() string {
 	return fmt.Sprintf("%s %s none bind,%s", b.Source, b.Dest, b.Options)
 }
 
-func (c *Container) UploadFile(srcFile string, dstFile string) error {
-	rootedDstFile := filepath.Join(c.RootFs(), strings.TrimLeft(dstFile, "/"))
-	log.Printf("[lxc] Uploading: %s", rootedDstFile)
+// UploadFile uploads the given srcFile (should be a full path) to the
+// container. Uses a bind mount--the file will then be available in the
+// container at /var/changes/input/`dstFilename`
+func (c *Container) UploadFile(srcFile string, dstFilename string) error {
+	mountDstFile := filepath.Join(c.InputMountSource, dstFilename)
+	log.Printf("[lxc] Uploading: %s", mountDstFile)
 
 	// link isn't flexible enough if /var is not on the same
 	// device as root, but our files are small shell scripts.
-	return exec.Command("cp", "-r", srcFile, rootedDstFile).Run()
+	if out, err := exec.Command("cp", "-r", srcFile, mountDstFile).CombinedOutput(); err != nil {
+		log.Printf("[lxc] Error uploading file: %s", out)
+		return err
+	}
+	if err := os.Chmod(mountDstFile, 0755); err != nil {
+		return err
+	}
+	return nil
 }
 
 func (c *Container) RootFs() string {
@@ -578,23 +595,19 @@ func randString(n int) string {
 // essentially copying the command from the host to the container filesystem,
 // and then runs the new temporary file, capturing output.
 func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client.Log, user string) (*client.CommandResult, error) {
-	dstFile := fmt.Sprintf("/tmp/script-%s", randString(10))
+	dstFilename := fmt.Sprintf("script-%s", randString(10))
 
-	log.Printf("[lxc] Writing local script %s to %s", cmd.Path, dstFile)
+	log.Printf("[lxc] Writing local script %s to %s", cmd.Path, dstFilename)
 
-	err := c.UploadFile(cmd.Path, dstFile)
+	err := c.UploadFile(cmd.Path, dstFilename)
 	if err != nil {
 		return nil, err
 	}
 
-	cw := NewLxcCommand([]string{"chmod", "0755", dstFile}, "root")
-	_, err = cw.Run(false, clientLog, c.lxc)
-	if err != nil {
-		return nil, err
-	}
+	mountedFile := filepath.Join(containerInputDirectory, dstFilename)
 
 	cw = &LxcCommand{
-		Args: []string{dstFile},
+		Args: []string{mountedFile},
 		User: user,
 		Cwd:  cmd.Cwd,
 		Env:  cmd.Env,

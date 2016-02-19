@@ -5,7 +5,9 @@ package lxcadapter
 
 import (
 	"fmt"
+	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -46,15 +48,24 @@ func (a *Adapter) Init(config *client.Config) error {
 		Directory: executorPath,
 	}
 
-	var mounts []*BindMount
+	inputMountSource, err := ioutil.TempDir("", "changes-client-input-")
+	if err != nil {
+		return err
+	}
+	if err := os.Chmod(inputMountSource, 0755); err != nil {
+		return err
+	}
+	// Dest must be a relative path
+	inputMount := &BindMount{Source: inputMountSource, Dest: strings.TrimLeft(containerInputDirectory, "/"), Options: "ro,create=dir"}
+	mounts := []*BindMount{inputMount}
 	if bindMounts != "" {
 		mountStrings := strings.Split(bindMounts, ",")
 		mounts = make([]*BindMount, len(mountStrings))
-		for ind, ms := range mountStrings {
-			var err error
-			mounts[ind], err = ParseBindMount(ms)
-			if err != nil {
+		for _, ms := range mountStrings {
+			if mount, err := ParseBindMount(ms); err != nil {
 				return err
+			} else {
+				mounts = append(mounts, mount)
 			}
 		}
 	}
@@ -81,13 +92,14 @@ func (a *Adapter) Init(config *client.Config) error {
 		Snapshot:       snapshot,
 		OutputSnapshot: config.ExpectedSnapshot.ID,
 		// TODO(dcramer):  Move S3 logic into core engine
-		S3Bucket:      s3Bucket,
-		MemoryLimit:   memoryLimit,
-		CpuLimit:      cpuLimit,
-		Compression:   compression,
-		Executor:      executor,
-		BindMounts:    mounts,
-		ImageCacheDir: "/var/cache/lxc/download",
+		S3Bucket:         s3Bucket,
+		MemoryLimit:      memoryLimit,
+		CpuLimit:         cpuLimit,
+		Compression:      compression,
+		Executor:         executor,
+		BindMounts:       mounts,
+		InputMountSource: inputMountSource,
+		ImageCacheDir:    "/var/cache/lxc/download",
 	}
 
 	// DebugConfig limits override standard config.
@@ -170,7 +182,11 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 		executor.Register(a.container.Name)
 		return nil
 	}
-	return a.container.Destroy()
+	if err := a.container.Destroy(); err != nil {
+		return err
+	}
+	// remove our input bind mount
+	return os.RemoveAll(a.container.InputMountSource)
 }
 
 // Parses debugConfig.lxc_keep_container_end_rfc3339 as an RFC3339 timestamp.
