@@ -606,7 +606,7 @@ func (c *Container) RunCommandInContainer(cmd *client.Command, clientLog *client
 
 	mountedFile := filepath.Join(containerInputDirectory, dstFilename)
 
-	cw = &LxcCommand{
+	cw := &LxcCommand{
 		Args: []string{mountedFile},
 		User: user,
 		Cwd:  cmd.Cwd,
