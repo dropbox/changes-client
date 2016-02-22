@@ -5,9 +5,12 @@
 package glob
 
 import (
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/dropbox/changes-client/common/sentry"
 )
 
 // GlobTreeRegular walks root looking for regular (non-dir, non-device) files
@@ -18,6 +21,13 @@ import (
 // If there is an error, matches and skipped may be incomplete or empty.
 func GlobTreeRegular(root string, patterns []string) (matches []string, skipped []string, err error) {
 	visit := func(path string, f os.FileInfo, err error) error {
+		// error in visiting this path
+		if err != nil {
+			log.Printf("[glob] Error walking path %s: %s", path, err)
+			sentry.Error(err, map[string]string{})
+			// log to sentry but continue walking the tree
+			return nil
+		}
 		basename := filepath.Base(path)
 		relpath, err := filepath.Rel(root, path)
 		if err != nil {
@@ -34,7 +44,7 @@ func GlobTreeRegular(root string, patterns []string) (matches []string, skipped 
 			if m, e := filepath.Match(pattern, strToMatch); e != nil {
 				return e
 			} else if m {
-				if !f.Mode().IsRegular() {
+				if f == nil || !f.Mode().IsRegular() {
 					skipped = append(skipped, path)
 				} else {
 					matches = append(matches, path)
