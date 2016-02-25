@@ -510,6 +510,12 @@ func (c *Container) logResourceUsageStats() {
 	for _, id := range cpuids {
 		log.Printf("[lxc] CPU %d: %s", id, times[id])
 	}
+
+	if maxUsageInBytes := c.lxc.CgroupItem("memory.max_usage_in_bytes"); maxUsageInBytes == nil {
+		log.Printf("[lxc] Failed to get max memory usage")
+	} else {
+		log.Printf("[lxc] Max memory usage: %v bytes", maxUsageInBytes)
+	}
 }
 
 func (c *Container) Stop() error {
