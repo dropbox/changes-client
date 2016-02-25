@@ -60,7 +60,6 @@ func (a *Adapter) Init(config *client.Config) error {
 	mounts := []*BindMount{inputMount}
 	if bindMounts != "" {
 		mountStrings := strings.Split(bindMounts, ",")
-		mounts = make([]*BindMount, len(mountStrings))
 		for _, ms := range mountStrings {
 			if mount, err := ParseBindMount(ms); err != nil {
 				return err
