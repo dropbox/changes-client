@@ -290,7 +290,13 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		e.clientLog.Printf("==> ERROR: %s adapter failed to prepare: %s", selectedAdapterFlag, err)
 		return RESULT_INFRA_FAILED, err
 	}
-	defer e.adapter.Shutdown(e.clientLog)
+	defer func(engine *Engine) {
+		shutdownMetrics, shutdownErr := engine.adapter.Shutdown(engine.clientLog)
+		if shutdownErr != nil {
+			log.Printf("[adapter] Error during shutdown: %s", err)
+		}
+		engine.reporter.ReportMetrics(shutdownMetrics)
+	}(e)
 	e.reporter.ReportMetrics(metrics)
 
 	type cmdResult struct {

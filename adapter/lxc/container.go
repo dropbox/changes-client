@@ -478,29 +478,81 @@ func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
 	return metrics, nil
 }
 
+func parseInt64(str string) (int64, error) {
+	return strconv.ParseInt(str, 10, 64)
+}
+
+func parseCgroupStats(cgroupStats []string) (map[string]float64, error) {
+	// cgroupStats is a string slice with ["nr_periods XX", "nr_throttled XX", "throttled_time XX"]
+	periods, err := parseInt64(strings.Split(cgroupStats[0], "nr_periods ")[1])
+	if err != nil {
+		return nil, err
+	}
+
+	throttled, err := parseInt64(strings.Split(cgroupStats[1], "nr_throttled ")[1])
+	if err != nil {
+		return nil, err
+	}
+
+	throttledTimeNanos, err := parseInt64(strings.Split(cgroupStats[2], "throttled_time ")[1])
+	if err != nil {
+		return nil, err
+	}
+
+	return map[string]float64{
+		"cpuPeriods":           float64(periods),
+		"throttledPeriods":     float64(throttled),
+		"throttledTimeSeconds": (time.Duration(throttledTimeNanos) * time.Nanosecond).Seconds(),
+	}, nil
+}
+
 // Report container resource information from the container to the infra log.
 // Should be called while the container is running, but after work is done.
-func (c *Container) logResourceUsageStats() {
+func (c *Container) logResourceUsageStats() client.Metrics {
+	metrics := client.Metrics{}
+
 	if usage, err := c.lxc.BlkioUsage(); err != nil {
 		log.Printf("[lxc] Failed to get disk IO: %s", err)
 	} else {
+		metrics["blkioUsageBytes"] = float64(usage)
 		log.Printf("[lxc] Total disk IO: %s", usage)
 	}
+
 	if total, err := c.lxc.CPUTime(); err != nil {
 		log.Printf("[lxc] Failed to get CPU time: %s", err)
 	} else {
+		metrics["cpuSeconds"] = total.Seconds()
 		log.Printf("[lxc] Total CPU time: %s", total)
 	}
+
 	if cgroupStats := c.lxc.CgroupItem("cpu.stat"); cgroupStats == nil {
 		log.Printf("[lxc] Failed to get Cgroup stats")
 	} else {
-		log.Printf("[lxc] Cgroup stats: %v", cgroupStats)
+		if stats, err := parseCgroupStats(cgroupStats); err != nil {
+			log.Printf("[lxc] Failed to parse Cgroup stats")
+		} else {
+			log.Printf("[lxc] Cgroup stats: %v", stats)
+			for k, v := range stats {
+				metrics[k] = v
+			}
+		}
+	}
+
+	if maxUsageInBytes := c.lxc.CgroupItem("memory.max_usage_in_bytes"); maxUsageInBytes == nil {
+		log.Printf("[lxc] Failed to get max memory usage")
+	} else {
+		log.Printf("[lxc] Max memory usage: %v bytes", maxUsageInBytes[0])
+		if b, err := parseInt64(maxUsageInBytes[0]); err != nil {
+			log.Printf("[lxc] Error parsing max memory usage")
+		} else {
+			metrics["maxMemoryUsageBytes"] = float64(b)
+		}
 	}
 
 	times, e := c.lxc.CPUTimePerCPU()
 	if e != nil {
 		log.Printf("[lxc] Failed to get per-CPU stats: %s", e)
-		return
+		return metrics
 	}
 	var cpuids []int
 	for k := range times {
@@ -511,11 +563,7 @@ func (c *Container) logResourceUsageStats() {
 		log.Printf("[lxc] CPU %d: %s", id, times[id])
 	}
 
-	if maxUsageInBytes := c.lxc.CgroupItem("memory.max_usage_in_bytes"); maxUsageInBytes == nil {
-		log.Printf("[lxc] Failed to get max memory usage")
-	} else {
-		log.Printf("[lxc] Max memory usage: %v bytes", maxUsageInBytes)
-	}
+	return metrics
 }
 
 func (c *Container) Stop() error {

@@ -14,7 +14,7 @@ type Adapter interface {
 	// will be reported via the active Reporter
 	Prepare(*client.Log) (client.Metrics, error)
 	Run(*client.Command, *client.Log) (*client.CommandResult, error)
-	Shutdown(*client.Log) error
+	Shutdown(*client.Log) (client.Metrics, error)
 	CaptureSnapshot(string, *client.Log) error
 	GetRootFs() string
 	CollectArtifacts([]string, *client.Log) ([]string, error)

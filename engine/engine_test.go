@@ -40,8 +40,8 @@ func (na *noopAdapter) Run(cmd *client.Command, _ *client.Log) (*client.CommandR
 		Success: !fail,
 	}, nil
 }
-func (_ *noopAdapter) Shutdown(*client.Log) error                { return nil }
-func (_ *noopAdapter) CaptureSnapshot(string, *client.Log) error { return nil }
+func (_ *noopAdapter) Shutdown(*client.Log) (client.Metrics, error) { return nil, nil }
+func (_ *noopAdapter) CaptureSnapshot(string, *client.Log) error    { return nil }
 func (_ *noopAdapter) GetRootFs() string {
 	return "/"
 }

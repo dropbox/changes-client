@@ -37,8 +37,8 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 }
 
 // Perform any cleanup actions within the environment.
-func (a *Adapter) Shutdown(clientLog *client.Log) error {
-	return nil
+func (a *Adapter) Shutdown(clientLog *client.Log) (client.Metrics, error) {
+	return nil, nil
 }
 
 // If applicable, capture a snapshot of the workspace for later re-use

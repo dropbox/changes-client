@@ -133,7 +133,8 @@ func TestCompleteFlow(t *testing.T) {
 	require.Equal(t, 1, len(artifacts))
 	require.Regexp(t, ".*/home/ubuntu/foo.txt", artifacts[0])
 
-	require.NoError(t, adapter.Shutdown(clientLog))
+	_, shutdownErr := adapter.Shutdown(clientLog)
+	require.NoError(t, shutdownErr)
 
 	clientLog.Close()
 

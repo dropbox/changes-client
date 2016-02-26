@@ -154,13 +154,13 @@ func (a *Adapter) Run(cmd *client.Command, clientLog *client.Log) (*client.Comma
 }
 
 // Perform any cleanup actions within the environment.
-func (a *Adapter) Shutdown(clientLog *client.Log) error {
+func (a *Adapter) Shutdown(clientLog *client.Log) (client.Metrics, error) {
 	const timeout = 30 * time.Second
 	timer := time.AfterFunc(timeout, func() {
 		sentry.Message(fmt.Sprintf("Took more than %s to shutdown LXC adapter", timeout), map[string]string{})
 	})
 	defer timer.Stop()
-	a.container.logResourceUsageStats()
+	metrics := a.container.logResourceUsageStats()
 	if keepContainer || a.container.ShouldKeep() || shouldDebugKeep(clientLog, a.config) {
 		a.container.Executor.Deregister()
 
@@ -179,13 +179,13 @@ func (a *Adapter) Shutdown(clientLog *client.Log) error {
 			Directory: a.container.Executor.Directory,
 		}
 		executor.Register(a.container.Name)
-		return nil
+		return metrics, nil
 	}
 	if err := a.container.Destroy(); err != nil {
-		return err
+		return metrics, err
 	}
 	// remove our input bind mount
-	return os.RemoveAll(a.container.InputMountSource)
+	return metrics, os.RemoveAll(a.container.InputMountSource)
 }
 
 // Parses debugConfig.lxc_keep_container_end_rfc3339 as an RFC3339 timestamp.
