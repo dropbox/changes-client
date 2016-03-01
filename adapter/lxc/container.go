@@ -449,20 +449,7 @@ func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
 	}
 
 	defer metrics.StartTimer().Record("postLaunchTime")
-	// If we aren't using a snapshot then we need to install these,
-	// but the apt-get update is expensive so we don't do this
-	// if we come from a snapshot.
 	if c.Snapshot == "" {
-		log.Print("[lxc] Installing ca-certificates")
-		cw := NewLxcCommand([]string{"apt-get", "update", "-y", "--fix-missing"}, "root")
-		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
-			return metrics, err
-		}
-		cw = NewLxcCommand([]string{"apt-get", "install", "-y", "--force-yes", "ca-certificates"}, "root")
-		if _, err := cw.Run(false, clientLog, c.lxc); err != nil {
-			return metrics, err
-		}
-
 		log.Print("[lxc] Setting up sudoers")
 		if err := c.setupSudoers(); err != nil {
 			return metrics, err
