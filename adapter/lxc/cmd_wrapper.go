@@ -80,9 +80,6 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		env = append(env, cw.Env[i])
 	}
 
-	// TODO(dcramer): we are currently unable to get the exit status of
-	// the command. https://github.com/lxc/go-lxc/issues/9
-
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 	go func() {
@@ -91,7 +88,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	}()
 
 	log.Printf("[lxc] Executing %s from [%s]", cmdAsUser, cwd)
-	ok, err := container.RunCommand(cmdAsUser, lxc.AttachOptions{
+	exitCode, err := container.RunCommandStatus(cmdAsUser, lxc.AttachOptions{
 		StdinFd:    inwriter.Fd(),
 		StdoutFd:   cmdwriterFd,
 		StderrFd:   cmdwriterFd,
@@ -104,10 +101,12 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		ClearEnv:   true,
 	})
 	if err != nil {
-		clientLog.Printf("Command failed: %s", err)
+		clientLog.Printf("Running the command failed: %s", err)
 		cmdwriter.Close()
 		return nil, err
 	}
+
+	clientLog.Printf("Command exited with status %d", exitCode)
 
 	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
 	// as a child process might be causing things to stick around.
@@ -130,7 +129,7 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	wg.Wait()
 
 	result := &client.CommandResult{
-		Success: ok,
+		Success: exitCode == 0,
 	}
 
 	if captureOutput {
