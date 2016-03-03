@@ -11,6 +11,8 @@ import (
 	"sync"
 	"time"
 
+	"golang.org/x/net/context"
+
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/filelog"
@@ -245,8 +247,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 		return RESULT_INFRA_FAILED, errors.New("Infra failure forced for debugging")
 	}
 
-	// cancellation signal
-	cancel := make(chan struct{})
+	ctx, cancelFunc := context.WithCancel(context.Background())
 
 	// capture ctrl+c and enforce a clean shutdown
 	sigchan := make(chan os.Signal, 1)
@@ -262,7 +263,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 			shuttingDown = true
 
 			log.Printf("Interrupted! Cancelling execution and cleaning up..")
-			cancel <- struct{}{}
+			cancelFunc()
 		}
 	}()
 
@@ -274,7 +275,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 				Config: e.config,
 			}
 			um.WaitUntilAbort()
-			cancel <- struct{}{}
+			cancelFunc()
 		}()
 	}
 
@@ -317,7 +318,7 @@ func (e *Engine) runBuildPlan() (Result, error) {
 			return cmdresult.result, cmdresult.err
 		}
 		result = cmdresult.result
-	case <-cancel:
+	case <-ctx.Done():
 		e.clientLog.Printf("==> ERROR: Build was aborted by upstream")
 		return RESULT_ABORTED, nil
 	}
