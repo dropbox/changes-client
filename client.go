@@ -20,6 +20,7 @@ import (
 )
 
 func main() {
+	log.SetFlags(log.Lmicroseconds | log.Ldate)
 	var (
 		showVersion = flag.Bool("version", false, "Prints changes-client version")
 		exitResult  = flag.Bool("exit-result", false, "Determine exit code from result--exit 1 on any execution failure or 99 on any infrastructure failure")
