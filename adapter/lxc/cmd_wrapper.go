@@ -106,8 +106,6 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		return nil, err
 	}
 
-	clientLog.Printf("Command exited with status %d", exitCode)
-
 	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
 	// as a child process might be causing things to stick around.
 	// XXX: this logic is duplicated in client.CmdWrapper
@@ -127,6 +125,8 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	}
 
 	wg.Wait()
+
+	clientLog.Printf("Command exited with status %d", exitCode)
 
 	result := &client.CommandResult{
 		Success: exitCode == 0,
