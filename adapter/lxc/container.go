@@ -28,6 +28,12 @@ import (
 // access external files rather than copying them directly to the container.
 const containerInputDirectory = "/var/changes/input"
 
+// These binaries are mounted in the container (at /var/changes/input) and can
+// thus be accessed as commands to run inside the container (e.g. for our
+// current use, removing blacklisted files in the container).
+// The binary name must exist on the host machine and be accessible from $PATH
+var mountedBinaries = [...]string{"blacklist-remove"}
+
 const lockTimeout = 1 * time.Hour
 
 type Container struct {
@@ -459,6 +465,16 @@ func (c *Container) Launch(clientLog *client.Log) (client.Metrics, error) {
 	if c.PostLaunch != "" {
 		log.Print("[lxc] Running post-launch script")
 		if err := c.runPostLaunch(clientLog); err != nil {
+			return metrics, err
+		}
+	}
+	for _, binary := range mountedBinaries {
+		// Makes this binary available from within the container
+		binaryPath, err := exec.LookPath(binary)
+		if err != nil {
+			return metrics, err
+		}
+		if err := c.UploadFile(binaryPath, binary); err != nil {
 			return metrics, err
 		}
 	}

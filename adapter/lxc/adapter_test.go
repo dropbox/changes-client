@@ -133,6 +133,17 @@ func TestCompleteFlow(t *testing.T) {
 	require.Equal(t, 1, len(artifacts))
 	require.Regexp(t, ".*/home/ubuntu/foo.txt", artifacts[0])
 
+	// test that blacklist-remove is successfully mounted in the container
+	// and can be run inside it.
+	cmd, err = client.NewCommand("test", "/var/changes/input/blacklist-remove nonexistent.yaml")
+	require.NoError(t, err)
+
+	result, err = adapter.Run(cmd, clientLog)
+	require.NoError(t, err)
+	// running blacklist-remove with a nonexistent yaml file should print
+	// a message and succeed
+	require.True(t, result.Success)
+
 	_, shutdownErr := adapter.Shutdown(clientLog)
 	require.NoError(t, shutdownErr)
 
