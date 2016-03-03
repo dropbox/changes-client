@@ -1,5 +1,6 @@
 
-BIN=${GOPATH}/bin/changes-client
+CHANGES_CLIENT_BIN=${GOPATH}/bin/changes-client
+BLACKLIST_REMOVE_BIN=${GOPATH}/bin/blacklist-remove
 
 # changes-client is dynamically linked with lxc-dev installed on the machine producing the binary.
 # To avoid version incompatibilities, we force the same version of lxc-dev to be installed on the
@@ -18,10 +19,11 @@ all:
 	@echo "Setting up temp build folder"
 	rm -rf /tmp/changes-client-build
 	mkdir -p /tmp/changes-client-build/usr/bin
-	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
+	cp $(CHANGES_CLIENT_BIN) /tmp/changes-client-build/usr/bin/
+	cp $(BLACKLIST_REMOVE_BIN) /tmp/changes-client-build/usr/bin/
 
 	@echo "Creating .deb file"
-	fpm -s dir -t deb -n "changes-client" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
+	fpm -s dir -t deb -n "changes-client" -v "`$(CHANGES_CLIENT_BIN) --version`" -C /tmp/changes-client-build \
 	    --depends "lxc-dev (=$(LXC_DEV_VERSION))" -m dev-tools@dropbox.com --provides changes-client \
 	    --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
 
@@ -34,10 +36,11 @@ nolxc:
 	@echo "Setting up temp build folder"
 	rm -rf /tmp/changes-client-build
 	mkdir -p /tmp/changes-client-build/usr/bin
-	cp $(BIN) /tmp/changes-client-build/usr/bin/changes-client
+	cp $(CHANGES_CLIENT_BIN) /tmp/changes-client-build/usr/bin/
+	cp $(BLACKLIST_REMOVE_BIN) /tmp/changes-client-build/usr/bin/
 
 	@echo "Creating nolxc .deb file"
-	fpm -s dir -t deb -n "changes-client-nolxc" -v "`$(BIN) --version`" -C /tmp/changes-client-build \
+	fpm -s dir -t deb -n "changes-client-nolxc" -v "`$(CHANGES_CLIENT_BIN) --version`" -C /tmp/changes-client-build \
 	    -m dev-tools@dropbox.com --provides changes-client \
 	    --description "A build client for Changes (without LXC support)" --url https://www.github.com/dropbox/changes-client .
 
