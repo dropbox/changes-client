@@ -36,6 +36,13 @@ var mountedBinaries = [...]string{"blacklist-remove"}
 
 const lockTimeout = 1 * time.Hour
 
+// How long to wait while polling for availability of network at container startup.
+// The default value in go-lxc.v2's WaitIPAddresses and reportedly in the Python API is
+// 1 second. Network is frequently quickly but not immediately available, so a value of 1s
+// means we nearly always wait 1s. For our purposes (many shards, launching container for every
+// shard, latency sensitive) we are better with a lower interval.
+const lxcNetworkPollInterval = 100 * time.Millisecond
+
 type Container struct {
 	Release        string
 	Arch           string
@@ -380,12 +387,26 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 
 	log.Print("[lxc] Waiting for container to startup networking")
 	beforeNetwork := time.Now()
-	if _, err := c.lxc.WaitIPAddresses(30 * time.Second); err != nil {
+	if _, err := waitIPAddresses(c.lxc, 30*time.Second); err != nil {
 		return err
 	}
 	log.Printf("[lxc] Networking up after %s", time.Since(beforeNetwork))
 
 	return nil
+}
+
+// Just like lxc.Container.WaitIPAddresses, but allows us to use  our own polling interval.
+func waitIPAddresses(container *lxc.Container, timeout time.Duration) ([]string, error) {
+	start := time.Now()
+	for {
+		if result, err := container.IPAddresses(); err == nil && len(result) > 0 {
+			return result, nil
+		}
+		time.Sleep(lxcNetworkPollInterval)
+		if time.Since(start) >= timeout {
+			return nil, lxc.ErrIPAddresses
+		}
+	}
 }
 
 // getConfigSetters returns the configSetters that should be applied to the container before starting.
