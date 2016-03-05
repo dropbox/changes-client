@@ -2,7 +2,7 @@
 
 export DEBIAN_FRONTEND=noninteractive
 
-GO_VERSION=1.3
+GO_VERSION=1.6
 
 sudo apt-get install -y python-software-properties software-properties-common
 sudo add-apt-repository -y ppa:awstools-dev/awstools
@@ -22,15 +22,16 @@ sudo apt-get install -y git mercurial pkg-config wget
 sudo apt-get install -y awscli
 
 # Install go
-if [ ! -x /usr/local/go/bin/go ]
+re=\\bgo$GO_VERSION\\b
+if [ -x /usr/local/go/bin/go ] && [[ `/usr/local/go/bin/go version` =~ $re ]]
 then
+  echo "Go binary already installed"
+else
   echo "Installing Go binary...."
   cd /tmp
   wget "http://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz"
   sudo tar -C /usr/local -xzf "go${GO_VERSION}.linux-amd64.tar.gz"
   echo "Installed Go binary...."
-else
-  echo "Go binary already installed"
 fi
 
 /usr/local/go/bin/go version
