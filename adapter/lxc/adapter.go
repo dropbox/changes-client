@@ -43,6 +43,10 @@ func (a *Adapter) Init(config *client.Config) error {
 		compression = "xz"
 		log.Printf("[lxc] Warning: invalid compression %s, defaulting to lzma", compression)
 	}
+	if executorName == "" {
+		// default executorName to process id if none is given
+		executorName = fmt.Sprintf("pid-%d", os.Getpid())
+	}
 	executor := &Executor{
 		Name:      executorName,
 		Directory: executorPath,
