@@ -536,6 +536,22 @@ func (c *Container) logResourceUsageStats() client.Metrics {
 		}
 	}
 
+	// Documentation for memory.failcnt at
+	// https://access.redhat.com/documentation/en-US/Red_Hat_Enterprise_Linux/6/html/Resource_Management_Guide/sec-memory.html
+	if memoryFailures := c.lxc.CgroupItem("memory.failcnt"); len(memoryFailures) == 0 {
+		log.Printf("[lxc] Failed to get memory failures")
+	} else {
+		log.Printf("[lxc] Max memory usage: %v bytes", memoryFailures[0])
+		if b, err := parseInt64(memoryFailures[0]); err != nil {
+			log.Printf("[lxc] Error parsing memory failures")
+		} else {
+			if b != 0 {
+				log.Printf("[lxc] Detected %d memory failures - failures may be caused by OOM kill", b)
+			}
+			metrics["memoryFailures"] = float64(b)
+		}
+	}
+
 	if maxUsageInBytes := c.lxc.CgroupItem("memory.max_usage_in_bytes"); len(maxUsageInBytes) == 0 {
 		log.Printf("[lxc] Failed to get max memory usage")
 	} else {
