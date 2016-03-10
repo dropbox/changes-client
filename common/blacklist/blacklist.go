@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"gopkg.in/yaml.v2"
 
@@ -51,6 +52,8 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 		return nil
 	}
 
+	walkStart := time.Now()
+	total := 0
 	var matches []string
 	visit := func(path string, f os.FileInfo, err error) error {
 		// error visiting this path
@@ -62,6 +65,7 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 		if err != nil {
 			return err
 		}
+		total++
 		for _, pattern := range blacklist {
 			if m, e := fnMatch(pattern, relpath); e != nil {
 				return e
@@ -76,6 +80,7 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 		return err
 	}
 
+	blacklistLog.Printf("Examined %v files in %s", total, time.Since(walkStart))
 	blacklistLog.Printf("Removing %d files", len(matches))
 	for _, match := range matches {
 		if fi, e := os.Stat(match); e != nil {
