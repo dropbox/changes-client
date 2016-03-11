@@ -27,24 +27,6 @@ all:
 	    --depends "lxc-dev (=$(LXC_DEV_VERSION))" -m dev-tools@dropbox.com --provides changes-client \
 	    --description "A build client for Changes" --url https://www.github.com/dropbox/changes-client .
 
-	@make nolxc
-
-nolxc:
-	@echo "Compiling changes-client"
-	TAGS=nolxc make install
-
-	@echo "Setting up temp build folder"
-	rm -rf /tmp/changes-client-build
-	mkdir -p /tmp/changes-client-build/usr/bin
-	cp $(CHANGES_CLIENT_BIN) /tmp/changes-client-build/usr/bin/
-	cp $(BLACKLIST_REMOVE_BIN) /tmp/changes-client-build/usr/bin/
-
-	@echo "Creating nolxc .deb file"
-	fpm -s dir -t deb -n "changes-client-nolxc" -v "`$(CHANGES_CLIENT_BIN) --version`" -C /tmp/changes-client-build \
-	    -m dev-tools@dropbox.com --provides changes-client \
-	    --description "A build client for Changes (without LXC support)" --url https://www.github.com/dropbox/changes-client .
-
-
 test:
 	@echo "==> Running tests"
 	sudo GOPATH=${GOPATH} `which go` test -v ./... -timeout=120s -race

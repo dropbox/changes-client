@@ -1,5 +1,4 @@
 // +build linux lxc
-// +build !nolxc
 
 package lxcadapter
 

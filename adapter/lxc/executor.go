@@ -1,5 +1,4 @@
 // +build linux lxc
-// +build !nolxc
 
 // Executor system, which assigns each container to a specific
 // "executor" which is essentially a single thread that runs jobs
