@@ -9,6 +9,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	"github.com/dropbox/changes-client/common/scopedlogger"
+	"strings"
 )
 
 type changesLocalConfig struct {
@@ -28,17 +29,38 @@ func parseYaml(filename string) (changesLocalConfig, error) {
 
 var blacklistLog = scopedlogger.ScopedLogger{Scope: "blacklist"}
 
+type blentry struct {
+	// The full blacklist pattern.
+	full string
+	// The prefix of the blacklist pattern containing no meta-characters.
+	plainPrefix string
+}
+
 type blacklistMatcher struct {
-	patterns []string
+	entries []blentry
 }
 
 func newMatcher(entries []string) blacklistMatcher {
-	return blacklistMatcher{entries}
+	blentries := make([]blentry, 0, len(entries))
+	for _, ent := range entries {
+		const metaChars = `*[?\`
+		plainEnd := strings.IndexAny(ent, metaChars)
+		if plainEnd == -1 {
+			plainEnd = len(ent)
+		}
+		blentries = append(blentries, blentry{plainPrefix: ent[:plainEnd], full: ent})
+	}
+	return blacklistMatcher{blentries}
 }
 
 func (blm blacklistMatcher) Match(relpath string) (bool, error) {
-	for _, pattern := range blm.patterns {
-		if m, e := fnMatch(pattern, relpath); e != nil || m {
+	for _, pattern := range blm.entries {
+		// Fast-path for the common case (/foo/bar/*); if there isn't
+		// a prefix match, fnMatch can't match.
+		if !strings.HasPrefix(relpath, pattern.plainPrefix) {
+			continue
+		}
+		if m, e := fnMatch(pattern.full, relpath); e != nil || m {
 			return m, e
 		}
 	}
