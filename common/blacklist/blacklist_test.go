@@ -173,6 +173,7 @@ func TestBlacklistNoYamlFile(t *testing.T) {
 }
 
 func BenchmarkMatch(b *testing.B) {
+	const matches = 4
 	files := []string{
 		"rlfiltr/bootstrap/foo.txt",
 		"go/src/fastcar/search/test.json",
@@ -181,15 +182,22 @@ func BenchmarkMatch(b *testing.B) {
 		"meatserver/meatserver/internal/dirty/olive.py",
 	}
 	for i := 0; i < b.N; i++ {
+		matchcount := 0
 		for _, fname := range files {
 			// This isn't exactly what the main matching loop does, but it is close enough to be
 			// useful for benchmarking.
 			for _, be := range bigPatternList {
-				if _, e := fnMatch(be, fname); e != nil {
+				if m, e := fnMatch(be, fname); e != nil {
 					panic(e)
+				} else if m {
+					matchcount++
 				}
 			}
 		}
+		if matchcount != matches {
+			b.Fatalf("Expected %v matches, got %v", matches, matchcount)
+		}
+
 	}
 }
 

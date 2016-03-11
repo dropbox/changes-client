@@ -71,6 +71,7 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 				return e
 			} else if m {
 				matches = append(matches, path)
+				break
 			}
 		}
 		return nil
