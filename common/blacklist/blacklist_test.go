@@ -181,23 +181,20 @@ func BenchmarkMatch(b *testing.B) {
 		"dpkg/install_me.deb",
 		"meatserver/meatserver/internal/dirty/olive.py",
 	}
+	matcher := newMatcher(bigPatternList)
+	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		matchcount := 0
 		for _, fname := range files {
-			// This isn't exactly what the main matching loop does, but it is close enough to be
-			// useful for benchmarking.
-			for _, be := range bigPatternList {
-				if m, e := fnMatch(be, fname); e != nil {
-					panic(e)
-				} else if m {
-					matchcount++
-				}
+			if m, e := matcher.Match(fname); e != nil {
+				panic(e)
+			} else if m {
+				matchcount++
 			}
 		}
 		if matchcount != matches {
 			b.Fatalf("Expected %v matches, got %v", matches, matchcount)
 		}
-
 	}
 }
 

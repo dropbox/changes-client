@@ -28,6 +28,23 @@ func parseYaml(filename string) (changesLocalConfig, error) {
 
 var blacklistLog = scopedlogger.ScopedLogger{Scope: "blacklist"}
 
+type blacklistMatcher struct {
+	patterns []string
+}
+
+func newMatcher(entries []string) blacklistMatcher {
+	return blacklistMatcher{entries}
+}
+
+func (blm blacklistMatcher) Match(relpath string) (bool, error) {
+	for _, pattern := range blm.patterns {
+		if m, e := fnMatch(pattern, relpath); e != nil || m {
+			return m, e
+		}
+	}
+	return false, nil
+}
+
 // RemoveBlacklistedFiles parses the given yaml file and removes any blacklisted files in the yaml file from rootDir
 func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 	if _, err := os.Stat(yamlFile); os.IsNotExist(err) {
@@ -46,12 +63,12 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 		return nil
 	}
 
-	blacklist := config.FileBlacklist
-	if len(blacklist) == 0 {
+	if len(config.FileBlacklist) == 0 {
 		blacklistLog.Printf("No blacklist entries.")
 		return nil
 	}
 
+	blmatcher := newMatcher(config.FileBlacklist)
 	walkStart := time.Now()
 	total := 0
 	var matches []string
@@ -66,13 +83,10 @@ func RemoveBlacklistedFiles(rootDir string, yamlFile string) error {
 			return err
 		}
 		total++
-		for _, pattern := range blacklist {
-			if m, e := fnMatch(pattern, relpath); e != nil {
-				return e
-			} else if m {
-				matches = append(matches, path)
-				break
-			}
+		if m, e := blmatcher.Match(relpath); e != nil {
+			return e
+		} else if m {
+			matches = append(matches, path)
 		}
 		return nil
 	}
