@@ -63,6 +63,7 @@ var (
 	selectedAdapterFlag  string
 	selectedReporterFlag string
 	outputSnapshotFlag   string
+	useExternalEnvFlag   bool
 )
 
 type Engine struct {
@@ -178,7 +179,13 @@ func (e *Engine) executeCommands() (Result, error) {
 
 		cmd.CaptureOutput = cmdConfig.CaptureOutput
 
-		env := os.Environ()
+		var env []string
+		// Some of our setups rely on external environment
+		// variables, in which case we pass through our
+		// entire environment to any commands we run.
+		if useExternalEnvFlag {
+			env = os.Environ()
+		}
 		for k, v := range cmdConfig.Env {
 			env = append(env, k+"="+v)
 		}
@@ -354,4 +361,5 @@ func init() {
 	flag.StringVar(&selectedAdapterFlag, "adapter", "basic", "Adapter to run build against")
 	flag.StringVar(&selectedReporterFlag, "reporter", "multireporter", "Reporter to send results to")
 	flag.StringVar(&outputSnapshotFlag, "save-snapshot", "", "Save the resulting container snapshot")
+	flag.BoolVar(&useExternalEnvFlag, "use-external-env", true, "Whether to pass through changes-client's external environment to the commands it runs")
 }
