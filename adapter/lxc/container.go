@@ -561,7 +561,6 @@ func (c *Container) logResourceUsageStats() client.Metrics {
 	if memoryFailures := c.lxc.CgroupItem("memory.failcnt"); len(memoryFailures) == 0 {
 		log.Printf("[lxc] Failed to get memory failures")
 	} else {
-		log.Printf("[lxc] Max memory usage: %v bytes", memoryFailures[0])
 		if b, err := parseInt64(memoryFailures[0]); err != nil {
 			log.Printf("[lxc] Error parsing memory failures")
 		} else {
