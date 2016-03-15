@@ -1,14 +1,16 @@
 package mesosreporter
 
 import (
+	"fmt"
 	"log"
-	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 
 	"github.com/dropbox/changes-client/client"
 	"github.com/dropbox/changes-client/client/adapter"
 	"github.com/dropbox/changes-client/client/reporter"
+	"github.com/dropbox/changes-client/common/sentry"
 )
 
 // A reporter that connects and reports to a specific jobstep id.
@@ -32,9 +34,10 @@ func (r *Reporter) PushJobstepStatus(status string, result string) {
 		form["result"] = result
 	}
 
-	hostname, err := os.Hostname()
-	if err == nil {
-		form["node"] = hostname
+	if out, err := exec.Command("/bin/hostname", "-f").Output(); err != nil {
+		sentry.Message(fmt.Sprintf("[reporter] Unable to detect hostname: %v", err), map[string]string{})
+	} else {
+		form["node"] = string(out)
 	}
 	r.PublishChannel <- reporter.ReportPayload{Path: r.JobstepAPIPath(), Data: form, Filename: ""}
 }
