@@ -5,8 +5,6 @@ package lxcadapter
 import (
 	"bytes"
 	"fmt"
-	"github.com/dropbox/changes-client/client"
-	"gopkg.in/lxc/go-lxc.v2"
 	"io"
 	"log"
 	"os"
@@ -14,6 +12,9 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/dropbox/changes-client/client"
+	"gopkg.in/lxc/go-lxc.v2"
 )
 
 type LxcCommand struct {
@@ -27,6 +28,22 @@ func NewLxcCommand(args []string, user string) *LxcCommand {
 	return &LxcCommand{
 		Args: args,
 		User: user,
+	}
+}
+
+func timedWait(fn func(), timeout time.Duration) error {
+	complete := make(chan bool)
+
+	go func() {
+		fn()
+		complete <- true
+	}()
+
+	select {
+	case <-time.After(timeout):
+		return fmt.Errorf("Timed out waiting running method: %v", fn)
+	case <-complete:
+		return nil
 	}
 }
 
@@ -79,10 +96,10 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 		env = append(env, cw.Env[i])
 	}
 
-	wg := sync.WaitGroup{}
-	wg.Add(1)
+	var clientLogClosed sync.WaitGroup
+	clientLogClosed.Add(1)
 	go func() {
-		defer wg.Done()
+		defer clientLogClosed.Done()
 		clientLog.WriteStream(reader)
 	}()
 
@@ -108,22 +125,25 @@ func (cw *LxcCommand) Run(captureOutput bool, clientLog *client.Log, container *
 	// Wait 10 seconds for the pipe to close. If it doesn't we give up on actually closing
 	// as a child process might be causing things to stick around.
 	// XXX: this logic is duplicated in client.CmdWrapper
-	timeLimit := time.After(10 * time.Second)
-	sem := make(chan struct{}) // lol struct{} is cheaper than bool
-	go func() {
-		cmdwriter.Close()
-		sem <- struct{}{}
-	}()
-
-	select {
-	case <-timeLimit:
+	if timedWait(func() {
+		if err := cmdwriter.Close(); err != nil {
+			clientLog.Printf("Error closing writer FD: %s", err)
+		}
+	}, 10*time.Second) != nil {
 		clientLog.Printf("Failed to close all file descriptors! Ignoring and moving on..")
-		break
-	case <-sem:
-		break
 	}
 
-	wg.Wait()
+	// If the container dup'd the file descriptors, closing cmdwriter doesn't close the stream.
+	// cmdreader (at the other end of the OS pipe) will only close when all duplicates of cmdwriter
+	// are closed.
+	//
+	// We've seen this hang happen just after phantomjs execution in the container - could just be a
+	// coincidence.
+	//
+	// To avoid hanging forever waiting for the reader to close, add a timeout to the waitgroup Wait().
+	if timedWait(clientLogClosed.Wait, 5*time.Second) != nil {
+		clientLog.Printf("Timed out waiting for waitGroup to complete")
+	}
 
 	clientLog.Printf("Command exited with status %d", exitCode)
 
