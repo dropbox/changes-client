@@ -831,6 +831,7 @@ func (c *Container) createImageMetadata(snapshotPath string, clientLog *client.L
 	defer f.Close()
 
 	f.WriteString("lxc.include = LXC_TEMPLATE_CONFIG/ubuntu.common.conf\n")
+	f.WriteString("lxc.include = LXC_TEMPLATE_CONFIG/nesting.conf\n")
 	f.WriteString("lxc.arch = x86_64\n")
 
 	return f.Chmod(0440)
