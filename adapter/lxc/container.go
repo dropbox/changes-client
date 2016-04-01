@@ -772,7 +772,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log, me
 
 	clientLog.Printf("==> Downloading image %s", snapshot)
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", remotePath, localPath}, "", []string{
+	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", remotePath, localPath}, "", []string{
 		"HOME=/root",
 	})
 
