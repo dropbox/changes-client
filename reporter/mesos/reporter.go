@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"os/exec"
-	"path/filepath"
 	"strconv"
 
 	"github.com/dropbox/changes-client/client"
@@ -77,42 +76,8 @@ func (r *Reporter) PushCommandOutput(cID string, status string, retCode int, out
 }
 
 func (r *Reporter) PublishArtifacts(cmd client.ConfigCmd, a adapter.Adapter, clientLog *client.Log) error {
-	if len(cmd.Artifacts) == 0 {
-		clientLog.Printf("==> Skipping artifact collection")
-		return nil
-	}
-
-	clientLog.Printf("==> Collecting artifacts matching %s", cmd.Artifacts)
-
-	matches, err := a.CollectArtifacts(cmd.Artifacts, clientLog)
-	if err != nil {
-		clientLog.Printf("==> ERROR: %s", err)
-		return err
-	}
-
-	for _, artifact := range matches {
-		clientLog.Printf("==> Found: %s", artifact)
-	}
-
-	return r.pushArtifacts(matches, a.GetArtifactRoot())
-}
-
-func (r *Reporter) pushArtifacts(artifacts []string, root string) error {
-	// TODO: PushArtifacts is synchronous due to races with Adapter.Shutdown(), but
-	// really what we'd want to do is just say "wait until channel empty, ok continue"
-	var firstError error
-	for _, artifact := range artifacts {
-		name := artifact
-		if relativePath, err := filepath.Rel(root, artifact); err == nil {
-			name = relativePath
-		}
-		e := r.SendPayload(reporter.ReportPayload{Path: r.JobstepAPIPath() + "artifacts/",
-			Data: map[string]string{"name": name}, Filename: artifact})
-		if e != nil && firstError == nil {
-			firstError = e
-		}
-	}
-	return firstError
+	// The artifactstore reporter should handle all artifact publishing, so this does nothing.
+	return nil
 }
 
 func New() reporter.Reporter {
