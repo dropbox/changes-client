@@ -41,6 +41,8 @@ type Reporter struct {
 	chunkedArtifacts map[string]*artifacts.ChunkedArtifact
 	disabled         atomicflag.AtomicFlag
 	deadline         time.Duration
+	// If unset, falls back to artifactServer.
+	serverURL string
 }
 
 func (r *Reporter) markDeadlineExceeded() {
@@ -52,14 +54,18 @@ func (r *Reporter) isDisabled() bool {
 }
 
 func (r *Reporter) Init(c *client.Config) {
+	server := r.serverURL
+	if server == "" {
+		server = artifactServer
+	}
 	r.runWithDeadline(r.deadline, func() {
-		if artifactServer == "" {
+		if server == "" {
 			log.Printf("[artifactstorereporter] No artifact server url provided. Disabling reporter.")
 			return
 		}
 
-		log.Printf("[artifactstorereporter] Setting up artifact store client: %s\n", artifactServer)
-		r.client = artifacts.NewArtifactStoreClient(artifactServer)
+		log.Printf("[artifactstorereporter] Setting up artifact store client: %s\n", server)
+		r.client = artifacts.NewArtifactStoreClient(server)
 
 		if len(artifactBucketId) == 0 {
 			artifactBucketId = c.JobstepID

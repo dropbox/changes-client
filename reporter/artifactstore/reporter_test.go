@@ -23,8 +23,8 @@ func TestInitTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
 
-	r := &Reporter{deadline: 100 * time.Millisecond}
-	artifactServer = ts.URL
+	r := &Reporter{deadline: 100 * time.Millisecond,
+		serverURL: ts.URL}
 	ts.ExpectAndHang("POST", "/buckets/")
 
 	r.Init(&client.Config{JobstepID: "jobstep"})
@@ -50,8 +50,8 @@ func TestPublishArtifactsTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
 
-	r := &Reporter{deadline: 100 * time.Millisecond}
-	artifactServer = ts.URL
+	r := &Reporter{deadline: 100 * time.Millisecond,
+		serverURL: ts.URL}
 	ts.ExpectAndRespond("POST", "/buckets/", 200, `{"Id": "jobstep"}`)
 
 	r.Init(&client.Config{JobstepID: "jobstep"})
@@ -89,8 +89,7 @@ func TestShutdownTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
 
-	r := &Reporter{deadline: 100 * time.Millisecond}
-	artifactServer = ts.URL
+	r := &Reporter{deadline: 100 * time.Millisecond, serverURL: ts.URL}
 	ts.ExpectAndRespond("POST", "/buckets/", 200, `{"Id": "jobstep"}`)
 
 	r.Init(&client.Config{JobstepID: "jobstep"})
@@ -109,8 +108,7 @@ func TestPushLogChunkTimeout(t *testing.T) {
 	ts := testserver.NewTestServer(t)
 	defer ts.CloseAndAssertExpectations()
 
-	r := &Reporter{deadline: 150 * time.Millisecond}
-	artifactServer = ts.URL
+	r := &Reporter{deadline: 150 * time.Millisecond, serverURL: ts.URL}
 	ts.ExpectAndRespond("POST", "/buckets/", 200, `{"Id": "jobstep"}`)
 
 	r.Init(&client.Config{JobstepID: "jobstep"})
