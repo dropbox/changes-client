@@ -21,7 +21,7 @@ type Reporter struct {
 }
 
 func (r *Reporter) Init(c *client.Config) {
-	r.dontPushLogChunks = c.GetDebugConfigBool("mesosDontPushLogChunks", false)
+	r.dontPushLogChunks = c.GetDebugConfigBool("mesosDontPushLogChunks", true)
 	r.DefaultReporter.Init(c)
 }
 
