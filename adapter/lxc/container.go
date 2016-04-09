@@ -772,7 +772,7 @@ func (c *Container) ensureImageCached(snapshot string, clientLog *client.Log, me
 
 	clientLog.Printf("==> Downloading image %s", snapshot)
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", remotePath, localPath}, "", []string{
+	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", remotePath, localPath}, "", []string{
 		"HOME=/root",
 	})
 
@@ -890,7 +890,7 @@ func (c *Container) UploadImage(snapshot string, clientLog *client.Log) error {
 
 	clientLog.Printf("==> Uploading image %s", snapshot)
 	// TODO(dcramer): verify env is passed correctly here
-	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", "--quiet", localPath, remotePath}, "", []string{})
+	cw := client.NewCmdWrapper([]string{"aws", "s3", "sync", localPath, remotePath}, "", []string{})
 
 	start := time.Now()
 	result, err := cw.Run(false, clientLog)
