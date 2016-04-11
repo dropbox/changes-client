@@ -56,9 +56,9 @@ func (um *UpstreamMonitor) WaitUntilAbort() error {
 			}
 		}
 
-		// vary sleep time by up to 5 seconds to avoid all shards sending
+		// vary sleep time by up to 10 seconds to avoid all shards sending
 		// heartbeats at the same time
-		time.Sleep(time.Duration(10+randGen.Intn(5)) * time.Second)
+		time.Sleep(time.Duration(20+randGen.Intn(10)) * time.Second)
 	}
 }
 
