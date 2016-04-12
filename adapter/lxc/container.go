@@ -540,6 +540,14 @@ func (c *Container) logResourceUsageStats() client.Metrics {
 		log.Printf("[lxc] Total disk IO: %s", usage)
 	}
 
+	if netstats, err := c.lxc.InterfaceStats(); err != nil {
+		log.Printf("[lxc] Failed to get interface stats: %s", err)
+	} else {
+		for iface, stats := range netstats {
+			log.Printf("[lxc] Interface %s: transmit=%s receive=%s", iface, stats["tx"], stats["rx"])
+		}
+	}
+
 	if total, err := c.lxc.CPUTime(); err != nil {
 		log.Printf("[lxc] Failed to get CPU time: %s", err)
 	} else {
