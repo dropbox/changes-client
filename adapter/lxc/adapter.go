@@ -165,7 +165,7 @@ func (a *Adapter) Shutdown(clientLog *client.Log) (client.Metrics, error) {
 	defer timer.Stop()
 	metrics := a.container.logResourceUsageStats()
 	if keepContainer || a.container.ShouldKeep() || shouldDebugKeep(clientLog, a.config) {
-		a.container.Executor.Deregister()
+		defer a.container.Executor.Deregister()
 
 		// Create a "named executor" which will never get cleaned
 		// up by changes-client but allows the outside environment
@@ -181,8 +181,7 @@ func (a *Adapter) Shutdown(clientLog *client.Log) (client.Metrics, error) {
 			Name:      a.container.Name,
 			Directory: a.container.Executor.Directory,
 		}
-		executor.Register(a.container.Name)
-		return metrics, nil
+		return metrics, executor.Register(a.container.Name)
 	}
 	if err := a.container.Destroy(); err != nil {
 		return metrics, err
@@ -212,6 +211,18 @@ func shouldDebugKeep(clientLog *client.Log, cfg *client.Config) bool {
 
 func (a *Adapter) CaptureSnapshot(outputSnapshot string, clientLog *client.Log) error {
 	outputSnapshot = adapter.FormatUUID(outputSnapshot)
+
+	// Ensure the new snapshot image is associated with an executor file while
+	// it is being created and uploaded so that we know it is being used.
+	executor := Executor{
+		Name:      a.container.Name + "-snapshot",
+		Directory: a.container.Executor.Directory,
+	}
+	executor.Clean()
+	if err := executor.Register(outputSnapshot); err != nil {
+		return err
+	}
+	defer executor.Deregister()
 
 	if err := a.container.CreateImage(outputSnapshot, clientLog); err != nil {
 		return err

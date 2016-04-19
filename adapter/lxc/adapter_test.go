@@ -3,7 +3,9 @@
 package lxcadapter
 
 import (
+	"io/ioutil"
 	"log"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -59,6 +61,11 @@ func TestLxcVersion(t *testing.T) {
 const containerName = "84e6165919c04514a330fe789f367007"
 
 func TestCompleteFlow(t *testing.T) {
+	executorTmpDir, err := ioutil.TempDir("/tmp", "adapter_test_executors")
+	executorPath = executorTmpDir
+	require.NoError(t, err)
+	defer os.RemoveAll(executorPath)
+
 	ensureContainerRemoved(t, containerName)
 
 	clientLog := client.NewLog()

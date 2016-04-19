@@ -8,6 +8,7 @@
 package lxcadapter
 
 import (
+	"fmt"
 	"gopkg.in/lxc/go-lxc.v2"
 	"io/ioutil"
 	"log"
@@ -95,9 +96,10 @@ func (e *Executor) Clean() {
 
 // Create an executor file, registering the current container with the current
 // executor.
-func (e *Executor) Register(containerName string) {
+func (e *Executor) Register(containerName string) error {
 	if e.Name == "" {
-		return
+		log.Printf("[lxc] Warning: Can't register a container without a name")
+		return fmt.Errorf("Can't register a container without a name.")
 	}
 
 	log.Printf("[lxc] Creating executor for %s with container %s",
@@ -105,7 +107,9 @@ func (e *Executor) Register(containerName string) {
 	err := ioutil.WriteFile(e.File(), []byte(containerName), 0644)
 	if err != nil {
 		log.Printf("[lxc] Warning: Couldn't create executor file")
+		return err
 	}
+	return nil
 }
 
 // By removing the executor we indicate that this run was cleanly finished

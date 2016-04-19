@@ -361,7 +361,9 @@ func (c *Container) launchContainer(clientLog *client.Log, metrics client.Metric
 	}
 	c.lxc.SetVerbosity(lxc.Quiet)
 
-	c.Executor.Register(c.Name)
+	if err := c.Executor.Register(c.Name); err != nil {
+		return err
+	}
 
 	if c.PreLaunch != "" {
 		log.Print("[lxc] Running pre-launch script")
