@@ -14,7 +14,7 @@ import (
 	"github.com/dropbox/changes-client/common/sentry"
 )
 
-const chunkSize = 4096
+const chunkSize = 40960
 
 // FileLog is an io.Writer that appends to a /tmp file and then periodically
 // tails these contents to a given reporter

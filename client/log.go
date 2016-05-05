@@ -11,7 +11,7 @@ import (
 )
 
 // After this many bytes are buffered, the buffered log data will be flushed.
-var byteFlushThreshold = flag.Int("log_chunk_size", 10240, "Size of log chunks to send to http server")
+var byteFlushThreshold = flag.Int("log_chunk_size", 40960, "Size of log chunks to send to http server")
 
 // After this much time has elapsed, buffered log data will be flushed.
 const timeFlushThreshold = 4 * time.Second
