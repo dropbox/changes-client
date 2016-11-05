@@ -60,7 +60,7 @@ func (t TaggedErr) Error() string {
 	if t.tags != nil {
 		var keys []string
 		m := make(map[string]string)
-		// We ignore all but the first occurance of a tag;
+		// We ignore all but the first occurrence of a tag;
 		// they are ordered from most to least recently tagged, and
 		// newer tags override older.
 		for tt := t.tags; tt != nil; tt = tt.next {

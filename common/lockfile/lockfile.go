@@ -155,7 +155,7 @@ func (l *Lockfile) TryLock() error {
 	return l.TryLock()
 }
 
-// Release a lock again. Returns any error that happend during release of lock.
+// Release a lock again. Returns any error that happened during release of lock.
 func (l *Lockfile) Unlock() error {
 	return os.Remove(l.Path)
 }
